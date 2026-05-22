@@ -1,0 +1,23 @@
+{
+  "name": "feehunt",
+  "version": "1.2.0",
+  "private": true,
+  "description": "FeeHunt website and licensing server",
+  "type": "module",
+  "scripts": {
+    "server": "node server/server.js",
+    "start": "node server/server.js",
+    "test:e2e": "node server/e2e-test.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.103.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.1",
+    "nodemailer": "^8.0.5",
+    "stripe": "^22.0.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

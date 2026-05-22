@@ -1,0 +1,10 @@
+{
+  "name": "FeeHunt",
+  "short_name": "FeeHunt",
+  "description": "Find forgotten subscriptions and billing risks in Gmail.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f4",
+  "theme_color": "#16664f",
+  "icons": []
+}

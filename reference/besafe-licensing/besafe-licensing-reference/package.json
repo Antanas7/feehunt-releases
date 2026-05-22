@@ -1,0 +1,83 @@
+{
+  "name": "besafe",
+  "version": "1.1.1",
+  "private": true,
+  "description": "BeSafe - Personal Finance Manager",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "server": "node server/server.js"
+  },
+  "build": {
+    "appId": "com.besafe.app",
+    "productName": "BeSafe",
+    "files": [
+      "electron/**/*",
+      "js/**/*",
+      "css/**/*",
+      "index.html",
+      "manifest.json"
+    ],
+    "extraResources": [
+      {
+        "from": "server/db/db.json",
+        "to": "db.json"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "signAndEditExecutable": false
+    },
+    "forceCodeSigning": false,
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "BeSafe-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "BeSafe-${version}-portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
+    "@supabase/supabase-js": "^2.103.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.1",
+    "nodemailer": "^8.0.5",
+    "stripe": "^22.0.1"
+  },
+  "keywords": [],
+  "author": {
+    "name": "BeSafe",
+    "url": "https://besafe.fyi"
+  },
+  "license": "UNLICENSED",
+  "homepage": "https://besafe.fyi",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lofotendreamss-rgb/besafe"
+  },
+  "bugs": {
+    "url": "https://github.com/lofotendreamss-rgb/besafe/issues"
+  },
+  "type": "commonjs",
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions",
+    "iOS >= 14",
+    "not dead",
+    "not IE 11"
+  ]
+}
