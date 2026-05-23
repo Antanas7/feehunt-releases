@@ -1,7 +1,8 @@
 import { json, requireSupabase, supabaseSelect } from "./_utils.js";
 
 export async function onRequestGet({ env }) {
-  const checks = { api: "ok", supabase: "unknown", email: env.RESEND_API_KEY ? "configured" : "missing" };
+  const emailConfigured = env.RESEND_API_KEY || env.SMTP_PASS;
+  const checks = { api: "ok", supabase: "unknown", email: emailConfigured ? "configured" : "missing" };
 
   if (!requireSupabase(env)) {
     checks.supabase = "missing";
