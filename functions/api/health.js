@@ -1,6 +1,7 @@
 import { requireSupabase, supabaseSelect } from "./_utils.js";
 
-export async function onRequestGet({ env }) {
+export async function onRequest(context) {
+  const { env } = context;
   const emailConfigured = env.RESEND_API_KEY || env.SMTP_PASS;
 
   if (!requireSupabase(env)) {
