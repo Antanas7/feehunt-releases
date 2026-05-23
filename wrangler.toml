@@ -3,3 +3,5 @@ pages_build_output_dir = "site"
 compatibility_date = "2026-05-19"
 [vars]
 SUPABASE_URL = "https://sduhtmtqnaehxdvwjeku.supabase.co"
+LICENSE_SECRET = "fhunt_prod_23rhCx3UIMUPGQC29zBLBw_1MAHuKPb"
+SUPABASE_ANON_KEY = "sb_publishable_Gcd4p4MmUcbrgwn6xLRObQ_XRaUo9LW"
