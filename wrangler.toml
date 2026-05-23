@@ -2,4 +2,4 @@ name = "feehunt"
 pages_build_output_dir = "site"
 compatibility_date = "2026-05-19"
 [vars]
-SUPABASE_URL "https://sduhtmtqnaehxdvwjeku.supabase.co"
+SUPABASE_URL = "https://sduhtmtqnaehxdvwjeku.supabase.co"
