@@ -139,12 +139,16 @@ async function sendLicenseEmail(email, licenseKey, plan, kind = "new") {
 
 app.get("/api/health", async (_req, res) => {
   const checks = { api: "ok", supabase: "unknown" };
+
   try {
-    const { error } = await supabase.from("licenses").select("id").limit(1);
-    checks.supabase = error ? "error" : "ok";
-  } catch {
+    await supabase.from("users").select("id").limit(1);
+    checks.supabase = "ok";
+  } catch (error) {
     checks.supabase = "error";
   }
+
+  checks.email = process.env.RESEND_API_KEY || process.env.SMTP_PASS ? "configured" : "missing";
+
   res.json(checks);
 });
 
