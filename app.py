@@ -1509,12 +1509,29 @@ def save_json_file(path: Path, data: Any) -> bool:
 
 
 def detect_system_language() -> str:
+    """Best-effort match of the user's Windows locale to a supported app
+    language. Python's locale.getlocale() can return either the short code
+    ('lt_LT', 'nb_NO') or the Windows English name ('Lithuanian_Lithuania',
+    'Norwegian Bokmål_Norway') depending on how Python was launched, so we
+    check for both shapes. Falls back to English when no supported match.
+    """
     try:
         language_code = (locale.getlocale()[0] or "").lower()
     except Exception:
         language_code = ""
-    if language_code.startswith("lt"):
-        return "lt"
+    # Prefix-based check against the short code form (lt_LT, nb_NO, es_ES,
+    # de_DE, fr_FR, en_US, etc.) plus the Windows English-name form.
+    matchers = (
+        ("lt", ("lt", "lietuv", "lithuan")),
+        ("no", ("nb", "nn", "no", "norweg", "norsk")),
+        ("es", ("es", "spanish", "espan", "castell")),
+        ("de", ("de", "german", "deutsch")),
+        ("fr", ("fr", "french", "franc")),
+        ("en", ("en", "english")),
+    )
+    for code, prefixes in matchers:
+        if any(language_code.startswith(p) for p in prefixes):
+            return code
     return "en"
 
 
