@@ -32,5 +32,8 @@ feehunt_license.json
 
 .wrangler/
 dist_hotfix/
+dist_rebuilt/
+build_hotfix/
+build_rebuilt/
 reference/
 .claude/
