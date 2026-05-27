@@ -193,6 +193,92 @@ Tada patikrink inbox:
 - turi ateiti welcome email,
 - email turi turėti `FHUNT-XXXX-XXXX-XXXX-XXXX` licencijos raktą.
 
+## 8.1 Trial Priminimai
+
+FeeHunt siuncia viena priminima likus mazdaug 3 dienoms iki bandomojo laikotarpio pabaigos. Taip vartotojas gauna laiku informacija, bet nejaucia spaudimo del daznu laisku.
+
+Cloudflare Pages aplinkoje pridek slapta kintamaji:
+
+```env
+FEEHUNT_CRON_SECRET=ilgas-atsitiktinis-slaptas-raktas
+```
+
+Tada karta per diena iskviesk:
+
+```text
+https://feehunt.pro/api/check-trials?secret=ilgas-atsitiktinis-slaptas-raktas
+```
+
+Saugiau naudoti HTTP header:
+
+```text
+x-feehunt-cron-secret: ilgas-atsitiktinis-slaptas-raktas
+```
+
+Priminimai siunciami per Resend ir yra dvikalbiai: anglu ir lietuviu kalbomis. Veliau galima prideti vartotojo pasirinkta kalba ir siusti tik viena kalba.
+
+## 8.2 Stripe Checkout
+
+FeeHunt naudoja Stripe Checkout prenumeratoms.
+
+Cloudflare Pages aplinkoje pridek:
+
+```env
+STRIPE_SECRET_KEY=sk_live_arba_sk_test_reiksme
+STRIPE_WEBHOOK_SECRET=whsec_reiksme_is_stripe_webhook
+```
+
+Webhook URL Stripe dashboard:
+
+```text
+https://feehunt.pro/api/stripe-webhook
+```
+
+Rekomenduojami webhook eventai:
+
+```text
+checkout.session.completed
+customer.subscription.deleted
+invoice.payment_failed
+invoice.paid
+```
+
+Checkout endpoint:
+
+```text
+POST https://feehunt.pro/api/create-checkout
+```
+
+Body:
+
+```json
+{ "plan": "basic" }
+```
+
+arba:
+
+```json
+{ "plan": "family" }
+```
+
+Stripe Billing Portal turi buti sukonfiguruotas pries public launch:
+
+```text
+Stripe Dashboard -> Settings -> Billing -> Customer portal
+```
+
+Ten ijunk prenumeratos valdymo ir atsaukimo galimybes. FeeHunt portal endpoint:
+
+```text
+POST https://feehunt.pro/api/create-portal-session
+```
+
+Body:
+
+```json
+{ "license_key": "FHUNT-XXXX-XXXX-XXXX-XXXX" }
+```
+
 ## 9. FeeHunt Desktop Testas
 
 Jei testuoji lokaliai:

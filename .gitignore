@@ -33,3 +33,4 @@ feehunt_license.json
 .wrangler/
 dist_hotfix/
 reference/
+.claude/

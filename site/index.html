@@ -1,15 +1,81 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FeeHunt | Find Forgotten Subscriptions</title>
-  <meta name="description" content="Find forgotten subscriptions, save money, and protect your inbox with FeeHunt.">
-  <link rel="stylesheet" href="styles.css">
+  <title>FeeHunt | Hidden Subscription Finder and Gmail Inbox Cleaner</title>
+  <meta name="description" content="Find hidden subscriptions, recurring payments, payment control alerts, promotional emails, and phishing signals in Gmail with privacy-first local analysis.">
+  <link rel="canonical" href="https://feehunt.pro/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="FeeHunt">
+  <meta property="og:title" content="FeeHunt | Hidden Subscription Finder and Gmail Inbox Cleaner">
+  <meta property="og:description" content="Detect hidden subscriptions, recurring payments, Gmail clutter, payment control alerts, and phishing email signals with privacy-first local analysis.">
+  <meta property="og:url" content="https://feehunt.pro/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="FeeHunt | Hidden Subscription Finder and Gmail Inbox Cleaner">
+  <meta name="twitter:description" content="Find forgotten subscriptions, recurring payments, promotional email clutter, and payment control items in Gmail without giving up local control.">
+  <link rel="stylesheet" href="styles.css?v=20260526-i18n-consolidated">
   <link rel="manifest" href="/manifest.json">
   <meta name="google-site-verification" content="xFRB71tIB2oUctJVFTlfwQf7JMGiKQjmBn20nQ8p_nA" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "FeeHunt",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Windows",
+    "url": "https://feehunt.pro/",
+    "description": "FeeHunt helps users detect hidden subscriptions, recurring payments, Gmail cleanup opportunities, payment control alerts, and phishing email signals with privacy-first local analysis.",
+    "offers": [
+      {
+        "@type": "Offer",
+        "name": "Basic",
+        "price": "5.90",
+        "priceCurrency": "EUR"
+      },
+      {
+        "@type": "Offer",
+        "name": "Family",
+        "price": "9.90",
+        "priceCurrency": "EUR"
+      }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Can FeeHunt find hidden subscriptions in Gmail?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "FeeHunt scans Gmail signals for subscriptions, renewals, invoices, trial reminders, and recurring payment emails so users can review hidden or forgotten subscriptions."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does FeeHunt help clean up Gmail?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "FeeHunt helps review promotional emails, newsletters, shop messages, and inbox clutter before any Gmail-changing action is taken."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Are email scans private?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "FeeHunt is designed around privacy-first local analysis. Gmail review happens on the user's computer, and FeeHunt asks before actions that change Gmail."
+        }
+      }
+    ]
+  }
+  </script>
 </head>
-<body>
+<body data-page="home">
   <header class="site-header">
     <nav class="nav" aria-label="Primary navigation">
       <a class="brand" href="index.html"><span class="brand-mark">F</span><span>FeeHunt</span></a>
@@ -26,7 +92,7 @@
       </div>
       <div class="nav-actions">
         <div class="language-menu">
-          <button class="language-toggle" type="button" aria-expanded="false">🌐 English <span>▼</span></button>
+          <button class="language-toggle" type="button" aria-expanded="false" aria-label="Switch language">🌐 English <span>▼</span></button>
           <div class="language-dropdown" role="menu">
             <button type="button" data-language="en">English</button>
             <button type="button" data-language="lt">Lietuvių</button>
@@ -42,18 +108,121 @@
       <div class="hero-inner">
         <div class="hero-copy">
           <p class="eyebrow">Privacy-first subscription control</p>
-          <h1>Find Forgotten Subscriptions, Save Money, and Protect Your Inbox.</h1>
-          <p class="lead">FeeHunt helps you detect subscriptions, financial risks, promotional clutter, and future phishing threats — privately and locally on your computer.</p>
+          <h1>Find Hidden Subscriptions, Recurring Payments, and Gmail Clutter.</h1>
+          <p class="lead">FeeHunt helps you detect forgotten subscriptions, recurring payment control emails, promotional inbox clutter, and phishing email signals - privately and locally on your computer.</p>
           <div class="hero-actions">
             <a class="button primary" href="signup.html">Start Free Trial</a>
             <a class="button secondary" href="download.html">Download Beta</a>
           </div>
-          <p class="product-principle">FeeHunt works for you. You stay in control.</p>
+          <p class="product-principle notice trust">FeeHunt works for you. You stay in control.</p>
           <div class="trust-row" aria-label="Trust badges">
-            <span class="badge badge-trial">14-Day Free Trial</span>
-            <span class="badge badge-control">Cancel Anytime</span>
-            <span class="badge badge-private">Privacy-First</span>
-            <span class="badge badge-local">Works Locally</span>
+            <span class="badge badge-private"><strong>100% Private</strong><small>Local processing</small></span>
+            <span class="badge badge-local"><strong>Your Data Stays You</strong><small>On your device</small></span>
+            <span class="badge badge-control"><strong>Privacy-First</strong><small>No data collected</small></span>
+          </div>
+          <p class="hero-social-proof">Join 1,000+ users taking control of Gmail and finances.</p>
+        </div>
+        <div class="hero-scanner" aria-label="Animated FeeHunt Gmail radar scanning preview">
+          <div class="radar-scene">
+            <span class="scene-globe" aria-hidden="true"></span>
+            <span class="scene-orbit orbit-one" aria-hidden="true"></span>
+            <span class="scene-orbit orbit-two" aria-hidden="true"></span>
+            <span class="scene-orbit orbit-three" aria-hidden="true"></span>
+            <span class="scene-node node-one" aria-hidden="true"></span>
+            <span class="scene-node node-two" aria-hidden="true"></span>
+            <span class="scene-node node-three" aria-hidden="true"></span>
+            <span class="scene-node node-four" aria-hidden="true"></span>
+            <div class="radar" aria-hidden="true">
+              <span class="radar-glass"></span>
+              <span class="radar-ring ring-one"></span>
+              <span class="radar-ring ring-two"></span>
+              <span class="radar-ring ring-three"></span>
+              <span class="radar-ring ring-four"></span>
+              <span class="radar-cross horizontal"></span>
+              <span class="radar-cross vertical"></span>
+              <span class="radar-sweep"></span>
+              <span class="radar-core"></span>
+              <span class="radar-envelope env-ok env-pos-1">
+                <svg viewBox="0 0 28 20" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="26" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M2 3 L14 12 L26 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                  <path d="M19 14 l2.4 2.4 L25.6 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="radar-envelope env-warn env-pos-2">
+                <svg viewBox="0 0 28 20" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="26" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M2 3 L14 12 L26 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                  <path d="M22.5 9 L22.5 13 M22.5 15.2 L22.5 15.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <span class="radar-envelope env-risk env-pos-3">
+                <svg viewBox="0 0 28 20" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="26" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M2 3 L14 12 L26 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                  <path d="M22.5 8 L22.5 13 M22.5 15.2 L22.5 15.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <span class="radar-envelope env-ok env-pos-4">
+                <svg viewBox="0 0 28 20" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="26" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M2 3 L14 12 L26 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                  <path d="M19 14 l2.4 2.4 L25.6 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="radar-envelope env-warn env-pos-5">
+                <svg viewBox="0 0 28 20" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="26" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M2 3 L14 12 L26 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                  <path d="M22.5 9 L22.5 13 M22.5 15.2 L22.5 15.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                </svg>
+              </span>
+            </div>
+            <span class="radar-ping ping-one"></span>
+            <span class="radar-ping ping-two"></span>
+            <span class="radar-ping ping-three"></span>
+            <article class="hero-scan-card card-subscription" data-detect-card>
+              <span class="scan-dot"></span>
+              <div>
+                <strong>Recurring subscription detected</strong>
+                <span>Renewal and billing signals found</span>
+              </div>
+            </article>
+            <article class="hero-scan-card card-payment" data-detect-card>
+              <span class="scan-dot"></span>
+              <div>
+                <strong>Payment issue detected</strong>
+                <span>Failed charge or card update email</span>
+              </div>
+            </article>
+            <article class="hero-scan-card card-risk" data-detect-card>
+              <span class="scan-dot"></span>
+              <div>
+                <strong>Suspicious billing email</strong>
+                <span>Review before clicking any link</span>
+              </div>
+            </article>
+            <article class="hero-scan-card card-promo" data-detect-card>
+              <span class="scan-dot"></span>
+              <div>
+                <strong>Promotional clutter</strong>
+                <span>Newsletter and shop messages grouped</span>
+              </div>
+            </article>
+          </div>
+        </div>
+        <div class="hero-security-strip" aria-label="FeeHunt trust summary">
+          <div>
+            <span class="security-icon"></span>
+            <p><strong>Bank-level security</strong><small>Local and encrypted</small></p>
+          </div>
+          <div>
+            <span class="security-icon lock"></span>
+            <p><strong>No servers. No tracking.</strong><small>You stay in control.</small></p>
+          </div>
+          <div>
+            <span class="security-icon star"></span>
+            <p><strong>Calm Gmail protection</strong><small>Signals before surprises</small></p>
           </div>
         </div>
       </div>
@@ -63,8 +232,9 @@
       <div class="container">
         <div class="section-heading">
           <p class="eyebrow">Why FeeHunt</p>
-          <h2>Subscriptions are easy to start and easy to forget.</h2>
-          <p class="lead">Payment warnings hide between newsletters, promotions, receipts, and routine notifications. FeeHunt helps you review what matters, reduce email noise, and stay ahead of unwanted charges.</p>
+          <h2>Hidden subscriptions and payment warnings are easy to miss.</h2>
+          <p class="lead">Recurring payments, trial renewals, failed payment warnings, receipts, and unsubscribe links often hide between newsletters and promotions. FeeHunt helps you review what matters, reduce Gmail noise, and stay ahead of unwanted charges.</p>
+          <div class="notice trust">FeeHunt reviews signals locally on your computer and asks before Gmail-changing actions.</div>
         </div>
         <div class="product-visual" aria-label="FeeHunt dashboard preview">
           <div class="visual-toolbar">
@@ -73,7 +243,7 @@
           </div>
           <div class="visual-row">
             <div><strong>Subscription access paused</strong><span>Payment issue detected from a billing email</span></div>
-            <span class="status">Financial risk</span>
+            <span class="status">Payment control</span>
           </div>
           <div class="visual-row">
             <div><strong>Newsletter and promotion cleanup</strong><span>Review senders before archive or delete actions</span></div>
@@ -94,11 +264,11 @@
           <h2>Built for subscription clarity and inbox control.</h2>
         </div>
         <div class="grid features">
-          <article class="card"><h3>Subscription Detection</h3><p>Identify recurring payments, renewals, invoices, trials, and billing messages.</p></article>
-          <article class="card"><h3>Financial Risk Alerts</h3><p>Highlight failed payments, declined cards, overdue invoices, and suspended accounts.</p></article>
-          <article class="card"><h3>One-Click Cancel Subscription</h3><p>Open the best available unsubscribe, billing, account, or cancellation page.</p></article>
-          <article class="card"><h3>Inbox Cleanup</h3><p>Review promotional emails, newsletters, and shop messages with practical actions.</p></article>
-          <article class="card"><h3>Security Shield</h3><p>Future versions will help detect phishing and scam patterns in your inbox.</p></article>
+          <article class="card"><h3>Hidden Subscription Detection</h3><p>Identify recurring payments, renewals, invoices, trials, and billing messages that are easy to overlook.</p></article>
+          <article class="card"><h3>Payment Control Alerts</h3><p>Highlight failed payments, declined cards, overdue invoices, account pauses, and suspended subscription warnings.</p></article>
+          <article class="card"><h3>Unsubscribe and Cancel Tools</h3><p>Open the best available unsubscribe, billing, account, or cancellation page without changing Gmail automatically.</p></article>
+          <article class="card"><h3>Gmail Cleanup and Inbox Cleaner</h3><p>Review promotional emails, newsletters, shop messages, and inbox clutter with practical cleanup actions.</p></article>
+          <article class="card"><h3>Phishing Email Detection Signals</h3><p>Future versions will help flag suspicious billing, login, and phishing-style email patterns in your inbox.</p></article>
         </div>
       </div>
     </section>
@@ -115,15 +285,48 @@
             <div class="price">€5.90<span style="font-size:1rem;font-weight:700;">/month</span></div>
             <p>For one Gmail account.</p>
             <ul class="list"><li>1 Gmail account</li><li>1 license key</li><li>14-day free trial</li><li>Cancel anytime</li></ul>
+            <p class="plan-action"><a class="button primary" href="signup.html?plan=basic" data-checkout-plan="basic">Choose Basic</a></p>
           </article>
           <article class="card">
             <h3>Family</h3>
             <div class="price">€9.90<span style="font-size:1rem;font-weight:700;">/month</span></div>
             <p>For up to three Gmail accounts.</p>
             <ul class="list"><li>Up to 3 Gmail accounts</li><li>1 license key</li><li>14-day free trial</li><li>Cancel anytime</li></ul>
+            <p class="plan-action"><a class="button primary" href="signup.html?plan=family" data-checkout-plan="family">Choose Family</a></p>
           </article>
         </div>
-        <p class="lead" style="margin-top:24px;">No hidden fees. Cancel anytime with one click.</p>
+        <div class="notice trust" style="margin-top:24px;">No hidden fees. Cancel anytime with one click.</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">FAQ</p>
+          <h2>Questions about hidden subscriptions and Gmail cleanup.</h2>
+        </div>
+        <div class="faq-list">
+          <article class="faq-item">
+            <h3>Can FeeHunt find hidden subscriptions in Gmail?</h3>
+            <p>FeeHunt looks for subscription emails, renewal notices, invoices, trial reminders, and recurring payment signals so you can review forgotten services before they cost you more.</p>
+          </article>
+          <article class="faq-item">
+            <h3>Does FeeHunt work as a Gmail cleanup tool?</h3>
+            <p>Yes. FeeHunt helps you review newsletters, promotional emails, shop messages, and other inbox clutter. It keeps Gmail-changing actions under your control.</p>
+          </article>
+          <article class="faq-item">
+            <h3>Can FeeHunt warn about financial risk emails?</h3>
+            <p>FeeHunt highlights failed payment messages, overdue invoices, declined card notices, paused subscriptions, and other billing emails that may need attention.</p>
+          </article>
+          <article class="faq-item">
+            <h3>Is FeeHunt private?</h3>
+            <p>FeeHunt is designed for privacy-first local analysis. Gmail review happens on your computer, and FeeHunt asks before actions that archive, delete, or change messages.</p>
+          </article>
+          <article class="faq-item">
+            <h3>Does FeeHunt detect phishing emails?</h3>
+            <p>FeeHunt focuses on subscription and billing signals today. Security-oriented detection for suspicious payment, login, and phishing-style emails is part of the product direction.</p>
+          </article>
+        </div>
       </div>
     </section>
 
@@ -151,6 +354,7 @@
       </div>
     </div>
   </footer>
-  <script src="script.js"></script>
+  <script src="script.js?v=20260526-i18n-consolidated"></script>
+  <script src="i18n.js?v=20260526-i18n-consolidated"></script>
 </body>
 </html>
