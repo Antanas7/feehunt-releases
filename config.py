@@ -221,45 +221,119 @@ DEFAULT_RULES = {
 
 KEYWORDS = {
     "subscription": [
+        # English
         "subscription", "billing", "payment", "invoice", "renewal",
         "charged", "charge", "trial", "plan", "membership",
-        "recurring payment", "auto-renew", "auto renewal",
-        "failed payment", "payment failed", "payment failed to process",
-        "failed to process", "card declined", "insufficient funds",
-        "insufficient funds on card", "past due", "overdue", "receipt", "statement",
-        "prenumerata", "prenumeratos", "mokėjimas", "mokejimas",
-        "sąskaita", "saskaita", "atnaujinimas",
-        "nepavyko apmokėti", "kortelė atmesta", "kortele atmesta",
-        "vėluojantis mokėjimas", "veluojantis mokejimas",
-    ],
-    "promotional": [
-        "sale", "discount", "offer", "limited time", "deal",
-        "promotion", "promo", "coupon", "save", "black friday",
-        "cyber monday", "special offer", "newsletter", "unsubscribe",
-        "marketing", "exclusive deal", "clearance",
-        "reklama", "nuolaida", "pasiūlymas", "pasiulymas",
-        "akcija", "išpardavimas", "ispardavimas",
-        "naujienlaiškis", "atsisakyti prenumeratos",
-    ],
-    "shops": [
-        "amazon", "ebay", "aliexpress", "etsy", "shopify",
-        "your order", "order confirmation", "shipping confirmation",
-        "your package", "delivery", "track your order",
-        "jūsų užsakymas", "užsakymo patvirtinimas", "pristatymas",
-    ],
-    "newsletters": [
-        "newsletter", "unsubscribe", "manage preferences",
-        "email preferences", "you are receiving this",
-        "naujienlaiškis", "atsisakyti", "prenumeruoti",
-        "weekly digest", "monthly update", "roundup",
-    ],
-    "financial_risks": [
+        "recurring payment", "auto-renew", "auto renewal", "auto-renews",
+        "renews on", "renews soon", "your plan", "monthly plan", "annual plan",
+        "next billing", "billing cycle", "receipt", "statement",
+        "thank you for subscribing", "your subscription",
+        # Failure signals (also flagged as financial_risks)
         "failed payment", "payment failed", "payment failed to process",
         "failed to process", "card declined", "insufficient funds",
         "insufficient funds on card", "past due", "overdue",
-        "account suspended", "payment required", "action required",
-        "nepavyko apmokėti", "kortelė atmesta", "kortele atmesta",
-        "vėluojantis mokėjimas", "paskyra sustabdyta",
+        # Lithuanian
+        "prenumerata", "prenumeratos", "prenumeratą", "prenumeratos atnaujinimas",
+        "mokėjimas", "mokejimas", "sąskaita", "saskaita", "atnaujinimas",
+        "narystė", "naryste", "metinis planas", "mėnesinis planas", "menesinis planas",
+        "nepavyko apmokėti", "nepavyko apmoketi",
+        "kortelė atmesta", "kortele atmesta",
+        "vėluojantis mokėjimas", "veluojantis mokejimas",
+        "kvitas",
+    ],
+    "promotional": [
+        # English - sales/discount
+        "sale", "discount", "offer", "limited time", "limited offer",
+        "deal", "deals", "promotion", "promo", "coupon", "coupon code",
+        "save", "save up to", "black friday", "cyber monday",
+        "special offer", "exclusive deal", "exclusive offer", "members only",
+        "clearance", "buy 1 get", "buy one get", "free shipping",
+        # English - lifestyle marketing patterns
+        "shop now", "shop the", "shop our", "new arrivals", "new in",
+        "back in stock", "best price", "for you", "you deserve",
+        "your weekly", "weekly picks", "trending", "treat yourself",
+        "view in browser", "view online", "view this email", "view email",
+        "weekly briefing", "weekly digest", "weekly newsletter",
+        "the frontier", "live weekly", "join us", "polly wants",
+        "make a", "obsessed", "inspo", "for your inbox",
+        # CTA hints often seen in marketing
+        "browse the", "shop the look", "shop this", "see more", "see all",
+        "explore the", "explore our",
+        # Newsletter wrappers
+        "newsletter", "unsubscribe", "marketing", "preferences",
+        # Lithuanian
+        "reklama", "reklaminis", "nuolaida", "nuolaidos",
+        "pasiūlymas", "pasiulymas", "pasiulymai", "pasiūlymai",
+        "akcija", "akcijos", "išpardavimas", "ispardavimas", "išparduotuvė",
+        "naujienlaiškis", "naujienlaiskis", "atsisakyti prenumeratos",
+        "specialus pasiūlymas", "specialus pasiulymas",
+        "tik šiandien", "tik siandien", "išskirtinis", "isskirtinis",
+        "nemokamas pristatymas", "naujausi", "populiariausi",
+        "tau", "tavo", "perziurėk", "perziureti narsykleje",
+    ],
+    "shops": [
+        # English - storefronts
+        "amazon", "ebay", "aliexpress", "etsy", "shopify",
+        "wayfair", "ikea", "asos", "zalando", "temu", "shein",
+        # English - order lifecycle
+        "your order", "order confirmation", "order shipped",
+        "order delivered", "shipping confirmation", "your package",
+        "your shipment", "out for delivery", "delivery confirmation",
+        "track your order", "tracking number", "your cart",
+        "items in your cart", "left in your cart", "complete your purchase",
+        "wishlist", "back in stock alert",
+        # Norwegian (user inbox has Tonerweb, Starlink emails)
+        "din bestilling", "ordrebekreftelse", "bestillingen er bekreftet",
+        "leveranse", "pakke", "sporing",
+        # Lithuanian
+        "jūsų užsakymas", "jusu uzsakymas", "užsakymas",
+        "užsakymo patvirtinimas", "uzsakymo patvirtinimas",
+        "pristatymas", "siunta", "krepšelis", "krepselis",
+        "prekė", "preke", "parduotuvė", "parduotuve",
+    ],
+    "newsletters": [
+        # English
+        "newsletter", "unsubscribe", "manage preferences", "manage your preferences",
+        "email preferences", "update your preferences",
+        "you are receiving this", "you're receiving this", "youre receiving this",
+        "you received this", "this email was sent",
+        "weekly digest", "monthly update", "monthly newsletter",
+        "weekly briefing", "weekly roundup", "monthly roundup", "roundup",
+        "today's headlines", "the leaderboard", "this week", "this month in",
+        "the daily", "daily digest", "daily newsletter",
+        # Lithuanian
+        "naujienlaiškis", "naujienlaiskis", "atsisakyti",
+        "prenumeruoti", "valdyti prenumerata", "valdyti prenumeratą",
+        "savaitės naujienos", "savaites naujienos", "mėnesio apžvalga",
+        "kassavaitinis", "kasdieninis",
+    ],
+    "financial_risks": [
+        # English - failed payments
+        "failed payment", "payment failed", "payment failed to process",
+        "failed to process", "card declined", "insufficient funds",
+        "insufficient funds on card", "past due", "overdue",
+        "account suspended", "subscription paused",
+        "payment required", "payment method needs", "update your payment",
+        # English - account/identity verification (phishing-adjacent)
+        "action required", "verify your identity", "verify your account",
+        "confirm your identity", "confirm your account",
+        "biometric verification", "set up biometric",
+        "security alert", "unusual sign-in", "suspicious sign-in",
+        "suspicious activity", "unauthorized access", "unauthorized sign",
+        "account locked", "your account has been locked",
+        "regulatory compliance", "kyc verification", "identity verification",
+        "click here to verify", "verify now", "verification required",
+        # Lithuanian
+        "nepavyko apmokėti", "nepavyko apmoketi",
+        "kortelė atmesta", "kortele atmesta",
+        "vėluojantis mokėjimas", "veluojantis mokejimas",
+        "paskyra sustabdyta", "paskyra užblokuota", "paskyra uzblokuota",
+        "patvirtinkite tapatybę", "patvirtinkite tapatybe",
+        "patvirtinkite paskyrą", "patvirtinkite paskyra",
+        "tapatybės patikrinimas", "tapatybes patikrinimas",
+        "saugumo įspėjimas", "saugumo ispejimas",
+        "įtartina veikla", "itartina veikla",
+        "neatidėliotinas veiksmas", "neatideliotinas veiksmas",
     ],
 }
 
@@ -273,20 +347,31 @@ HIGH_CONFIDENCE_SUBSCRIPTION_KEYWORDS = [
 ]
 
 HIGH_CONFIDENCE_PROMOTIONAL_KEYWORDS = [
-    "black friday", "cyber monday", "special offer",
-    "exclusive deal", "limited time", "newsletter", "naujienlaiškis",
+    "black friday", "cyber monday", "special offer", "exclusive offer",
+    "exclusive deal", "limited time", "limited offer", "newsletter",
+    "view in browser", "view online", "shop now", "shop the",
+    "weekly briefing", "view this email", "you deserve",
+    "treat yourself", "back in stock", "new arrivals",
+    "naujienlaiškis", "specialus pasiūlymas",
 ]
 
 HIGH_CONFIDENCE_SHOP_KEYWORDS = [
-    "order confirmation", "shipping confirmation",
-    "track your order", "your package", "užsakymo patvirtinimas",
+    "order confirmation", "shipping confirmation", "tracking number",
+    "track your order", "your package", "your shipment",
+    "out for delivery", "ordrebekreftelse", "ordren er bekreftet",
+    "din ordre", "din bestilling", "užsakymo patvirtinimas",
 ]
 
 HIGH_CONFIDENCE_FINANCIAL_KEYWORDS = [
     "failed payment", "payment failed", "payment failed to process",
     "failed to process", "card declined", "insufficient funds",
     "insufficient funds on card", "past due", "overdue", "account suspended",
+    "action required", "verify your identity", "verify your account",
+    "biometric verification", "security alert", "suspicious activity",
+    "unauthorized access", "account locked", "regulatory compliance",
+    "kyc verification",
     "nepavyko apmokėti", "kortelė atmesta", "paskyra sustabdyta",
+    "patvirtinkite tapatybę", "saugumo įspėjimas", "įtartina veikla",
 ]
 
 

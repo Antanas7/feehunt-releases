@@ -91,29 +91,63 @@ SUBSCRIPTION_SIGNAL_KEYWORDS = [
     "subscription was canceled", "subscription has been paused",
     "recurring payment", "auto-renew", "auto renewal", "renewal",
     "billing account", "invoice", "membership",
-    "prenumerata", "prenumeratos", "atnaujinimas",
+    "your subscription", "your plan", "the next charge",
+    "next billing", "next payment", "thanks for subscribing",
+    "thank you for subscribing", "monthly plan", "annual plan",
+    "prenumerata", "prenumeratos", "atnaujinimas", "jūsų prenumerata",
+    "narystė", "metinis planas", "mėnesinis planas",
 ]
 
 SUBSCRIPTION_LIFECYCLE_KEYWORDS = [
+    # Strong "this is a real subscription event" signals — these flip the
+    # NON_RISK_RECEIPT short-circuit so transactional Pro-plan / Welcome /
+    # subscription-started emails still get categorized.
     "subscription access", "subscription renews", "renews soon",
     "subscription was canceled", "subscription has been paused",
     "recurring payment", "auto-renew", "auto renewal", "renewal",
+    "your subscription", "the next charge", "next billing",
+    "next payment", "starting your", "your plan", "pro plan",
+    "annual plan", "monthly plan", "thanks for subscribing",
+    "thank you for subscribing", "subscription started",
     "prenumerata", "prenumeratos", "atnaujinimas",
+    "jūsų prenumerata", "kitas mokėjimas",
 ]
 
 SUBSCRIPTION_SOFT_KEYWORDS = [
-    "invoice", "billing account", "membership",
+    "invoice", "billing account", "membership", "payment method",
 ]
 
 FINANCIAL_RISK_SIGNAL_KEYWORDS = [
+    # Failed payment / overdue / suspended account
     "failed payment", "payment failed", "payment failed to process",
     "failed to process", "card declined", "insufficient funds",
     "insufficient funds on card", "past due", "overdue",
     "account suspended", "payment required", "invalid payment",
     "payment was unsuccessful", "was unsuccessful",
-    "subscription access has been paused",
+    "subscription access has been paused", "subscription paused",
+    "update your payment", "payment method needs",
+    # Identity / phishing-adjacent signals (Bybit "Action required" /
+    # Stripe "verification link" type patterns)
+    "action required", "verify your identity", "verify your account",
+    "confirm your identity", "confirm your account",
+    "biometric verification", "set up biometric",
+    "security alert", "unusual sign-in", "suspicious sign-in",
+    "suspicious activity", "unauthorized access", "unauthorized sign",
+    "account locked", "your account has been locked",
+    "regulatory compliance", "kyc verification", "identity verification",
+    "click here to verify", "verify now", "verification required",
+    "verification link",
+    # Lithuanian
     "nepavyko apmokėti", "nepavyko apmoketi",
-    "kortelė atmesta", "kortele atmesta", "paskyra sustabdyta",
+    "kortelė atmesta", "kortele atmesta",
+    "vėluojantis mokėjimas", "veluojantis mokejimas",
+    "paskyra sustabdyta", "paskyra užblokuota", "paskyra uzblokuota",
+    "patvirtinkite tapatybę", "patvirtinkite tapatybe",
+    "patvirtinkite paskyrą", "patvirtinkite paskyra",
+    "tapatybės patikrinimas", "tapatybes patikrinimas",
+    "saugumo įspėjimas", "saugumo ispejimas",
+    "įtartina veikla", "itartina veikla",
+    "neatidėliotinas veiksmas", "neatideliotinas veiksmas",
 ]
 
 NON_RISK_RECEIPT_KEYWORDS = [

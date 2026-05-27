@@ -84,22 +84,98 @@ def delete_email(message_id: str) -> dict:
 
 
 def _extract_blacklist_query_target(entry: str) -> str:
-    """Pick the most specific Gmail-searchable substring from a blacklist
-    rule. Users add entries in mixed shapes: 'Name <email@host>', bare
-    'email@host', a domain like 'canva.com', or just a display name like
-    'Hostinger'. For 'Name <email>' shape, pulling the email gives a far
-    more precise Gmail query than the full display string.
+    """Single best target, kept for compatibility. New code uses
+    _expand_blacklist_query_targets() which returns several variants so
+    senders that rotate subdomains (Pinterest, Hostinger, Klaviyo-style
+    ESP setups) get caught even when the user added only one address.
+    """
+    targets = _expand_blacklist_query_targets(entry)
+    return targets[0] if targets else ""
+
+
+def _expand_blacklist_query_targets(entry: str) -> list[str]:
+    """Return one or more Gmail query targets for a single blacklist entry.
+
+    Real example: a user adds 'Pinterest <recommendations@inspire.pinterest.com>'
+    expecting all Pinterest emails to be matched, but Pinterest rotates
+    between `inspire.`, `explore.`, `discover.`, and `ideas.` subdomains.
+    Searching only `from:"recommendations@inspire.pinterest.com"` misses
+    three quarters of their mail. So when the entry contains an email,
+    also try the registrable parent domain.
+
+    Returns at most three targets, in order of specificity:
+      [exact sender, full host, registrable domain]
+    Duplicates are removed; bare display names pass through unchanged.
     """
     if not entry:
-        return ""
+        return []
     text = entry.strip()
+
+    # Pull email out of 'Name <email@host>' if present.
+    email_value = ""
     if "<" in text and ">" in text:
         start = text.index("<") + 1
         end = text.index(">", start)
         candidate = text[start:end].strip()
         if candidate:
-            return candidate
-    return text
+            email_value = candidate
+    elif "@" in text and " " not in text:
+        # Bare 'user@host' entry.
+        email_value = text
+
+    targets: list[str] = []
+
+    if email_value:
+        targets.append(email_value)
+        host = email_value.split("@", 1)[1] if "@" in email_value else email_value
+        host = host.strip().lower()
+        if host and host not in targets:
+            targets.append(host)
+        registrable = _registrable_domain(host)
+        if registrable and registrable not in targets:
+            targets.append(registrable)
+    else:
+        # Bare domain like 'canva.com' or 'mail.canva.com'.
+        if "." in text and " " not in text:
+            host = text.lower()
+            targets.append(host)
+            registrable = _registrable_domain(host)
+            if registrable and registrable not in targets:
+                targets.append(registrable)
+        else:
+            # Display name like 'Hostinger' or 'Lucia (UptimeRobot)' —
+            # nothing to expand. Gmail will fuzzy-match the display name.
+            targets.append(text)
+
+    return targets
+
+
+def _registrable_domain(host: str) -> str:
+    """Best-effort registrable domain extraction without a full PSL.
+    For 'inspire.pinterest.com' returns 'pinterest.com'.
+    For 'pinterest.com' returns 'pinterest.com'.
+    For 'mail.amazon.co.uk' returns 'amazon.co.uk' (handles the common
+    two-label public suffixes).
+    """
+    if not host or "." not in host:
+        return ""
+    host = host.strip().lower().strip(".")
+    labels = host.split(".")
+    # Two-label public suffixes we want to keep intact when forming the
+    # registrable domain. Not exhaustive — but covers the realistic cases
+    # FeeHunt users will hit.
+    two_label_suffixes = {
+        "co.uk", "co.jp", "co.nz", "co.za", "com.au", "com.br", "com.mx",
+        "com.tr", "com.sg", "com.hk", "com.tw", "com.cn", "co.kr", "ne.jp",
+        "or.jp", "ac.uk", "gov.uk", "org.uk", "co.in",
+    }
+    if len(labels) >= 3:
+        last_two = ".".join(labels[-2:])
+        if last_two in two_label_suffixes:
+            return ".".join(labels[-3:])
+    if len(labels) >= 2:
+        return ".".join(labels[-2:])
+    return host
 
 
 def apply_blacklist_to_gmail_directly(
@@ -138,33 +214,41 @@ def apply_blacklist_to_gmail_directly(
 
     for sender in senders:
         summary["senders_searched"] += 1
-        target = _extract_blacklist_query_target(sender)
-        if not target:
+        targets = _expand_blacklist_query_targets(sender)
+        if not targets:
             continue
-        # Always quote — handles display-name entries with spaces or
-        # punctuation ('Lucia (UptimeRobot)'). Gmail accepts quoted emails
-        # and domains too.
-        query = f'from:"{target}"'
 
+        # Iterate every target variant; collect unique message ids across
+        # them. This is what catches Pinterest's 4 sub-domains when the
+        # user only added one specific address.
         message_ids: list[str] = []
-        try:
-            page_token = None
-            while len(message_ids) < max_per_sender:
-                request = {
-                    "userId": GMAIL_USER_ID,
-                    "q": query,
-                    "maxResults": min(100, max_per_sender - len(message_ids)),
-                }
-                if page_token:
-                    request["pageToken"] = page_token
-                response = service.users().messages().list(**request).execute()
-                for msg in response.get("messages", []) or []:
-                    message_ids.append(msg["id"])
-                page_token = response.get("nextPageToken")
-                if not page_token:
-                    break
-        except Exception as error:
-            summary["errors"].append({"sender": sender, "error": str(error)})
+        seen_ids: set[str] = set()
+        had_error = False
+        for target in targets:
+            query = f'from:{target}' if ("@" in target or "." in target) and " " not in target else f'from:"{target}"'
+            try:
+                page_token = None
+                while len(message_ids) < max_per_sender:
+                    request = {
+                        "userId": GMAIL_USER_ID,
+                        "q": query,
+                        "maxResults": min(100, max_per_sender - len(message_ids)),
+                    }
+                    if page_token:
+                        request["pageToken"] = page_token
+                    response = service.users().messages().list(**request).execute()
+                    for msg in response.get("messages", []) or []:
+                        mid = msg["id"]
+                        if mid not in seen_ids:
+                            seen_ids.add(mid)
+                            message_ids.append(mid)
+                    page_token = response.get("nextPageToken")
+                    if not page_token:
+                        break
+            except Exception as error:
+                summary["errors"].append({"sender": sender, "target": target, "error": str(error)})
+                had_error = True
+        if had_error and not message_ids:
             summary["by_sender"][sender] = []
             continue
 
