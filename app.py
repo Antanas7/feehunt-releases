@@ -18,6 +18,7 @@ from gmail_actions import (
     archive_email,
     unarchive_email,
     mark_as_important,
+    apply_blacklist_to_gmail_directly,
     delete_email,
     delete_emails,
     restore_trashed_email,
@@ -3749,20 +3750,34 @@ def run_dashboard_scan(apply_after: bool, show_aha_after_success: bool = False) 
             and effective_can_modify(gate)
         ):
             with st.spinner(t("dashboard.apply_blacklist_spinner", lang)):
+                # 1) Keyword path: trash blacklisted senders whose emails
+                #    fell into scan_data via subscription/promo/etc. keyword
+                #    categorization. Existing behavior — kept for the side-
+                #    effect of removing those items from scan_data so the UI
+                #    counters update.
                 blacklist_results = apply_rules_to_scan(
                     saved,
                     st.session_state.rules,
                     blacklist_only=True,
                     include_user_unwanted_rules=True,
                 )
+                # 2) Direct Gmail path: catch the rest — emails from a
+                #    blacklisted sender that have no scan-recognized keyword.
+                #    This is what fixes the "I added 11 senders but the
+                #    scan can't find them" bug.
+                direct_results = apply_blacklist_to_gmail_directly(
+                    st.session_state.rules.get("blacklist", []) or []
+                )
                 st.session_state.cleanup_results = blacklist_results
 
             deleted = len(blacklist_results.get("auto_deleted", []))
+            direct_deleted = direct_results.get("messages_trashed", 0)
             protected = len(blacklist_results.get("protected", []))
             if deleted:
                 remember_recent_trashed_items(remove_messages_from_scan(result_message_ids(blacklist_results.get("auto_deleted"))))
-            if deleted:
-                st.success(t("dashboard.auto_blacklist_done", lang).format(deleted=deleted))
+            total_deleted = deleted + direct_deleted
+            if total_deleted:
+                st.success(t("dashboard.auto_blacklist_done", lang).format(deleted=total_deleted))
             if protected:
                 st.info(t("dashboard.auto_blacklist_protected", lang).format(protected=protected))
 
@@ -4920,39 +4935,63 @@ elif page == "Cleanup Rules":
                 seen_ids.add(mid)
                 matching_emails.append(item)
 
+        # Scan-based preview count (informational). The button below now
+        # ALWAYS also does a direct Gmail search, so senders missing from
+        # the latest scan still get caught.
         if matching_emails:
             st.markdown(
                 f"**{t('senders.apply_now_preview_some', lang).format(count=len(matching_emails))}**"
             )
+
+        if rules.get("blacklist"):
             if effective_can_modify(st.session_state.get("license_gate") or {}):
+                # Show preview-aware label if there's a scan preview, else a
+                # generic label (no need to claim a count we cannot promise
+                # before searching Gmail).
+                button_label = (
+                    t("senders.apply_now_button", lang).format(count=len(matching_emails))
+                    if matching_emails
+                    else t("senders.apply_now_button", lang).format(count=0)
+                )
                 if st.button(
-                    t("senders.apply_now_button", lang).format(count=len(matching_emails)),
+                    button_label,
                     type="primary",
                     use_container_width=True,
                     key="senders_apply_now_btn",
                 ):
                     with st.spinner(t("dashboard.apply_blacklist_spinner", lang)):
+                        # 1) Keyword path against scan_data (existing behavior;
+                        #    refreshes scan counters so the UI feels coherent).
                         results = apply_rules_to_scan(
                             scan_data,
                             rules,
                             blacklist_only=True,
                             include_user_unwanted_rules=False,
                         )
+                        # 2) Direct Gmail search — the fix. Catches every
+                        #    blacklisted-sender email regardless of category.
+                        direct_results = apply_blacklist_to_gmail_directly(
+                            rules.get("blacklist", []) or []
+                        )
                         st.session_state.cleanup_results = results
-                    deleted = len(results.get("auto_deleted", []))
-                    if deleted:
+                    scan_deleted = len(results.get("auto_deleted", []))
+                    if scan_deleted:
                         remember_recent_trashed_items(
                             remove_messages_from_scan(
                                 result_message_ids(results.get("auto_deleted"))
                             )
                         )
+                    total_deleted = scan_deleted + direct_results.get("messages_trashed", 0)
+                    if total_deleted:
                         st.success(
-                            t("senders.apply_now_done", lang).format(count=deleted)
+                            t("senders.apply_now_done", lang).format(count=total_deleted)
                         )
+                    else:
+                        st.info(t("senders.apply_now_preview_none", lang))
                     safe_rerun()
             else:
                 st.caption(t("senders.apply_now_locked", lang))
-        else:
+        elif matching_emails is not None and not matching_emails:
             st.caption(t("senders.apply_now_preview_none", lang))
 
     st.divider()

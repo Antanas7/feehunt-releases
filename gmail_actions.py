@@ -83,6 +83,115 @@ def delete_email(message_id: str) -> dict:
     ).execute()
 
 
+def _extract_blacklist_query_target(entry: str) -> str:
+    """Pick the most specific Gmail-searchable substring from a blacklist
+    rule. Users add entries in mixed shapes: 'Name <email@host>', bare
+    'email@host', a domain like 'canva.com', or just a display name like
+    'Hostinger'. For 'Name <email>' shape, pulling the email gives a far
+    more precise Gmail query than the full display string.
+    """
+    if not entry:
+        return ""
+    text = entry.strip()
+    if "<" in text and ">" in text:
+        start = text.index("<") + 1
+        end = text.index(">", start)
+        candidate = text[start:end].strip()
+        if candidate:
+            return candidate
+    return text
+
+
+def apply_blacklist_to_gmail_directly(
+    senders: list[str],
+    *,
+    dry_run: bool = False,
+    max_per_sender: int = 500,
+) -> dict:
+    """Search Gmail directly for messages whose `From` matches each blacklist
+    entry and trash them. Independent of the keyword-based scan, so a Canva
+    "Welcome" email with no subscription/promo keywords still gets caught
+    when the user has `canva.com` on their unwanted-senders list.
+
+    The blacklist rule itself is never mutated — only Gmail messages move.
+
+    Returns:
+      {
+        "senders_searched": int,
+        "messages_trashed": int,
+        "by_sender": {rule_entry: [{"message_id", "sender_rule"}, ...]},
+        "errors": [{"sender", "error"} or {"sender", "message_id", "error"}],
+        "dry_run": bool,
+      }
+    """
+    summary = {
+        "senders_searched": 0,
+        "messages_trashed": 0,
+        "by_sender": {},
+        "errors": [],
+        "dry_run": dry_run,
+    }
+    if not senders:
+        return summary
+
+    service = get_gmail_service()
+
+    for sender in senders:
+        summary["senders_searched"] += 1
+        target = _extract_blacklist_query_target(sender)
+        if not target:
+            continue
+        # Always quote — handles display-name entries with spaces or
+        # punctuation ('Lucia (UptimeRobot)'). Gmail accepts quoted emails
+        # and domains too.
+        query = f'from:"{target}"'
+
+        message_ids: list[str] = []
+        try:
+            page_token = None
+            while len(message_ids) < max_per_sender:
+                request = {
+                    "userId": GMAIL_USER_ID,
+                    "q": query,
+                    "maxResults": min(100, max_per_sender - len(message_ids)),
+                }
+                if page_token:
+                    request["pageToken"] = page_token
+                response = service.users().messages().list(**request).execute()
+                for msg in response.get("messages", []) or []:
+                    message_ids.append(msg["id"])
+                page_token = response.get("nextPageToken")
+                if not page_token:
+                    break
+        except Exception as error:
+            summary["errors"].append({"sender": sender, "error": str(error)})
+            summary["by_sender"][sender] = []
+            continue
+
+        trashed_for_sender = []
+        if dry_run:
+            trashed_for_sender = [
+                {"message_id": mid, "sender_rule": sender} for mid in message_ids
+            ]
+        else:
+            for mid in message_ids:
+                try:
+                    service.users().messages().trash(
+                        userId=GMAIL_USER_ID,
+                        id=mid,
+                    ).execute()
+                    trashed_for_sender.append({"message_id": mid, "sender_rule": sender})
+                except Exception as error:
+                    summary["errors"].append(
+                        {"sender": sender, "message_id": mid, "error": str(error)}
+                    )
+
+        summary["by_sender"][sender] = trashed_for_sender
+        summary["messages_trashed"] += len(trashed_for_sender)
+
+    return summary
+
+
 def delete_emails(message_ids: list[str]) -> dict:
     service = get_gmail_service()
     changed = []
