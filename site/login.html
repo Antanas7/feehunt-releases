@@ -3,11 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Log in | FeeHunt</title>
-  <meta name="description" content="Log in to your FeeHunt account.">
-  <link rel="stylesheet" href="styles.css">
+  <title>Activate FeeHunt | FeeHunt</title>
+  <meta name="description" content="Paste your FeeHunt license key. We will verify it and tell you exactly what to do next.">
+  <link rel="canonical" href="https://feehunt.pro/login">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="FeeHunt">
+  <meta property="og:title" content="Activate FeeHunt | FeeHunt">
+  <meta property="og:description" content="Activate your FeeHunt key.">
+  <meta property="og:url" content="https://feehunt.pro/login">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Activate FeeHunt | FeeHunt">
+  <meta name="twitter:description" content="Activate your FeeHunt key.">
+  <link rel="stylesheet" href="styles.css?v=20260527-activate">
 </head>
-<body>
+<body data-page="login">
   <header class="site-header">
     <nav class="nav" aria-label="Primary navigation">
       <a class="brand" href="index.html"><span class="brand-mark">F</span><span>FeeHunt</span></a>
@@ -15,29 +24,58 @@
       <div class="nav-links">
         <a href="index.html">Home</a><a href="pricing.html">Pricing</a><a href="download.html">Download</a><a href="signup.html">Start Trial</a>
       </div>
-      <div class="nav-actions"><a class="button secondary" href="download.html">Download</a></div>
+      <div class="nav-actions"><div class="language-menu"><button class="language-toggle" type="button" aria-expanded="false" aria-label="Switch language">🌐 English <span>▼</span></button><div class="language-dropdown" role="menu"><button type="button" data-language="en">English</button><button type="button" data-language="lt">Lietuvių</button></div></div><a class="button secondary" href="download.html">Download</a></div>
     </nav>
   </header>
   <main>
     <section class="page-hero">
       <div class="container narrow">
-        <p class="eyebrow">Account</p>
-        <h1>Log in to FeeHunt.</h1>
-        <p class="lead">Enter your email and FeeHunt will resend your license key.</p>
+        <p class="eyebrow" data-i18n="hero.eyebrow">Activate FeeHunt</p>
+        <h1 data-i18n="hero.title">Paste your FeeHunt key.</h1>
+        <p class="lead" data-i18n="hero.lead">FeeHunt is a Windows desktop app. Paste your key below — we will verify it and show you exactly what to do next.</p>
       </div>
     </section>
-    <section class="section">
+
+    <section class="section activate-section">
       <div class="container narrow">
-        <form class="account-form" data-api-form="login">
-          <label>Email <input name="email" type="email" autocomplete="email" required></label>
-          <button class="button primary" type="submit">Send License Key</button>
+        <form class="account-form" data-activate-form novalidate>
+          <label>
+            <span data-i18n="form.label">FeeHunt license key</span>
+            <input name="license_key" type="text" autocomplete="off" inputmode="latin" spellcheck="false" placeholder="FHUNT-XXXX-XXXX-XXXX-XXXX" required>
+          </label>
+          <button class="button primary" type="submit" data-i18n="form.submit">Verify my key</button>
+          <p class="form-hint" data-i18n="form.hint">Key format: FHUNT-XXXX-XXXX-XXXX-XXXX (you received it by email after signup).</p>
+        </form>
+
+        <div class="status-panel" data-status-panel hidden role="status" aria-live="polite"></div>
+
+        <details class="help-block">
+          <summary data-i18n="help.title">Where can I get stuck?</summary>
+          <ul class="help-list">
+            <li data-i18n-html="help.windows"><strong>FeeHunt is a Windows desktop app.</strong> This website only verifies your key and handles billing. Subscription scans happen in the FeeHunt app on your computer.</li>
+            <li data-i18n-html="help.email"><strong>Did not get the key by email?</strong> Check spam, promotions and updates folders. Resend it below.</li>
+            <li data-i18n-html="help.expired"><strong>Trial ended?</strong> Upgrade to Basic or Family on the <a href="pricing.html">Pricing</a> page.</li>
+            <li data-i18n-html="help.devices"><strong>Device limit reached?</strong> Each plan allows a limited number of devices. Contact <a href="mailto:support@feehunt.pro">support@feehunt.pro</a> to free a slot.</li>
+          </ul>
+        </details>
+
+        <form class="account-form secondary-form" data-resend-form novalidate>
+          <p class="form-kicker" data-i18n="resend.kicker">Forgot your key?</p>
+          <h2 data-i18n="resend.title">Send my key by email</h2>
+          <label>
+            <span data-i18n="resend.label">Email</span>
+            <input name="email" type="email" autocomplete="email" required>
+          </label>
+          <button class="button secondary" type="submit" data-i18n="resend.submit">Send my key</button>
           <div class="form-message" role="status"></div>
         </form>
-        <p class="lead small-lead">New to FeeHunt? <a class="text-link" href="signup.html">Start free trial</a>.</p>
+
+        <p class="small-lead" data-i18n-html="footer.signup">New to FeeHunt? <a class="text-link" href="signup.html">Start a free 14-day trial</a>.</p>
       </div>
     </section>
   </main>
   <footer class="site-footer"><div class="footer-inner"><span>© FeeHunt</span><div class="footer-links"><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms</a><a href="contact.html">Contact</a></div></div></footer>
-  <script src="script.js"></script>
+  <script src="script.js?v=20260527-activate"></script>
+  <script src="i18n.js?v=20260527-activate"></script>
 </body>
 </html>

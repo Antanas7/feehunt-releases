@@ -1,13 +1,19 @@
 import {
   MAX_DEVICES,
+  TRIAL_DAYS,
   daysRemaining,
   isValidLicenseKey,
   json,
+  options,
   requireSupabase,
   supabaseInsert,
   supabaseSelect,
   supabaseUpdate,
 } from "./_utils.js";
+
+export function onRequestOptions() {
+  return options();
+}
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -23,15 +29,24 @@ export async function onRequestPost({ request, env }) {
     const licenseKey = String(body.license_key || "").trim().toUpperCase();
     const deviceFingerprint = String(body.device_fingerprint || "").trim();
     const deviceName = String(body.device_name || "").trim() || null;
+    const checkOnly = body.check_only === true;
 
-    if (!isValidLicenseKey(licenseKey) || !deviceFingerprint) {
-      return json({ status: "invalid", error: "Missing or invalid license key." }, 400);
+    if (!isValidLicenseKey(licenseKey) || (!checkOnly && !deviceFingerprint)) {
+      return json({
+        status: "invalid",
+        code: "invalid_request",
+        error: "Missing or invalid license key.",
+      }, 400);
     }
 
     const licenses = await supabaseSelect(env, "licenses", `license_key=eq.${encodeURIComponent(licenseKey)}&select=*`);
     const license = licenses[0];
     if (!license) {
-      return json({ status: "invalid", error: "License key not found." });
+      return json({
+        status: "invalid",
+        code: "license_not_found",
+        error: "License key not found.",
+      }, 404);
     }
 
     let trialEndDate = license.trial_ends_at || null;
@@ -43,19 +58,21 @@ export async function onRequestPost({ request, env }) {
     if (["cancelled", "expired"].includes(license.status)) {
       return json({
         status: "read_only",
+        code: "license_ended",
         plan: license.plan,
         days_remaining: 0,
         message: "Your trial or subscription has ended.",
-      });
+      }, 403);
     }
 
     if (license.status === "payment_failed") {
       return json({
         status: "payment_required",
+        code: "payment_required",
         plan: license.plan,
         days_remaining: daysRemaining(trialEndDate),
         message: "Payment failed. Please update your payment method.",
-      });
+      }, 402);
     }
 
     if (license.status === "trial" && trialEndDate && Date.now() > new Date(trialEndDate).getTime()) {
@@ -72,48 +89,55 @@ export async function onRequestPost({ request, env }) {
       }
       return json({
         status: "read_only",
+        code: "trial_ended",
         plan: license.plan,
         days_remaining: 0,
-        message: "Your 14-day trial has ended.",
-      });
+        message: `Your ${TRIAL_DAYS}-day trial has ended.`,
+      }, 403);
     }
 
     const nowIso = new Date().toISOString();
-    const maxDevices = license.devices_max || MAX_DEVICES;
-    const existingDevices = await supabaseSelect(
-      env,
-      "devices",
-      `license_id=eq.${license.id}&device_fingerprint=eq.${encodeURIComponent(deviceFingerprint)}&select=id`,
-    );
-    const existingDevice = existingDevices[0];
+    const configuredMaxDevices = license.devices_max || MAX_DEVICES;
+    const maxDevices = license.status === "trial" ? Math.max(configuredMaxDevices, 10) : configuredMaxDevices;
 
-    if (existingDevice) {
-      await supabaseUpdate(env, "devices", `id=eq.${existingDevice.id}`, { last_seen_at: nowIso });
-    } else {
-      const devices = await supabaseSelect(env, "devices", `license_id=eq.${license.id}&select=id`);
-      if (devices.length >= maxDevices) {
-        return json({
-          status: "device_limit",
-          error: `Device limit reached (${maxDevices}).`,
-          max_devices: maxDevices,
-          current_devices: devices.length,
+    if (!checkOnly) {
+      const existingDevices = await supabaseSelect(
+        env,
+        "devices",
+        `license_id=eq.${license.id}&device_fingerprint=eq.${encodeURIComponent(deviceFingerprint)}&select=id`,
+      );
+      const existingDevice = existingDevices[0];
+
+      if (existingDevice) {
+        await supabaseUpdate(env, "devices", `id=eq.${existingDevice.id}`, { last_seen_at: nowIso });
+      } else {
+        const devices = await supabaseSelect(env, "devices", `license_id=eq.${license.id}&select=id`);
+        if (devices.length >= maxDevices) {
+          return json({
+            status: "device_limit",
+            code: "device_limit",
+            error: `Device limit reached (${maxDevices}).`,
+            max_devices: maxDevices,
+            current_devices: devices.length,
+          }, 409);
+        }
+
+        await supabaseInsert(env, "devices", {
+          license_id: license.id,
+          device_fingerprint: deviceFingerprint,
+          device_name: deviceName,
+          first_seen_at: nowIso,
+          last_seen_at: nowIso,
         });
+        await supabaseUpdate(env, "licenses", `id=eq.${license.id}`, { devices_used: devices.length + 1 });
       }
 
-      await supabaseInsert(env, "devices", {
-        license_id: license.id,
-        device_fingerprint: deviceFingerprint,
-        device_name: deviceName,
-        first_seen_at: nowIso,
-        last_seen_at: nowIso,
-      });
-      await supabaseUpdate(env, "licenses", `id=eq.${license.id}`, { devices_used: devices.length + 1 });
+      await supabaseUpdate(env, "licenses", `id=eq.${license.id}`, { last_checked_at: nowIso });
     }
-
-    await supabaseUpdate(env, "licenses", `id=eq.${license.id}`, { last_checked_at: nowIso });
 
     return json({
       status: license.status === "trial" ? "trial" : "active",
+      code: "license_active",
       plan: license.plan,
       billing: license.billing,
       days_remaining: daysRemaining(trialEndDate),
@@ -123,6 +147,6 @@ export async function onRequestPost({ request, env }) {
     });
   } catch (error) {
     console.error("[Verify] error:", error.message);
-    return json({ status: "error", error: "Server error." }, 500);
+    return json({ status: "error", code: "server_error", error: "Server error." }, 500);
   }
 }

@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -12,7 +12,7 @@ import { createRateLimit, keyByIp, keyByLicenseBody } from "./middleware/rateLim
 const PORT = Number(process.env.PORT || 3001);
 const APP_URL = process.env.FEEHUNT_APP_URL || "https://feehunt.pro";
 const DOWNLOAD_URL = process.env.FEEHUNT_DOWNLOAD_URL || `${APP_URL}/download`;
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 7;
 const MAX_DEVICES = 3;
 const LICENSE_PREFIX = "FHUNT";
 const LICENSE_REGEX = /^FHUNT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
@@ -110,10 +110,10 @@ async function sendMail(options) {
 }
 
 async function sendLicenseEmail(email, licenseKey, plan, kind = "new") {
-  const planLabel = plan === "family" ? "Family" : plan === "pro" ? "Pro" : plan === "basic" || plan === "personal" ? "Basic" : "14-day free trial";
+  const planLabel = plan === "family" ? "Family" : plan === "pro" ? "Pro" : plan === "basic" || plan === "personal" ? "Basic" : `${TRIAL_DAYS}-day free trial`;
   const subject = kind === "existing"
     ? "Your FeeHunt license key"
-    : "Welcome to FeeHunt - your 14-day trial is ready";
+    : `Welcome to FeeHunt - your ${TRIAL_DAYS}-day trial is ready`;
 
   return sendMail({
     to: email,
@@ -251,7 +251,7 @@ async function handleRegisterTrial(req, res) {
 
     return res.json({
       success: true,
-      message: "Your 14-day FeeHunt trial has started. We sent your license key to your email.",
+      message: `Your ${TRIAL_DAYS}-day FeeHunt trial has started. We sent your license key to your email.`,
       trial_days: TRIAL_DAYS,
       plan,
       status: "trial",
@@ -287,7 +287,15 @@ app.post("/api/login", registerRateLimit, async (req, res) => {
       return res.status(404).json({ error: "No license was found. Please contact support." });
     }
 
-    await sendLicenseEmail(email, license.license_key, license.plan || "personal", "existing");
+    try {
+      await sendLicenseEmail(email, license.license_key, license.plan || "personal", "existing");
+    } catch (emailError) {
+      console.error("[Login] email failed:", emailError.message);
+      return res.status(502).json({
+        code: "email_delivery_issue",
+        error: "FeeHunt found your license, but could not send the email right now. Please try again in a moment.",
+      });
+    }
     return res.json({
       success: true,
       message: "We sent your FeeHunt license key to your email.",
@@ -297,7 +305,7 @@ app.post("/api/login", registerRateLimit, async (req, res) => {
     });
   } catch (error) {
     console.error("[Login] error:", error.message);
-    return res.status(500).json({ error: "Server error. Please try again." });
+    return res.status(500).json({ code: "server_connection_issue", error: "FeeHunt could not complete login right now. Please try again in a moment." });
   }
 });
 
@@ -308,8 +316,9 @@ app.post("/api/verify-license", verifyIpRateLimit, verifyKeyRateLimit, async (re
     const licenseKey = String(req.body.license_key || "").trim().toUpperCase();
     const deviceFingerprint = String(req.body.device_fingerprint || "").trim();
     const deviceName = String(req.body.device_name || "").trim() || null;
+    const checkOnly = req.body.check_only === true;
 
-    if (!LICENSE_REGEX.test(licenseKey) || !deviceFingerprint) {
+    if (!LICENSE_REGEX.test(licenseKey) || (!checkOnly && !deviceFingerprint)) {
       return res.status(400).json({ status: "invalid", error: "Missing or invalid license key." });
     }
 
@@ -364,48 +373,51 @@ app.post("/api/verify-license", verifyIpRateLimit, verifyKeyRateLimit, async (re
         status: "read_only",
         plan: license.plan,
         days_remaining: 0,
-        message: "Your 14-day trial has ended.",
+        message: `Your ${TRIAL_DAYS}-day trial has ended.`,
       });
     }
 
     const nowIso = new Date().toISOString();
-    const maxDevices = license.devices_max || MAX_DEVICES;
+    const configuredMaxDevices = license.devices_max || MAX_DEVICES;
+    const maxDevices = license.status === "trial" ? Math.max(configuredMaxDevices, 10) : configuredMaxDevices;
 
-    const { data: existingDevice } = await supabase
-      .from("devices")
-      .select("id")
-      .eq("license_id", license.id)
-      .eq("device_fingerprint", deviceFingerprint)
-      .maybeSingle();
-
-    if (existingDevice) {
-      await supabase.from("devices").update({ last_seen_at: nowIso }).eq("id", existingDevice.id);
-    } else {
-      const { count } = await supabase
+    if (!checkOnly) {
+      const { data: existingDevice } = await supabase
         .from("devices")
-        .select("id", { count: "exact", head: true })
-        .eq("license_id", license.id);
+        .select("id")
+        .eq("license_id", license.id)
+        .eq("device_fingerprint", deviceFingerprint)
+        .maybeSingle();
 
-      if ((count || 0) >= maxDevices) {
-        return res.json({
-          status: "device_limit",
-          error: `Device limit reached (${maxDevices}).`,
-          max_devices: maxDevices,
-          current_devices: count || 0,
+      if (existingDevice) {
+        await supabase.from("devices").update({ last_seen_at: nowIso }).eq("id", existingDevice.id);
+      } else {
+        const { count } = await supabase
+          .from("devices")
+          .select("id", { count: "exact", head: true })
+          .eq("license_id", license.id);
+
+        if ((count || 0) >= maxDevices) {
+          return res.json({
+            status: "device_limit",
+            error: `Device limit reached (${maxDevices}).`,
+            max_devices: maxDevices,
+            current_devices: count || 0,
+          });
+        }
+
+        await supabase.from("devices").insert({
+          license_id: license.id,
+          device_fingerprint: deviceFingerprint,
+          device_name: deviceName,
+          first_seen_at: nowIso,
+          last_seen_at: nowIso,
         });
+        await supabase.from("licenses").update({ devices_used: (count || 0) + 1 }).eq("id", license.id);
       }
 
-      await supabase.from("devices").insert({
-        license_id: license.id,
-        device_fingerprint: deviceFingerprint,
-        device_name: deviceName,
-        first_seen_at: nowIso,
-        last_seen_at: nowIso,
-      });
-      await supabase.from("licenses").update({ devices_used: (count || 0) + 1 }).eq("id", license.id);
+      await supabase.from("licenses").update({ last_checked_at: nowIso }).eq("id", license.id);
     }
-
-    await supabase.from("licenses").update({ last_checked_at: nowIso }).eq("id", license.id);
 
     return res.json({
       status: license.status === "trial" ? "trial" : "active",
@@ -422,8 +434,13 @@ app.post("/api/verify-license", verifyIpRateLimit, verifyKeyRateLimit, async (re
   }
 });
 
-app.get("/api/check-trials", async (_req, res) => {
+app.get("/api/check-trials", async (req, res) => {
   try {
+    const secret = process.env.FEEHUNT_CRON_SECRET || process.env.CRON_SECRET || "";
+    const provided = req.get("x-feehunt-cron-secret") || req.query.secret || "";
+    if (!secret || provided !== secret) {
+      return res.status(401).json({ code: "unauthorized", error: "Unauthorized." });
+    }
     if (!requireSupabase(res)) return;
 
     const { data: trialUsers, error } = await supabase
@@ -469,7 +486,7 @@ async function sendTrialReminder(email, milestone, daysLeft) {
     ? "Your FeeHunt trial has ended"
     : `${daysLeft} day(s) left in your FeeHunt trial`;
   const body = milestone === "expired"
-    ? "Your 14-day FeeHunt trial has ended. Upgrade to keep scanning Gmail for subscriptions."
+    ? `Your ${TRIAL_DAYS}-day FeeHunt trial has ended. Upgrade to keep scanning Gmail for subscriptions.`
     : `You have ${daysLeft} day(s) left in your FeeHunt trial.`;
   return sendMail({
     to: email,

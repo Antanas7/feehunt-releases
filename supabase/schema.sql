@@ -1,3 +1,10 @@
+-- IMPORTANT: this file describes the INTENDED schema, not the live one.
+-- Production was originally seeded with users.id and licenses.id as `bigint`
+-- (a legacy of the earlier BeSafe migration), so any new FK against those
+-- tables must declare its referencing column as `bigint`, not `uuid`. See
+-- 2026-05-27-missing-tables.sql for the live-compatible add-on migration.
+-- Treat this file as a future-state spec; do not run it against prod as-is.
+
 create extension if not exists pgcrypto;
 
 create table if not exists public.users (
@@ -76,3 +83,13 @@ create index if not exists idx_licenses_key on public.licenses(license_key);
 create index if not exists idx_licenses_user_id on public.licenses(user_id);
 create index if not exists idx_devices_license on public.devices(license_id);
 create index if not exists idx_trial_status on public.users(subscription_status, trial_ends_at);
+
+-- Lock every table to service_role only. FeeHunt's API uses
+-- SUPABASE_SERVICE_ROLE_KEY (RLS-bypassing); the browser never touches
+-- Supabase directly. anon + authenticated get default-deny.
+alter table if exists public.users               enable row level security;
+alter table if exists public.licenses            enable row level security;
+alter table if exists public.devices             enable row level security;
+alter table if exists public.email_notifications enable row level security;
+alter table if exists public.webhook_events      enable row level security;
+alter table if exists public.ai_audit_log        enable row level security;
