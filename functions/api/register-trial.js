@@ -10,6 +10,7 @@ import {
   sendLicenseEmail,
   supabaseInsert,
   supabaseSelect,
+  supabaseUpdate,
   trialEndsAt,
 } from "./_utils.js";
 
@@ -54,7 +55,7 @@ export async function onRequestPost({ request, env }) {
       existingUsers = await supabaseSelect(
         env,
         "users",
-        `email=eq.${encodeURIComponent(email)}&select=id,email`
+        `email=eq.${encodeURIComponent(email)}&select=id,email,subscription_plan,trial_ends_at`
       );
     } catch (error) {
       logError("[Register] existing user lookup failed", error, { email });
@@ -98,18 +99,103 @@ export async function onRequestPost({ request, env }) {
       const existingLicense = licenses[0];
 
       if (!existingLicense) {
-        console.error("[Register] existing user has no license", {
+        console.warn("[Register] existing user has no license; creating replacement trial license", {
           userId: existing.id,
           email,
         });
 
-        return json(
-          {
-            code: "license_creation_issue",
-            error: "Account exists, but no license was found. Please contact support.",
-          },
-          409
-        );
+        const recoveredLicenseKey = generateLicenseKey();
+        const recoveredPlan = normalizePlan(plan || existing.subscription_plan);
+        const recoveredTrialEnd = existing.trial_ends_at || trialEndsAt();
+
+        try {
+          await supabaseInsert(env, "licenses", {
+            license_key: recoveredLicenseKey,
+            user_id: existing.id,
+            email,
+            plan: recoveredPlan,
+            billing: "monthly",
+            status: "trial",
+            trial_ends_at: recoveredTrialEnd,
+          });
+        } catch (error) {
+          logError("[Register] replacement license insert failed", error, {
+            userId: existing.id,
+            email,
+            plan: recoveredPlan,
+          });
+
+          return json(
+            {
+              code: "license_creation_issue",
+              error: "FeeHunt found your account, but could not create your license key right now. Please try again in a moment.",
+            },
+            500
+          );
+        }
+
+        try {
+          await sendLicenseEmail(env, email, recoveredLicenseKey, recoveredPlan, "new");
+        } catch (error) {
+          logError("[Register] replacement license email failed", error, {
+            userId: existing.id,
+            email,
+          });
+
+          return json(
+            {
+              code: "email_delivery_issue",
+              error: "FeeHunt created your license, but could not send the email right now. Please try Log in / Resend key in a moment.",
+            },
+            502
+          );
+        }
+
+        return json({
+          success: true,
+          message: "Your FeeHunt license key has been created and sent to your email.",
+          plan: recoveredPlan,
+          status: "trial",
+          trial_days: TRIAL_DAYS,
+        });
+      }
+
+      let selectedLicensePlan = normalizePlan(existingLicense.plan || plan);
+      const isExplicitPaidPlanSelection = ["basic", "family", "pro"].includes(plan);
+      if (existingLicense.status === "trial" && isExplicitPaidPlanSelection && plan !== selectedLicensePlan) {
+        selectedLicensePlan = plan;
+
+        try {
+          const nowIso = new Date().toISOString();
+          await supabaseUpdate(env, "licenses", `id=eq.${existingLicense.id}`, {
+            plan: selectedLicensePlan,
+            updated_at: nowIso,
+          });
+          await supabaseUpdate(env, "users", `id=eq.${existing.id}`, {
+            subscription_plan: selectedLicensePlan,
+            updated_at: nowIso,
+          });
+
+          console.log("[Register] existing trial plan updated", {
+            userId: existing.id,
+            email,
+            plan: selectedLicensePlan,
+          });
+        } catch (error) {
+          logError("[Register] existing trial plan update failed", error, {
+            userId: existing.id,
+            email,
+            plan: selectedLicensePlan,
+          });
+
+          return json(
+            {
+              code: "plan_update_issue",
+              error: "FeeHunt found your account, but could not update your selected plan right now. Please try again in a moment.",
+            },
+            500
+          );
+        }
       }
 
       try {
@@ -117,7 +203,7 @@ export async function onRequestPost({ request, env }) {
           env,
           email,
           existingLicense.license_key,
-          existingLicense.plan || plan,
+          selectedLicensePlan,
           "existing"
         );
       } catch (error) {
@@ -138,7 +224,7 @@ export async function onRequestPost({ request, env }) {
       return json({
         success: true,
         message: "You already have a FeeHunt account. We sent your license key to your email again.",
-        plan: existingLicense.plan,
+        plan: selectedLicensePlan,
         status: existingLicense.status,
         trial_days: TRIAL_DAYS,
       });
@@ -265,7 +351,7 @@ export async function onRequestPost({ request, env }) {
 
     return json({
       success: true,
-      message: "Your 14-day FeeHunt trial has started. We sent your license key to your email.",
+      message: `Your ${TRIAL_DAYS}-day FeeHunt trial has started. We sent your license key to your email.`,
       trial_days: TRIAL_DAYS,
       plan,
       status: "trial",

@@ -1,4 +1,4 @@
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 7;
 const MAX_DEVICES = 3;
 const LICENSE_PREFIX = "FHUNT";
 const LICENSE_REGEX = /^FHUNT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
@@ -9,6 +9,21 @@ export function json(data, status = 200) {
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-headers": "content-type, accept",
+    },
+  });
+}
+
+export function options() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-headers": "content-type, accept",
+      "access-control-max-age": "86400",
     },
   });
 }
@@ -110,8 +125,13 @@ export async function sendLicenseEmail(env, email, licenseKey, plan, kind = "new
 
   const appUrl = env.FEEHUNT_APP_URL || "https://feehunt.pro";
   const downloadUrl = env.FEEHUNT_DOWNLOAD_URL || `${appUrl}/download`;
-  const planLabel = plan === "family" ? "Family" : plan === "pro" ? "Pro" : plan === "basic" || plan === "personal" ? "Basic" : "14-day free trial";
-  const subject = kind === "existing" ? "Your FeeHunt license key" : "Welcome to FeeHunt - your 14-day trial is ready";
+  const planLabel = plan === "family" ? "Family" : plan === "pro" ? "Pro" : plan === "basic" || plan === "personal" ? "Basic" : `${TRIAL_DAYS}-day free trial`;
+  const isActivePlan = kind === "active";
+  const subject = kind === "existing"
+    ? "Your FeeHunt license key"
+    : isActivePlan
+      ? "Your FeeHunt plan is active"
+      : `Welcome to FeeHunt - your ${TRIAL_DAYS}-day trial is ready`;
   const from = `"FeeHunt" <${env.EMAIL_FROM || "support@feehunt.pro"}>`;
 
   const response = await fetch("https://api.resend.com/emails", {
@@ -127,13 +147,13 @@ export async function sendLicenseEmail(env, email, licenseKey, plan, kind = "new
       html: `
         <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;background:#f6f7f4;color:#17211b">
           <h1 style="margin:0 0 8px;color:#16664f">FeeHunt</h1>
-          <h2 style="margin:0 0 16px">Your ${TRIAL_DAYS}-day free trial is ready</h2>
-          <p>No credit card required. Install FeeHunt, paste this license key, connect Gmail, and scan for subscriptions.</p>
+          <h2 style="margin:0 0 16px">${isActivePlan ? "Your FeeHunt plan is active" : `Your ${TRIAL_DAYS}-day free trial is ready`}</h2>
+          <p>${isActivePlan ? "Install FeeHunt, paste this license key, connect Gmail, and scan for subscriptions." : "No credit card required. Install FeeHunt, paste this license key, connect Gmail, and scan for subscriptions."}</p>
           <div style="background:#fff;border:1px solid #dce4dd;border-radius:8px;padding:20px;text-align:center;margin:22px 0">
             <div style="font-size:12px;color:#5c6a61;text-transform:uppercase;font-weight:700">Your license key</div>
             <div style="font-family:Consolas,monospace;font-size:22px;color:#16664f;font-weight:800;letter-spacing:2px;word-break:break-all">${licenseKey}</div>
           </div>
-          <p><strong>Plan:</strong> ${planLabel}<br><strong>Trial:</strong> ${TRIAL_DAYS} days</p>
+          <p><strong>Plan:</strong> ${planLabel}${isActivePlan ? "" : `<br><strong>Trial:</strong> ${TRIAL_DAYS} days`}</p>
           <p style="text-align:center;margin:26px 0">
             <a href="${downloadUrl}" style="background:#16664f;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Download FeeHunt</a>
           </p>
