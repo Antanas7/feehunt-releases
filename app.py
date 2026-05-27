@@ -96,7 +96,7 @@ def inject_calm_styles() -> None:
             --fh-surface-soft: #eef6f1;
             --fh-border: #d9e6de;
             --fh-text: #17211b;
-            --fh-muted: #425248;
+            --fh-muted: #2a3a32;
             --fh-green: #16664f;
             --fh-green-dark: #0f4d3b;
             --fh-ink-button: #111820;
@@ -206,22 +206,32 @@ def inject_calm_styles() -> None:
             color: var(--fh-text);
         }
         .stMarkdown,
-        .stMarkdown p,
+        .stMarkdown p {
+            color: var(--fh-text);
+            font-weight: 600;
+        }
         .stCaptionContainer,
         div[data-testid="stCaptionContainer"],
-        div[data-testid="stCaptionContainer"] p {
-            color: var(--fh-muted);
-            font-weight: 600;
+        div[data-testid="stCaptionContainer"] p,
+        small,
+        .stMarkdown small {
+            color: var(--fh-muted) !important;
+            font-weight: 700 !important;
+            opacity: 1 !important;
         }
         div[data-testid="stMarkdownContainer"] p,
         div[data-testid="stMarkdownContainer"] li,
         div[data-testid="stMarkdownContainer"] span {
-            color: inherit;
+            color: var(--fh-text);
         }
         div[data-testid="stMarkdownContainer"] ol,
         div[data-testid="stMarkdownContainer"] ul {
-            color: var(--fh-muted);
+            color: var(--fh-text);
             font-weight: 600;
+        }
+        /* Help-icon tooltips and inline help text */
+        div[data-testid="stTooltipIcon"] svg {
+            opacity: 0.85;
         }
         div[data-testid="stAlert"] {
             color: var(--fh-text) !important;
