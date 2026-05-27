@@ -1933,6 +1933,10 @@ def render_trust_strip(lang: str) -> None:
 SUPPORTED_LANGUAGES = [
     {"code": "en", "flag": "🇬🇧", "name": "English"},
     {"code": "lt", "flag": "🇱🇹", "name": "Lietuvių"},
+    {"code": "no", "flag": "🇳🇴", "name": "Norsk"},
+    {"code": "es", "flag": "🇪🇸", "name": "Español"},
+    {"code": "de", "flag": "🇩🇪", "name": "Deutsch"},
+    {"code": "fr", "flag": "🇫🇷", "name": "Français"},
 ]
 
 

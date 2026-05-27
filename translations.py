@@ -1551,7 +1551,30 @@ LANGUAGE_ALIASES = {
     "lietuvių": "lt",
     "lietuviu": "lt",
     "lt": "lt",
+    "norsk": "no",
+    "no": "no",
+    "nb": "no",
+    "español": "es",
+    "espanol": "es",
+    "es": "es",
+    "deutsch": "de",
+    "de": "de",
+    "français": "fr",
+    "francais": "fr",
+    "fr": "fr",
 }
+
+
+# Merge the high-visibility NO/ES/DE/FR translations from
+# translations_extra.py. Keys not present in those bundles fall back to
+# English via the lookup in t() — so the UI stays usable even before the
+# full translation pass.
+try:
+    from translations_extra import EXTRA_TRANSLATIONS
+    for _code, _bundle in EXTRA_TRANSLATIONS.items():
+        TRANSLATIONS.setdefault(_code, {}).update(_bundle)
+except ImportError:
+    pass
 
 AUTO_SCAN_ALIASES = {
     "išjungtas": "off",
@@ -1576,10 +1599,12 @@ def normalize_auto_scan(value="off"):
 
 def t(key, lang="en"):
     language = normalize_language(lang)
-    return TRANSLATIONS.get(language, TRANSLATIONS["en"]).get(
-        key,
-        TRANSLATIONS["en"].get(key, key),
-    )
+    bundle = TRANSLATIONS.get(language) or {}
+    if key in bundle:
+        return bundle[key]
+    # Fallback to English for any key not yet translated to the target
+    # language. Never crashes — worst case the raw key is returned.
+    return TRANSLATIONS["en"].get(key, key)
 
 
 def help_text(key, lang="en"):
