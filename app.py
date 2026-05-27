@@ -4935,6 +4935,44 @@ elif page == "Cleanup Rules":
                 seen_ids.add(mid)
                 matching_emails.append(item)
 
+        # Persistent result panel — survives the rerun after the button
+        # click so the user clearly sees what was trashed instead of a
+        # toast that flashes for half a second.
+        apply_result = st.session_state.get("apply_now_result")
+        if apply_result:
+            total = apply_result.get("total_deleted", 0)
+            by_sender = apply_result.get("by_sender", {})
+            errors = apply_result.get("errors", [])
+            if total:
+                with st.container(border=True):
+                    st.success(
+                        t("senders.apply_now_done", lang).format(count=total)
+                    )
+                    nonzero = [(s, n) for s, n in by_sender.items() if n]
+                    if nonzero:
+                        st.markdown(f"**{t('senders.apply_now_breakdown', lang)}**")
+                        for sender_label, count in sorted(nonzero, key=lambda x: -x[1]):
+                            short = sender_label if len(sender_label) <= 60 else sender_label[:57] + "…"
+                            st.markdown(f"- `{short}` — **{count}**")
+                    if errors:
+                        with st.expander(t("senders.apply_now_errors_expander", lang).format(count=len(errors)), expanded=False):
+                            for err in errors[:20]:
+                                st.caption(f"• {err.get('sender', '?')}: {err.get('error', 'unknown')}")
+                    if st.button(
+                        t("senders.apply_now_dismiss", lang),
+                        key="senders_apply_now_dismiss",
+                    ):
+                        st.session_state.pop("apply_now_result", None)
+                        safe_rerun()
+            else:
+                st.info(t("senders.apply_now_preview_none", lang))
+                if st.button(
+                    t("senders.apply_now_dismiss", lang),
+                    key="senders_apply_now_dismiss_empty",
+                ):
+                    st.session_state.pop("apply_now_result", None)
+                    safe_rerun()
+
         # Scan-based preview count (informational). The button below now
         # ALWAYS also does a direct Gmail search, so senders missing from
         # the latest scan still get caught.
@@ -4945,9 +4983,6 @@ elif page == "Cleanup Rules":
 
         if rules.get("blacklist"):
             if effective_can_modify(st.session_state.get("license_gate") or {}):
-                # Show preview-aware label if there's a scan preview, else a
-                # generic label (no need to claim a count we cannot promise
-                # before searching Gmail).
                 button_label = (
                     t("senders.apply_now_button", lang).format(count=len(matching_emails))
                     if matching_emails
@@ -4981,13 +5016,26 @@ elif page == "Cleanup Rules":
                                 result_message_ids(results.get("auto_deleted"))
                             )
                         )
-                    total_deleted = scan_deleted + direct_results.get("messages_trashed", 0)
-                    if total_deleted:
-                        st.success(
-                            t("senders.apply_now_done", lang).format(count=total_deleted)
-                        )
-                    else:
-                        st.info(t("senders.apply_now_preview_none", lang))
+                    direct_deleted = direct_results.get("messages_trashed", 0)
+                    total_deleted = scan_deleted + direct_deleted
+
+                    # Build a per-sender breakdown that includes BOTH the
+                    # scan-path hits and the direct-search hits. Direct
+                    # search is the dominant source now, so its by_sender
+                    # map is the spine.
+                    by_sender: dict[str, int] = {}
+                    for sender_rule, hits in (direct_results.get("by_sender") or {}).items():
+                        by_sender[sender_rule] = by_sender.get(sender_rule, 0) + len(hits)
+                    # Add scan_data hits, keyed by the rule that matched.
+                    for item in results.get("auto_deleted", []) or []:
+                        rule_hit = item.get("sender") or item.get("reason") or "scan match"
+                        by_sender[rule_hit] = by_sender.get(rule_hit, 0) + 1
+
+                    st.session_state.apply_now_result = {
+                        "total_deleted": total_deleted,
+                        "by_sender": by_sender,
+                        "errors": direct_results.get("errors", []),
+                    }
                     safe_rerun()
             else:
                 st.caption(t("senders.apply_now_locked", lang))
