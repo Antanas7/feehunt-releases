@@ -347,11 +347,19 @@ HIGH_CONFIDENCE_SUBSCRIPTION_KEYWORDS = [
 ]
 
 HIGH_CONFIDENCE_PROMOTIONAL_KEYWORDS = [
+    # English
     "black friday", "cyber monday", "special offer", "exclusive offer",
     "exclusive deal", "limited time", "limited offer", "newsletter",
     "view in browser", "view online", "shop now", "shop the",
     "weekly briefing", "view this email", "you deserve",
-    "treat yourself", "back in stock", "new arrivals",
+    "treat yourself", "back in stock", "new arrivals", "hot picks",
+    "this week's hot", "this week’s hot", "hot deals",
+    "% off", "% rabatt", "30% off", "50% off",
+    # Norwegian / Danish / Swedish (Skandinavian promos)
+    "tilbud", "rabatt", "opptil", "kampanje", "tilbudet", "spar penger",
+    "se tilbudet", "kjøp nå", "kjop na", "kun i dag",
+    "se vårt utvalg", "se vart utvalg",
+    # Lithuanian
     "naujienlaiškis", "specialus pasiūlymas",
 ]
 
