@@ -70,8 +70,9 @@ def get_user_promo_keywords() -> list[str]:
 # ============================================================
 
 IGNORE_KEYWORDS = [
-    "google cloud", "firebase", "api", "console", "developer",
+    "google cloud", "firebase",
     "gcp", "bigquery", "google play console", "play console",
+    "api key", "api quota", "developer console",
     "aws", "amazon web services", "azure", "github actions",
     "vercel", "netlify", "docker hub", "render.com", "railway",
     "cloudflare", "analytics report", "search console",
@@ -84,6 +85,47 @@ IGNORE_SENDER_KEYWORDS = [
 ]
 
 MIN_KEYWORD_MATCHES = 2
+
+SUBSCRIPTION_SIGNAL_KEYWORDS = [
+    "subscription access", "subscription renews", "renews soon",
+    "subscription was canceled", "subscription has been paused",
+    "recurring payment", "auto-renew", "auto renewal", "renewal",
+    "billing account", "invoice", "membership",
+    "prenumerata", "prenumeratos", "atnaujinimas",
+]
+
+SUBSCRIPTION_LIFECYCLE_KEYWORDS = [
+    "subscription access", "subscription renews", "renews soon",
+    "subscription was canceled", "subscription has been paused",
+    "recurring payment", "auto-renew", "auto renewal", "renewal",
+    "prenumerata", "prenumeratos", "atnaujinimas",
+]
+
+SUBSCRIPTION_SOFT_KEYWORDS = [
+    "invoice", "billing account", "membership",
+]
+
+FINANCIAL_RISK_SIGNAL_KEYWORDS = [
+    "failed payment", "payment failed", "payment failed to process",
+    "failed to process", "card declined", "insufficient funds",
+    "insufficient funds on card", "past due", "overdue",
+    "account suspended", "payment required", "invalid payment",
+    "payment was unsuccessful", "was unsuccessful",
+    "subscription access has been paused",
+    "nepavyko apmokėti", "nepavyko apmoketi",
+    "kortelė atmesta", "kortele atmesta", "paskyra sustabdyta",
+]
+
+NON_RISK_RECEIPT_KEYWORDS = [
+    "payment received", "your receipt", "receipt from",
+    "order summary", "license key", "welcome to",
+]
+
+NON_SUBSCRIPTION_MARKETING_KEYWORDS = [
+    "sample invoice", "ready to learn", "learn more",
+    "local seller", "boost 3x revenue", "hot-selling products",
+    "verified suppliers", "webinars",
+]
 
 
 # ============================================================
@@ -137,7 +179,30 @@ THRESHOLD = 0.5
 
 
 def get_subscription_confidence(content: str) -> float:
-    return _confidence(content, HIGH_CONFIDENCE_SUBSCRIPTION_KEYWORDS, SUBSCRIPTION_KEYWORDS)
+    if contains_any_keyword(content, FINANCIAL_RISK_SIGNAL_KEYWORDS):
+        return 1.0
+
+    if contains_any_keyword(content, NON_SUBSCRIPTION_MARKETING_KEYWORDS):
+        return 0.0
+
+    if contains_any_keyword(content, NON_RISK_RECEIPT_KEYWORDS) and not contains_any_keyword(content, SUBSCRIPTION_LIFECYCLE_KEYWORDS):
+        return 0.0
+
+    promotional_confidence = get_promotional_confidence(content)
+    newsletter_confidence = get_newsletter_confidence(content)
+    has_lifecycle_signal = contains_any_keyword(content, SUBSCRIPTION_LIFECYCLE_KEYWORDS)
+    has_soft_signal = contains_any_keyword(content, SUBSCRIPTION_SOFT_KEYWORDS)
+
+    if (promotional_confidence >= THRESHOLD or newsletter_confidence >= THRESHOLD) and not has_lifecycle_signal:
+        return 0.0
+
+    if has_lifecycle_signal:
+        return 1.0
+
+    if has_soft_signal and count_keyword_matches(content, SUBSCRIPTION_KEYWORDS) >= 2:
+        return 0.8
+
+    return 0.0
 
 
 def get_promotional_confidence(content: str) -> float:
@@ -165,7 +230,9 @@ def get_newsletter_confidence(content: str) -> float:
 
 
 def get_financial_confidence(content: str) -> float:
-    return _confidence(content, HIGH_CONFIDENCE_FINANCIAL_KEYWORDS, FINANCIAL_KEYWORDS)
+    if contains_any_keyword(content, FINANCIAL_RISK_SIGNAL_KEYWORDS):
+        return 1.0
+    return 0.0
 
 
 # ============================================================

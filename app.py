@@ -1,10 +1,15 @@
+import hashlib
+from html import escape
 import json
+import locale
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 import streamlit as st
 
@@ -14,6 +19,7 @@ from gmail_actions import (
     unarchive_email,
     mark_as_important,
     delete_email,
+    delete_emails,
     restore_trashed_email,
     mark_as_spam,
     unmark_spam,
@@ -21,14 +27,22 @@ from gmail_actions import (
 )
 from subscription_actions import cancel_subscription
 from licensing import (
+    TRIAL_SCAN_LIMIT,
     activate_license,
     check_license,
     clear_license,
+    effective_can_modify,
+    effective_can_scan,
     get_license_overview,
     get_trial_status,
     load_license,
+    mark_trial_scan_used,
+    trial_lock_reason,
+    trial_scans_remaining,
+    trial_scans_used,
 )
 
+from gmail_auth import has_saved_gmail_connection
 from config import (
     APP_NAME,
     APP_VERSION,
@@ -207,6 +221,33 @@ def inject_calm_styles() -> None:
         div[data-testid="stMarkdownContainer"] ul {
             color: var(--fh-muted);
             font-weight: 600;
+        }
+        div[data-testid="stAlert"] {
+            color: var(--fh-text) !important;
+        }
+        div[data-testid="stAlert"] *,
+        div[data-testid="stAlert"] p,
+        div[data-testid="stAlert"] span,
+        div[data-testid="stAlert"] div,
+        div[data-testid="stAlert"] li {
+            color: var(--fh-text) !important;
+            font-weight: 700;
+        }
+        div[data-testid="stAlert"] pre,
+        div[data-testid="stAlert"] code,
+        div[data-testid="stException"] pre,
+        div[data-testid="stException"] code {
+            color: #17211b !important;
+            background: rgba(255, 255, 255, 0.72) !important;
+            text-shadow: none !important;
+            font-weight: 650 !important;
+            font-family: Consolas, "Courier New", monospace !important;
+        }
+        div[data-testid="stException"],
+        div[data-testid="stException"] *,
+        div[data-testid="stException"] p,
+        div[data-testid="stException"] span {
+            color: #17211b !important;
         }
         div[data-testid="stTabs"] button[role="tab"] {
             color: #51635a !important;
@@ -796,6 +837,51 @@ def inject_calm_styles() -> None:
             padding: 16px;
             margin: 14px 0 22px;
         }
+        .fh-action-first-panel {
+            margin: 0.85rem 0 1rem;
+            padding: 0.95rem 1rem;
+            border: 1px solid #d8e5dd;
+            border-left: 5px solid var(--fh-green);
+            border-radius: 8px;
+            background: #fbfdf9;
+            box-shadow: 0 10px 22px rgba(18, 33, 27, 0.06);
+        }
+        .fh-action-first-panel.is-risk {
+            border-left-color: #a94432;
+            background: #fff9f6;
+        }
+        .fh-action-first-kicker {
+            color: #547066;
+            font-size: 0.75rem;
+            font-weight: 850;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
+        }
+        .fh-action-first-danger {
+            color: var(--fh-text);
+            font-size: 1.02rem;
+            font-weight: 850;
+            margin-bottom: 0.25rem;
+        }
+        .fh-action-first-explain {
+            color: var(--fh-muted);
+            font-weight: 650;
+            margin-bottom: 0.65rem;
+        }
+        .fh-action-first-next {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #0f4d3b;
+            font-weight: 850;
+        }
+        .fh-action-first-control {
+            margin-top: 0.45rem;
+            color: #607168;
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
         .fh-status-line {
             display: flex;
             align-items: flex-start;
@@ -856,20 +942,25 @@ def inject_calm_styles() -> None:
             margin: 0 auto;
         }
         .fh-welcome-language {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 10px;
-            max-width: 230px;
-            margin: 10px 0 16px auto;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(22, 102, 79, 0.16);
+            border-radius: 8px;
+            padding: 14px;
+            margin: 10px 0 18px;
+            box-shadow: 0 8px 20px rgba(23, 33, 27, 0.05);
         }
         .fh-language-label {
             color: #0b3d31;
-            font-size: 0.8rem;
+            font-size: 0.95rem;
             font-weight: 800;
-            margin: 8px 0 0;
-            white-space: nowrap;
-            text-align: right;
+            margin: 0 0 4px;
+            text-align: left;
+        }
+        .fh-language-note {
+            color: var(--fh-muted);
+            font-size: 0.88rem;
+            font-weight: 650;
+            margin: 0 0 10px;
         }
         div[data-testid="stPopover"] button {
             background: var(--fh-ink-button);
@@ -1327,6 +1418,45 @@ def inject_calm_styles() -> None:
             color: #ffffff !important;
             font-weight: 760 !important;
         }
+        .fh-dashboard-actions {
+            margin: 2px 0 18px;
+        }
+        .fh-dashboard-actions div[data-testid="stHorizontalBlock"] {
+            gap: 14px;
+        }
+        .fh-dashboard-actions .stButton > button {
+            min-height: 46px;
+        }
+        .fh-actions-stack > div[data-testid="stHorizontalBlock"] {
+            margin-top: 8px;
+        }
+        .fh-actions-stack .stButton:has(button[kind="secondary"]) > button,
+        .fh-actions-stack .stButton > button[kind="secondary"] {
+            min-height: 40px;
+            background: transparent !important;
+            border: 1px solid rgba(45, 158, 116, 0.42) !important;
+            color: rgba(15, 90, 68, 0.86) !important;
+            font-weight: 600 !important;
+            box-shadow: none !important;
+        }
+        .fh-actions-stack .stButton:has(button[kind="secondary"]) > button:hover,
+        .fh-actions-stack .stButton > button[kind="secondary"]:hover {
+            background: rgba(45, 158, 116, 0.08) !important;
+            border-color: rgba(45, 158, 116, 0.62) !important;
+            color: rgba(10, 72, 54, 0.95) !important;
+        }
+        .fh-dashboard-actions-caption {
+            color: var(--fh-muted);
+            font-size: 0.92rem;
+            font-weight: 700;
+            margin: 10px 0 6px;
+        }
+        .fh-dashboard-actions-divider {
+            width: 88px;
+            height: 1px;
+            background: rgba(15, 77, 59, 0.16);
+            margin: 14px 0;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1367,15 +1497,29 @@ def save_json_file(path: Path, data: Any) -> bool:
         return False
 
 
+def detect_system_language() -> str:
+    try:
+        language_code = (locale.getlocale()[0] or "").lower()
+    except Exception:
+        language_code = ""
+    if language_code.startswith("lt"):
+        return "lt"
+    return "en"
+
+
 def load_settings() -> dict:
     saved = load_json_file(SETTINGS_FILE, {})
     if not isinstance(saved, dict):
         saved = {}
     settings = DEFAULT_SETTINGS.copy()
     settings.update(saved)
+    if "language" not in saved:
+        settings["language"] = detect_system_language()
     settings["language"] = normalize_language(settings.get("language", "en"))
     settings["timezone"] = normalize_timezone(settings.get("timezone"))
     settings["auto_scan"] = normalize_auto_scan(settings.get("auto_scan", "off"))
+    settings["currency"] = normalize_currency(settings.get("currency", "USD"))
+    settings["max_dashboard_items"] = clamp_int(settings.get("max_dashboard_items", 3), 1, 10, 3)
     if not SETTINGS_FILE.exists():
         save_settings(settings)
     return settings
@@ -1417,6 +1561,19 @@ def normalize_savings(value: Any, currency: str = "USD") -> str:
         return f"{symbol}{int(value)}"
     except Exception:
         return f"{symbol}0"
+
+
+def normalize_currency(value: Any) -> str:
+    currency = str(value or "USD").upper()
+    return currency if currency in {"USD", "EUR", "GBP"} else "USD"
+
+
+def clamp_int(value: Any, minimum: int, maximum: int, default: int) -> int:
+    try:
+        number = int(value)
+    except Exception:
+        return default
+    return max(minimum, min(maximum, number))
 
 
 
@@ -1463,6 +1620,135 @@ def collect_detected_senders(scan_data: dict | None) -> list[str]:
 
     return sorted(senders)
 
+
+def get_message_id(item: Any) -> str | None:
+    if isinstance(item, str):
+        return item
+    if not isinstance(item, dict):
+        return None
+    for key in ("message_id", "id", "gmail_id"):
+        value = item.get(key)
+        if value:
+            return str(value)
+    return None
+
+
+def remove_messages_from_scan(message_ids: list[str]) -> list[dict]:
+    ids_to_remove = {str(message_id) for message_id in message_ids if message_id}
+    if not ids_to_remove:
+        return []
+
+    scan_data = st.session_state.get("last_scan")
+    if not isinstance(scan_data, dict):
+        return []
+
+    removed_by_id: dict[str, dict] = {}
+
+    for section in (
+        "financial_risks",
+        "subscriptions",
+        "promotional_emails",
+        "shop_emails",
+        "newsletter_emails",
+    ):
+        items = scan_data.get(section, []) or []
+        kept_items = []
+        for item in items:
+            message_id = get_message_id(item)
+            if message_id in ids_to_remove:
+                removed_item = removed_by_id.setdefault(message_id, {**item, "_source_sections": []})
+                removed_item["_source_sections"].append(section)
+            else:
+                kept_items.append(item)
+        scan_data[section] = kept_items
+
+    scan_data["subscriptions_found"] = len(scan_data.get("subscriptions", []) or []) + len(scan_data.get("financial_risks", []) or [])
+    scan_data["promotions_found"] = (
+        len(scan_data.get("promotional_emails", []) or [])
+        + len(scan_data.get("shop_emails", []) or [])
+        + len(scan_data.get("newsletter_emails", []) or [])
+    )
+    st.session_state.last_scan = scan_data
+    save_json_file(RESULTS_FILE, scan_data)
+    return list(removed_by_id.values())
+
+
+def result_message_ids(items: list[dict] | None) -> list[str]:
+    return [message_id for item in (items or []) if (message_id := get_message_id(item))]
+
+
+def remember_recent_trashed_items(items: list[dict]) -> None:
+    trashed_items = [item for item in items if get_message_id(item)]
+    if trashed_items:
+        st.session_state.recent_trashed_items = trashed_items
+
+
+def restore_messages_to_scan(items: list[dict]) -> None:
+    scan_data = st.session_state.get("last_scan")
+    if not isinstance(scan_data, dict):
+        scan_data = load_last_scan_results() or {}
+
+    section_names = (
+        "financial_risks",
+        "subscriptions",
+        "promotional_emails",
+        "shop_emails",
+        "newsletter_emails",
+    )
+    for section in section_names:
+        scan_data.setdefault(section, [])
+
+    for item in items:
+        message_id = get_message_id(item)
+        if not message_id:
+            continue
+        source_sections = item.get("_source_sections") or []
+        clean_item = {key: value for key, value in item.items() if key != "_source_sections"}
+        for section in source_sections:
+            if section not in section_names:
+                continue
+            existing_ids = {get_message_id(existing) for existing in scan_data.get(section, [])}
+            if message_id not in existing_ids:
+                scan_data[section].append(clean_item)
+
+    scan_data["subscriptions_found"] = len(scan_data.get("subscriptions", []) or []) + len(scan_data.get("financial_risks", []) or [])
+    scan_data["promotions_found"] = (
+        len(scan_data.get("promotional_emails", []) or [])
+        + len(scan_data.get("shop_emails", []) or [])
+        + len(scan_data.get("newsletter_emails", []) or [])
+    )
+    st.session_state.last_scan = scan_data
+    save_json_file(RESULTS_FILE, scan_data)
+
+
+def render_recent_trash_undo(location_key: str) -> None:
+    lang = current_language()
+    trashed_items = st.session_state.get("recent_trashed_items") or []
+    if not trashed_items:
+        return
+
+    count = len(trashed_items)
+    st.info(t("safe_action.recent_trash", lang).format(count=count))
+    if st.button(t("safe_action.undo", lang), key=f"undo_recent_trash_{location_key}", use_container_width=True):
+        restored_items = []
+        for item in trashed_items:
+            message_id = get_message_id(item)
+            if not message_id:
+                continue
+            try:
+                restore_trashed_email(message_id)
+                restored_items.append(item)
+            except Exception:
+                continue
+        st.session_state.recent_trashed_items = []
+        if restored_items:
+            restore_messages_to_scan(restored_items)
+            st.success(t("safe_action.undo_done", lang))
+            safe_rerun()
+        else:
+            st.info(t("safe_action.failed", lang))
+
+
 def refresh_scan_data() -> None:
     latest = load_last_scan_results()
     if latest:
@@ -1476,6 +1762,11 @@ def get_email_identity(item: dict, card_type: str = "") -> str:
     # Pridedame card_type kad išvengtume dublikatų kai tas pats laiškas rodomas keliose vietose
     suffix = f"_{card_type}" if card_type else ""
     return f"{message_id}{suffix}"
+
+
+def stable_widget_key(prefix: str, value: Any) -> str:
+    digest = hashlib.sha1(str(value).encode("utf-8", errors="ignore")).hexdigest()[:12]
+    return f"{prefix}_{digest}"
 
 
 def current_language() -> str:
@@ -1498,6 +1789,10 @@ def current_user_profile(scan_data: dict | None = None) -> UserStateProfile:
     return build_user_state_profile(st.session_state.get("settings", {}), data, load_memory())
 
 
+def gmail_is_connected() -> bool:
+    return has_saved_gmail_connection()
+
+
 def render_adaptive_context(profile: UserStateProfile) -> None:
     lang = current_language()
     render_calm_note(t(f"adaptive.{profile.state}", lang))
@@ -1513,6 +1808,20 @@ def friendly_error_message(error: Any) -> str:
     if "What is wrong:" in text and "How to fix it:" in text:
         return text
     lower_text = text.lower()
+    if (
+        "winerror 10013" in lower_text
+        or "urlopen error" in lower_text
+        or "socket" in lower_text
+        or "network" in lower_text
+        or "fetch failed" in lower_text
+        or "timed out" in lower_text
+        or "unable to connect" in lower_text
+        or "could not connect" in lower_text
+    ):
+        return (
+            "FeeHunt could not reach the service right now.\n\n"
+            "Please check your internet connection, Windows Firewall, or antivirus network permissions, then try again."
+        )
     if "plan limit" in lower_text or ("allows" in lower_text and "gmail account" in lower_text):
         return (
             "This FeeHunt plan has reached its Gmail account limit.\n\n"
@@ -1523,7 +1832,26 @@ def friendly_error_message(error: Any) -> str:
             "FeeHunt lost connection to Gmail.\n\n"
             "Your emails are safe and nothing was changed. Reconnect Gmail to continue reviewing your inbox."
         )
-    if "403" in lower_text or "access_denied" in lower_text or "access denied" in lower_text or "permission" in lower_text:
+    if "gmail api is not enabled" in lower_text:
+        return (
+            "FeeHunt could not reach the Gmail API for this Google sign-in app.\n\n"
+            "Enable Gmail API in Google Cloud Console for the OAuth project, then reconnect Gmail."
+        )
+    if "saved gmail connection" in lower_text or "requested access" in lower_text:
+        return (
+            "FeeHunt needs a fresh Gmail approval.\n\n"
+            "Your emails are safe. Reconnect Gmail and approve the requested access to continue."
+        )
+    if (
+        "gmail" in lower_text
+        and (
+            "403" in lower_text
+            or "access_denied" in lower_text
+            or "access denied" in lower_text
+            or "insufficient" in lower_text
+            or "permission" in lower_text
+        )
+    ):
         return (
             "FeeHunt does not have permission to finish this Gmail step.\n\n"
             "Your emails are safe. Reconnect Gmail and approve access to continue."
@@ -1533,14 +1861,42 @@ def friendly_error_message(error: Any) -> str:
             "FeeHunt could not open Gmail sign-in.\n\n"
             "Please make sure FeeHunt was extracted from the ZIP and try connecting Gmail again."
         )
-    if "network" in lower_text or "fetch failed" in lower_text or "timed out" in lower_text:
-        return (
-            "FeeHunt could not reach the service right now.\n\n"
-            "Please check your internet connection and try again in a moment."
-        )
     return (
         "FeeHunt could not finish that step.\n\n"
         "Nothing was changed unless FeeHunt clearly says it was. Please try again, or reopen FeeHunt if the problem continues."
+    )
+
+
+def friendly_license_error(error: Any) -> str:
+    text = str(error or "").strip()
+    lower_text = text.lower()
+    if (
+        "winerror 10013" in lower_text
+        or "urlopen error" in lower_text
+        or "socket" in lower_text
+        or "access permissions" in lower_text
+        or "unable to connect" in lower_text
+        or "could not connect" in lower_text
+        or "timed out" in lower_text
+    ):
+        return (
+            "FeeHunt could not contact the license server.\n\n"
+            "Windows Firewall, antivirus, VPN, or network settings may be blocking FeeHunt. "
+            "Allow FeeHunt.exe to access https://feehunt.pro and try the license key again."
+        )
+    if "missing or invalid license key" in lower_text or "license key not found" in lower_text:
+        return (
+            "FeeHunt could not verify this license key.\n\n"
+            "Please check the key from your email and try again. If it was just created, use Log in / Resend key on the website."
+        )
+    if "device limit" in lower_text:
+        return (
+            "This license has reached its device limit.\n\n"
+            "Use the same computer where you activated FeeHunt, or contact support to reset devices."
+        )
+    return (
+        "FeeHunt could not verify this license key.\n\n"
+        f"Details: {text or 'The license server did not return a usable response.'}"
     )
 
 
@@ -1573,29 +1929,77 @@ def render_trust_strip(lang: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+SUPPORTED_LANGUAGES = [
+    {"code": "en", "flag": "🇬🇧", "name": "English"},
+    {"code": "lt", "flag": "🇱🇹", "name": "Lietuvių"},
+]
+
+
+def render_language_picker(key_prefix: str, current: str, *, compact: bool = True) -> str:
+    settings = st.session_state.get("settings", DEFAULT_SETTINGS).copy()
+    current = normalize_language(current)
+    current_language = next(
+        (language for language in SUPPORTED_LANGUAGES if language["code"] == current),
+        SUPPORTED_LANGUAGES[0],
+    )
+    popover_label = (
+        t("welcome.language_short", current)
+        if compact
+        else f"{current_language['flag']} {current_language['name']}"
+    )
+
+    with st.popover(popover_label):
+        st.markdown(f"**{t('welcome.language_modal_title', current)}**")
+        for language in SUPPORTED_LANGUAGES:
+            code = language["code"]
+            selected = code == current
+            label = f"{language['flag']} {language['name']}"
+            if selected:
+                label = f"{label} ✓"
+            if st.button(
+                label,
+                key=f"{key_prefix}_language_{code}",
+                type="primary" if selected else "secondary",
+                use_container_width=True,
+                disabled=selected,
+            ):
+                settings["language"] = code
+                save_settings(settings)
+                st.session_state.settings = settings
+                safe_rerun()
+
+    return current
 
 
 def render_welcome_language_selector() -> str:
     settings = st.session_state.get("settings", DEFAULT_SETTINGS).copy()
     current = normalize_language(settings.get("language", "en"))
+    render_language_picker("welcome", current)
+    return normalize_language(st.session_state.get("settings", {}).get("language", current))
     language_options = [
-        ("EN", "en"),
-        ("LT", "lt"),
+        ("English", "en"),
+        ("Lietuvių", "lt"),
     ]
-    current_option = next((option for option in language_options if option[1] == current), language_options[0])
-    current_label = current_option[0]
-    left_space, label_col, menu_col = st.columns([0.7, 0.18, 0.12])
-    with label_col:
-        st.markdown(f'<div class="fh-language-label">{t("welcome.language_label", current)}</div>', unsafe_allow_html=True)
-    with menu_col:
-        with st.popover(current_label):
-            for code_label, code in language_options:
-                if st.button(code_label, key=f"welcome_language_{code}", use_container_width=True):
-                    if code != current:
-                        settings["language"] = code
-                        save_settings(settings)
-                        st.session_state.settings = settings
-                    safe_rerun()
+    st.markdown('<div class="fh-welcome-language">', unsafe_allow_html=True)
+    st.markdown(f'<div class="fh-language-label">{t("welcome.language_label", current)}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="fh-language-note">{t("welcome.language_note", current)}</div>', unsafe_allow_html=True)
+    cols = st.columns(len(language_options))
+    for index, (label, code) in enumerate(language_options):
+        with cols[index]:
+            selected = code == current
+            button_label = f"{label} ✓" if selected else label
+            if st.button(
+                button_label,
+                key=f"welcome_language_{code}",
+                type="primary" if selected else "secondary",
+                use_container_width=True,
+                disabled=selected,
+            ):
+                settings["language"] = code
+                save_settings(settings)
+                st.session_state.settings = settings
+                safe_rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
     return current
 
 
@@ -1618,8 +2022,44 @@ def is_preview_mode() -> bool:
     return bool(st.session_state.get("preview_mode"))
 
 
+PREVIEW_COPY = {
+    "en": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "this_week": "This week",
+        "risk_subject": "Payment method needs attention",
+        "risk_snippet": "Your subscription may pause soon unless the payment method is reviewed.",
+        "sub1_subject": "Your monthly plan renews soon",
+        "sub1_snippet": "Your plan renews next week. Review if you still use it.",
+        "sub2_subject": "Receipt for cloud storage",
+        "sub2_snippet": "A recurring storage plan was detected.",
+        "promo1_subject": "Weekend offer for members",
+        "promo1_snippet": "Promotional email that could be archived after review.",
+        "promo2_subject": "New arrivals you may like",
+        "promo2_snippet": "A frequent promotional sender was found.",
+    },
+    "lt": {
+        "today": "Šiandien",
+        "yesterday": "Vakar",
+        "this_week": "Šią savaitę",
+        "risk_subject": "Reikia peržiūrėti mokėjimo būdą",
+        "risk_snippet": "Jūsų prenumerata gali būti netrukus sustabdyta, jei nebus peržiūrėtas mokėjimo būdas.",
+        "sub1_subject": "Jūsų mėnesinis planas netrukus atsinaujins",
+        "sub1_snippet": "Planas atsinaujins kitą savaitę. Peržiūrėkite, ar jį dar naudojate.",
+        "sub2_subject": "Kvitas už debesų saugyklą",
+        "sub2_snippet": "Aptiktas pasikartojantis saugyklos planas.",
+        "promo1_subject": "Savaitgalio pasiūlymas nariams",
+        "promo1_snippet": "Reklaminis laiškas, kurį po peržiūros galima archyvuoti.",
+        "promo2_subject": "Naujienos, kurios gali patikti",
+        "promo2_snippet": "Aptiktas dažnas reklaminių laiškų siuntėjas.",
+    },
+}
+
+
 def build_preview_scan_results() -> dict[str, Any]:
     now = datetime.now().isoformat()
+    lang = current_language()
+    copy = PREVIEW_COPY.get(lang) or PREVIEW_COPY["en"]
     return {
         "last_scan_at": now,
         "subscriptions_found": 5,
@@ -1628,46 +2068,46 @@ def build_preview_scan_results() -> dict[str, Any]:
         "financial_risks": [
             {
                 "message_id": "preview-risk-1",
-                "subject": "Payment method needs attention",
+                "subject": copy["risk_subject"],
                 "sender": "Streaming Service <billing@example.com>",
-                "date": "Today",
-                "snippet": "Your subscription may pause soon unless the payment method is reviewed.",
+                "date": copy["today"],
+                "snippet": copy["risk_snippet"],
                 "matched_keywords": {"risk": ["payment", "subscription"]},
             }
         ],
         "subscriptions": [
             {
                 "message_id": "preview-sub-1",
-                "subject": "Your monthly plan renews soon",
+                "subject": copy["sub1_subject"],
                 "sender": "Design App <hello@example.com>",
-                "date": "Yesterday",
-                "snippet": "Your plan renews next week. Review if you still use it.",
+                "date": copy["yesterday"],
+                "snippet": copy["sub1_snippet"],
                 "matched_keywords": {"subscription": ["renews", "monthly plan"]},
             },
             {
                 "message_id": "preview-sub-2",
-                "subject": "Receipt for cloud storage",
+                "subject": copy["sub2_subject"],
                 "sender": "Cloud Storage <receipts@example.com>",
-                "date": "This week",
-                "snippet": "A recurring storage plan was detected.",
+                "date": copy["this_week"],
+                "snippet": copy["sub2_snippet"],
                 "matched_keywords": {"subscription": ["receipt", "recurring"]},
             },
         ],
         "promotional_emails": [
             {
                 "message_id": "preview-promo-1",
-                "subject": "Weekend offer for members",
+                "subject": copy["promo1_subject"],
                 "sender": "Online Shop <offers@example.com>",
-                "date": "Today",
-                "snippet": "Promotional email that could be archived after review.",
+                "date": copy["today"],
+                "snippet": copy["promo1_snippet"],
                 "matched_keywords": {"promotions": ["offer", "members"]},
             },
             {
                 "message_id": "preview-promo-2",
-                "subject": "New arrivals you may like",
+                "subject": copy["promo2_subject"],
                 "sender": "Retail Brand <news@example.com>",
-                "date": "Yesterday",
-                "snippet": "A frequent promotional sender was found.",
+                "date": copy["yesterday"],
+                "snippet": copy["promo2_snippet"],
                 "matched_keywords": {"promotions": ["new arrivals"]},
             },
         ],
@@ -1716,14 +2156,16 @@ def show_safe_email_action(
     undo_fn=None,
     *,
     primary: bool = False,
+    ui_key: str | None = None,
 ) -> None:
     lang = current_language()
+    widget_key = ui_key or message_id
     confirm_key = f"confirm_{action_id}_{message_id}"
     done_key = f"done_{action_id}_{message_id}"
 
     if st.session_state.get(done_key):
         st.success(t(success_key, lang))
-        if undo_fn and st.button(t("safe_action.undo", lang), key=f"undo_{action_id}_{message_id}"):
+        if undo_fn and st.button(t("safe_action.undo", lang), key=f"undo_{action_id}_{widget_key}"):
             try:
                 undo_fn(message_id)
                 st.session_state[done_key] = False
@@ -1740,7 +2182,7 @@ def show_safe_email_action(
         with col_confirm:
             if st.button(
                 t(f"safe_action.confirm.{action_id}", lang),
-                key=f"run_{action_id}_{message_id}",
+                key=f"run_{action_id}_{widget_key}",
                 type="primary",
                 use_container_width=True,
             ):
@@ -1748,20 +2190,23 @@ def show_safe_email_action(
                     action_fn(message_id)
                     st.session_state[confirm_key] = False
                     st.session_state[done_key] = True
-                    refresh_scan_data()
+                    if action_id == "delete":
+                        remember_recent_trashed_items(remove_messages_from_scan([message_id]))
+                    else:
+                        refresh_scan_data()
                     safe_rerun()
                 except Exception:
                     st.session_state[confirm_key] = False
                     st.info(t("safe_action.failed", lang))
         with col_cancel:
-            if st.button(t("safe_action.cancel", lang), key=f"cancel_{action_id}_{message_id}", use_container_width=True):
+            if st.button(t("safe_action.cancel", lang), key=f"cancel_{action_id}_{widget_key}", use_container_width=True):
                 st.session_state[confirm_key] = False
                 safe_rerun()
         return
 
     if st.button(
         label,
-        key=f"{action_id}_{message_id}",
+        key=f"{action_id}_{widget_key}",
         type="primary" if primary else "secondary",
         use_container_width=True,
     ):
@@ -1963,13 +2408,72 @@ def get_email_protection_reason(email: dict, category_id: str) -> str:
     return ""
 
 
-def apply_rules_to_scan(scan_data: dict, rules: dict, *, dry_run: bool = False) -> dict:
+def email_matches_user_unwanted_rule(email: dict, settings: dict) -> bool:
+    text = " ".join(
+        str(email.get(key) or "")
+        for key in ("subject", "sender", "snippet")
+    ).lower()
+    sender = str(email.get("sender") or "").lower()
+    matched_keywords = email.get("matched_keywords", {}) or {}
+    matched_user_rules = []
+    if isinstance(matched_keywords, dict):
+        matched_user_rules = [str(value).lower() for value in matched_keywords.get("user_rules", []) or []]
+
+    promo_senders = [
+        normalize_rule_value(value)
+        for value in settings.get("promo_senders", []) or []
+        if normalize_rule_value(value)
+    ]
+    promo_keywords = [
+        normalize_rule_value(value)
+        for value in settings.get("promo_keywords", []) or []
+        if normalize_rule_value(value)
+    ]
+
+    return (
+        any(rule in sender for rule in promo_senders)
+        or any(rule in text for rule in promo_keywords)
+        or bool(matched_user_rules)
+    )
+
+
+def email_search_text(email: dict) -> str:
+    return " ".join(
+        str(email.get(key) or "")
+        for key in ("subject", "sender", "snippet")
+    ).lower()
+
+
+def collect_unique_scan_emails(scan_data: dict) -> list[dict]:
+    unique: dict[str, dict] = {}
+    for section in (
+        "financial_risks",
+        "subscriptions",
+        "promotional_emails",
+        "shop_emails",
+        "newsletter_emails",
+    ):
+        for email in scan_data.get(section, []) or []:
+            message_id = get_message_id(email)
+            if message_id and message_id not in unique:
+                unique[message_id] = email
+    return list(unique.values())
+
+
+def apply_rules_to_scan(
+    scan_data: dict,
+    rules: dict,
+    *,
+    dry_run: bool = False,
+    blacklist_only: bool = False,
+    include_user_unwanted_rules: bool = False,
+) -> dict:
     """
     Automatiškai pritaiko kategorijų taisykles prie nuskenuotų laiškų.
     Grąžina dict su veiksmų rezultatais.
     """
     lang = current_language()
-    category_actions = rules.get("category_actions", {})
+    category_actions = rules.get("category_actions", {}).copy()
     whitelist = [w.lower() for w in rules.get("whitelist", [])]
     blacklist = [b.lower() for b in rules.get("blacklist", [])]
 
@@ -1984,13 +2488,31 @@ def apply_rules_to_scan(scan_data: dict, rules: dict, *, dry_run: bool = False) 
     }
 
     # Surenkame visus laiškus pagal kategorijas
-    category_map = {
+    default_category_map = {
         "financial_risks": scan_data.get("financial_risks", []),
         "subscriptions": scan_data.get("subscriptions", []),
         "promotions": scan_data.get("promotional_emails", []),
         "shops": scan_data.get("shop_emails", []),
         "newsletters": scan_data.get("newsletter_emails", []),
     }
+    custom_category_map = {}
+    all_scan_emails = collect_unique_scan_emails(scan_data)
+    for index, custom_category in enumerate(rules.get("custom_categories", []) or []):
+        custom_id = custom_category.get("id") or f"custom_{index}"
+        keywords = [
+            normalize_rule_value(keyword)
+            for keyword in custom_category.get("keywords", []) or []
+            if normalize_rule_value(keyword)
+        ]
+        if not keywords:
+            continue
+        custom_category_map[custom_id] = [
+            email for email in all_scan_emails
+            if any(keyword in email_search_text(email) for keyword in keywords)
+        ]
+        category_actions[custom_id] = custom_category.get("action", "ask")
+
+    category_map = {**custom_category_map, **default_category_map}
 
     processed_ids = set()
 
@@ -2019,16 +2541,25 @@ def apply_rules_to_scan(scan_data: dict, rules: dict, *, dry_run: bool = False) 
                 processed_ids.add(mid)
                 continue
 
-            if any(b in sender for b in blacklist):
+            matches_blacklist = any(b in sender for b in blacklist)
+            matches_user_unwanted = include_user_unwanted_rules and email_matches_user_unwanted_rule(
+                email,
+                st.session_state.get("settings", {}),
+            )
+            if matches_blacklist or matches_user_unwanted:
+                reason_key = "rules.reason_blacklist" if matches_blacklist else "rules.reason_user_unwanted"
                 if dry_run:
-                    results["auto_deleted"].append({**email, "reason": t("rules.reason_blacklist", lang)})
+                    results["auto_deleted"].append({**email, "reason": t(reason_key, lang)})
                 else:
                     try:
                         delete_email(mid)
-                        results["auto_deleted"].append({**email, "reason": t("rules.reason_blacklist", lang)})
+                        results["auto_deleted"].append({**email, "reason": t(reason_key, lang)})
                     except Exception as e:
                         results["needs_review"].append({**email, "reason": t("rules.error", lang).format(error=e)})
                 processed_ids.add(mid)
+                continue
+
+            if blacklist_only:
                 continue
 
             # Kategorijos veiksmas
@@ -2105,6 +2636,124 @@ def render_cleanup_preview(results: dict) -> None:
 # Email Card
 # ============================================================
 
+MONEY_PATTERN = re.compile(
+    r"(?:(?:€|\$|£)\s?\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s?(?:eur|usd|gbp|nok|kr))",
+    re.IGNORECASE,
+)
+
+
+def extract_money_mentions(text: str) -> list[str]:
+    seen = []
+    for match in MONEY_PATTERN.findall(text or ""):
+        cleaned = " ".join(match.strip().split())
+        if cleaned and cleaned.lower() not in [value.lower() for value in seen]:
+            seen.append(cleaned)
+    return seen[:2]
+
+
+def readable_service_name(item: dict) -> str:
+    sender = str(item.get("sender") or "").strip()
+    subject = str(item.get("subject") or "").strip()
+    candidate = sender.split("<", 1)[0].strip().strip('"') or subject
+    candidate = candidate.replace("via", " ").strip()
+    return candidate[:60] or "this sender"
+
+
+def gmail_related_search_url(service_name: str) -> str:
+    query = f'"{service_name}" subscription OR billing OR invoice OR renewal'
+    return f"https://mail.google.com/mail/u/0/#search/{quote_plus(query)}"
+
+
+def looks_like_unusual_stripe_sender(item: dict) -> bool:
+    text = " ".join(str(item.get(key) or "") for key in ("subject", "sender", "snippet")).lower()
+    sender = str(item.get("sender") or "").lower()
+    return "stripe" in text and "stripe.com" not in sender
+
+
+def build_action_first_guidance(
+    item: dict,
+    card_type: str,
+    unsubscribe_url: str | None,
+    lang: str,
+) -> dict[str, str]:
+    text = " ".join(str(item.get(key) or "") for key in ("subject", "sender", "snippet"))
+    amounts = extract_money_mentions(text)
+    amount = amounts[0] if amounts else ""
+    service_name = readable_service_name(item)
+    matched_keywords = item.get("matched_keywords") or {}
+    signal_count = 0
+    if isinstance(matched_keywords, dict):
+        signal_count = sum(len(values or []) for values in matched_keywords.values() if isinstance(values, list))
+    elif isinstance(matched_keywords, list):
+        signal_count = len(matched_keywords)
+
+    if card_type == "financial_risk":
+        danger = t("action_first.risk.danger", lang)
+        if amount:
+            danger = t("action_first.risk.danger_amount", lang).format(amount=amount)
+        if looks_like_unusual_stripe_sender(item):
+            danger = t("action_first.risk.unusual_stripe", lang)
+        return {
+            "tone": "risk",
+            "kicker": t("action_first.kicker", lang),
+            "danger": danger,
+            "explain": t("action_first.risk.explain", lang).format(service=service_name),
+            "next": t("action_first.risk.next", lang),
+            "control": t("action_first.risk.control", lang),
+        }
+
+    if card_type == "subscriptions":
+        danger = t("action_first.subscription.danger", lang)
+        if amount:
+            danger = t("action_first.subscription.danger_amount", lang).format(amount=amount)
+        elif signal_count >= 2:
+            danger = t("action_first.subscription.danger_signals", lang).format(count=signal_count)
+        next_key = "action_first.subscription.next_unsubscribe" if unsubscribe_url else "action_first.subscription.next_cancel"
+        return {
+            "tone": "default",
+            "kicker": t("action_first.kicker", lang),
+            "danger": danger,
+            "explain": t("action_first.subscription.explain", lang).format(service=service_name),
+            "next": t(next_key, lang),
+            "control": t("action_first.subscription.control", lang),
+        }
+
+    if card_type == "promotions":
+        return {
+            "tone": "default",
+            "kicker": t("action_first.kicker", lang),
+            "danger": t("action_first.promotions.danger", lang),
+            "explain": t("action_first.promotions.explain", lang).format(service=service_name),
+            "next": t("action_first.promotions.next", lang),
+            "control": t("action_first.promotions.control", lang),
+        }
+
+    return {
+        "tone": "default",
+        "kicker": t("action_first.kicker", lang),
+        "danger": t("action_first.generic.danger", lang),
+        "explain": t("action_first.generic.explain", lang).format(service=service_name),
+        "next": t("action_first.generic.next", lang),
+        "control": t("action_first.generic.control", lang),
+    }
+
+
+def render_action_first_panel(guidance: dict[str, str]) -> None:
+    tone_class = "is-risk" if guidance.get("tone") == "risk" else ""
+    st.markdown(
+        f"""
+        <div class="fh-action-first-panel {tone_class}">
+            <div class="fh-action-first-kicker">{escape(guidance.get("kicker", ""), quote=False)}</div>
+            <div class="fh-action-first-danger">{escape(guidance.get("danger", ""), quote=False)}</div>
+            <div class="fh-action-first-explain">{escape(guidance.get("explain", ""), quote=False)}</div>
+            <div class="fh-action-first-next">→ {escape(guidance.get("next", ""), quote=False)}</div>
+            <div class="fh-action-first-control">{escape(guidance.get("control", ""), quote=False)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
     lang = current_language()
     subject = item.get("subject") or t("email.no_subject", lang)
@@ -2115,6 +2764,12 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
     message_id = item.get("message_id")
     safe_key = get_email_identity(item, card_type)
     gmail_url = f"https://mail.google.com/mail/u/0/#all/{message_id}" if message_id else None
+    unsubscribe_url = None
+    if message_id and not is_preview_mode():
+        try:
+            unsubscribe_url = get_unsubscribe_link(message_id)
+        except Exception:
+            unsubscribe_url = None
 
     all_keywords = []
     if isinstance(keywords, dict):
@@ -2136,6 +2791,9 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
         if snippet:
             st.caption(f"_{snippet}_")
 
+        guidance = build_action_first_guidance(item, card_type, unsubscribe_url, lang)
+        render_action_first_panel(guidance)
+
         if is_preview_mode():
             render_calm_note(t("preview.action_disabled", lang))
             return
@@ -2146,6 +2804,14 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
 
         if gmail_url:
             st.link_button(t("actions.open_gmail", lang), gmail_url)
+
+        related_url = gmail_related_search_url(readable_service_name(item))
+        st.link_button(
+            t("action_first.find_related", lang),
+            related_url,
+            help=t("action_first.find_related_help", lang),
+            use_container_width=True,
+        )
 
         st.write(t("email.actions_label", lang))
         col1, col2, col3, col4 = st.columns(4)
@@ -2158,6 +2824,7 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
                 archive_email,
                 "safe_action.done_archive",
                 unarchive_email,
+                ui_key=safe_key,
             )
 
         with col2:
@@ -2168,6 +2835,7 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
                 delete_email,
                 "safe_action.done_delete",
                 restore_trashed_email,
+                ui_key=safe_key,
             )
 
         with col3:
@@ -2178,6 +2846,7 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
                 mark_as_spam,
                 "safe_action.done_spam",
                 unmark_spam,
+                ui_key=safe_key,
             )
 
         with col4:
@@ -2189,13 +2858,6 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
                     safe_rerun()
                 except Exception as e:
                     st.error(friendly_error_message(e))
-
-        # Unsubscribe
-        unsubscribe_url = None
-        try:
-            unsubscribe_url = get_unsubscribe_link(message_id)
-        except Exception:
-            pass
 
         if unsubscribe_url:
             render_calm_note(t("safe_action.explain.unsubscribe", lang))
@@ -2300,21 +2962,30 @@ def safe_bulk_action(
     if st.session_state.get(confirm_key):
         render_calm_note(t(f"safe_action.explain.{action_id}", lang))
         if st.button(t(f"safe_action.confirm.{action_id}", lang), key=f"run_bulk_{action_id}_{location_key}", type="primary", use_container_width=True):
+            message_ids = [message_id for item in emails if (message_id := get_message_id(item))]
             changed_ids = []
-            for item in emails:
-                message_id = item.get("message_id")
-                if not message_id:
-                    continue
-                try:
-                    action_fn(message_id)
-                    changed_ids.append(message_id)
-                except Exception:
-                    continue
+            errors = []
+            if action_id == "delete":
+                result = delete_emails(message_ids)
+                changed_ids = result.get("changed", [])
+                errors = result.get("errors", [])
+            else:
+                for message_id in message_ids:
+                    try:
+                        action_fn(message_id)
+                        changed_ids.append(message_id)
+                    except Exception as error:
+                        errors.append({"message_id": message_id, "error": str(error)})
             st.session_state[confirm_key] = False
             st.session_state[done_key] = bool(changed_ids)
             st.session_state[ids_key] = changed_ids
             if changed_ids:
-                refresh_scan_data()
+                if action_id == "delete":
+                    remember_recent_trashed_items(remove_messages_from_scan(changed_ids))
+                else:
+                    refresh_scan_data()
+                if errors:
+                    st.warning(t("bulk.errors", lang).format(count=len(errors)))
                 safe_rerun()
             else:
                 st.info(t("safe_action.failed", lang))
@@ -2342,6 +3013,58 @@ def show_bulk_actions(emails: list[dict], location_key: str) -> None:
         safe_bulk_action(emails, "spam", t("actions.spam", lang), mark_as_spam, unmark_spam, location_key)
 
 
+def show_selectable_email_review(
+    emails: list[dict],
+    *,
+    location_key: str,
+    icon: str,
+    card_type: str,
+) -> None:
+    if not emails:
+        return
+
+    lang = current_language()
+    selection_prefix = f"selected_email_{location_key}"
+    bulk_selection_key = f"{selection_prefix}_bulk"
+    bulk_selection = st.session_state.pop(bulk_selection_key, None)
+    selectable_items = [
+        (item, item.get("message_id") or get_email_identity(item, card_type))
+        for item in emails
+    ]
+
+    if bulk_selection == "all":
+        for _, item_id in selectable_items:
+            st.session_state[stable_widget_key(selection_prefix, item_id)] = True
+    elif bulk_selection == "none":
+        for _, item_id in selectable_items:
+            st.session_state[stable_widget_key(selection_prefix, item_id)] = False
+
+    col_all, col_none = st.columns(2)
+    with col_all:
+        if st.button(t("bulk.select_all", lang), key=f"{location_key}_select_all", use_container_width=True):
+            st.session_state[bulk_selection_key] = "all"
+            safe_rerun()
+    with col_none:
+        if st.button(t("bulk.clear_selection", lang), key=f"{location_key}_clear_selection", use_container_width=True):
+            st.session_state[bulk_selection_key] = "none"
+            safe_rerun()
+
+    selected_items = []
+    for item, item_id in selectable_items:
+        subject = item.get("subject") or t("email.no_subject", lang)
+        sender = item.get("sender") or t("email.unknown_sender", lang)
+        checkbox_label = f"{subject} - {sender}"
+        if st.checkbox(checkbox_label, key=stable_widget_key(selection_prefix, item_id)):
+            selected_items.append(item)
+
+    st.caption(t("bulk.selected_count", lang).format(count=len(selected_items), total=len(emails)))
+    show_bulk_actions(selected_items, location_key)
+
+    st.divider()
+    for item in selected_items:
+        show_email_card(item, icon, card_type)
+
+
 # ============================================================
 # Status Panel
 # ============================================================
@@ -2350,7 +3073,7 @@ def show_status_panel() -> None:
     lang = current_language()
     st.caption(f"{APP_NAME} {APP_VERSION}")
     st.caption(t("status.app_folder", lang).format(path=APP_DIR))
-    st.caption(f"Local data folder: {USER_DATA_DIR}")
+    st.caption(t("status.local_data_folder", lang).format(path=USER_DATA_DIR))
     if MAIN_FILE.exists():
         st.success(t("status.main_found", lang))
     else:
@@ -2471,7 +3194,7 @@ def show_auth_screen() -> None:
                     st.success(t("welcome.activated", lang))
                     safe_rerun()
                 else:
-                    st.error(friendly_error_message(result.get("message") or result.get("error")))
+                    st.error(friendly_license_error(result.get("message") or result.get("error")))
 
         st.markdown(f'<div class="fh-welcome-help">{t("welcome.secondary_intro", lang)}</div>', unsafe_allow_html=True)
         st.markdown('<div class="fh-welcome-secondary">', unsafe_allow_html=True)
@@ -2486,20 +3209,48 @@ def show_auth_screen() -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+def localized_gate_message(gate: dict[str, Any], lang: str) -> str:
+    status = str(gate.get("status") or "").strip().lower()
+    allowed = bool(gate.get("allowed"))
+    online = bool(gate.get("online", True))
+    raw_message = str(gate.get("message") or "")
+    if status == "invalid":
+        return t("license.gate.invalid", lang)
+    if status == "missing_license":
+        return t("license.gate.missing_license", lang)
+    if status == "plan_limit_exceeded":
+        accounts_value = gate.get("allowed_gmail_accounts") or gate.get("accounts") or 1
+        return t("license.gate.plan_limit_exceeded", lang).format(accounts=accounts_value)
+    if not online and allowed:
+        from licensing import OFFLINE_GRACE_DAYS
+        return t("license.gate.offline_grace", lang).format(days=OFFLINE_GRACE_DAYS)
+    if not allowed:
+        return t("license.gate.generic_inactive", lang) if not raw_message or _looks_like_english(raw_message) else raw_message
+    return raw_message or t("license.gate.generic_active", lang)
+
+
+def _looks_like_english(text: str) -> bool:
+    sample = (text or "").lower()
+    markers = ("subscription", "license", "your ", "please", "trial", "payment", "available", "allowed", "verified")
+    return any(marker in sample for marker in markers)
+
+
 def show_license_banner(gate: dict[str, Any]) -> None:
+    lang = current_language()
     if is_preview_mode():
-        st.info(t("preview.banner", current_language()))
+        st.info(t("preview.banner", lang))
         return
-    plan = str(gate.get("plan_type") or "trial").title()
+    plan_key = str(gate.get("plan_type") or "trial").strip().lower()
+    plan = t(f"license.plan.{plan_key}", lang)
     days = int(gate.get("days_remaining") or 0)
     if gate.get("allowed"):
-        st.success(t("license.banner_active", current_language()).format(plan=plan, days=days))
+        st.success(t("license.banner_active", lang).format(plan=plan, days=days))
         if not gate.get("online", True):
-            st.caption(gate.get("message"))
+            st.caption(localized_gate_message(gate, lang))
     else:
-        st.error(t("license.banner_inactive", current_language()))
-        st.write(gate.get("message"))
-        st.link_button(t("license.upgrade_now", current_language()), PRICING_URL)
+        st.error(t("license.banner_inactive", lang))
+        st.write(localized_gate_message(gate, lang))
+        st.link_button(t("license.upgrade_now", lang), PRICING_URL)
 
 
 def save_ftue_completed() -> None:
@@ -2526,6 +3277,20 @@ def get_scan_summary(scan_data: dict | None) -> dict[str, Any]:
         "promotions": promotions or 0,
         "savings": scan_data.get("estimated_savings", "$0") or "$0",
     }
+
+
+def get_subscription_item_count(scan_data: dict | None) -> int:
+    if not scan_data:
+        return 0
+    subscriptions = scan_data.get("subscriptions")
+    if isinstance(subscriptions, list):
+        return len(subscriptions)
+    try:
+        combined_count = int(scan_data.get("subscriptions_found") or 0)
+    except (TypeError, ValueError):
+        combined_count = 0
+    financial_risks = len(scan_data.get("financial_risks", []) or [])
+    return max(0, combined_count - financial_risks)
 
 
 def parse_money_amount(value: Any) -> int:
@@ -2556,7 +3321,7 @@ def build_ai_guidance(scan_data: dict | None, lang: str) -> list[dict[str, str]]
     savings_amount = parse_money_amount(summary["savings"])
     guidance: list[dict[str, str]] = []
 
-    if savings_amount > 0:
+    if savings_amount > 0 and not summary["subscriptions"]:
         guidance.append({
             "kind": "savings",
             "message": t("ai_guidance.savings", lang).format(amount=summary["savings"]),
@@ -2564,6 +3329,25 @@ def build_ai_guidance(scan_data: dict | None, lang: str) -> list[dict[str, str]]
             "cta_key": "ai_guidance.cta.review_subscriptions",
             "why_key": "ai_guidance.why.savings",
             "happens_key": "ai_guidance.happens.review",
+        })
+
+    if summary["promotions"] >= 20:
+        guidance.append({
+            "kind": "promotions",
+            "message": t("ai_guidance.promotions_many", lang),
+            "action_key": "review_promotions",
+            "cta_key": "ai_guidance.cta.review_promotions",
+            "why_key": "ai_guidance.why.promotions",
+            "happens_key": "ai_guidance.happens.review_promotions",
+        })
+    elif summary["promotions"] >= 5:
+        guidance.append({
+            "kind": "promotions",
+            "message": t("ai_guidance.promotions_some", lang),
+            "action_key": "review_promotions",
+            "cta_key": "ai_guidance.cta.review_promotions",
+            "why_key": "ai_guidance.why.promotions",
+            "happens_key": "ai_guidance.happens.review_promotions",
         })
 
     if summary["subscriptions"] >= 4:
@@ -2583,25 +3367,6 @@ def build_ai_guidance(scan_data: dict | None, lang: str) -> list[dict[str, str]]
             "cta_key": "ai_guidance.cta.review_subscriptions",
             "why_key": "ai_guidance.why.subscriptions",
             "happens_key": "ai_guidance.happens.review",
-        })
-
-    if summary["promotions"] >= 20:
-        guidance.append({
-            "kind": "promotions",
-            "message": t("ai_guidance.promotions_many", lang),
-            "action_key": "archive_promotions",
-            "cta_key": "ai_guidance.cta.archive_promotions",
-            "why_key": "ai_guidance.why.promotions",
-            "happens_key": "ai_guidance.happens.archive_promotions",
-        })
-    elif summary["promotions"] >= 5:
-        guidance.append({
-            "kind": "promotions",
-            "message": t("ai_guidance.promotions_some", lang),
-            "action_key": "archive_promotions",
-            "cta_key": "ai_guidance.cta.archive_promotions",
-            "why_key": "ai_guidance.why.promotions",
-            "happens_key": "ai_guidance.happens.archive_promotions",
         })
 
     if financial_risks == 1:
@@ -2633,13 +3398,26 @@ def build_ai_guidance(scan_data: dict | None, lang: str) -> list[dict[str, str]]
             "happens_key": "",
         })
 
-    return guidance[:4]
+    unique_guidance = []
+    seen_actions = set()
+    for item in guidance:
+        action_key = item.get("action_key")
+        if action_key in seen_actions:
+            continue
+        seen_actions.add(action_key)
+        unique_guidance.append(item)
+
+    return unique_guidance[:4]
 
 
 def run_ai_guidance_action(action_key: str, scan_data: dict | None, lang: str) -> None:
     if action_key in ("review_subscriptions", "review_financial_risks", "open_unsubscribe_options"):
         st.session_state.ftue_target_page = "Subscriptions"
-        st.session_state.main_navigation = "Subscriptions"
+        safe_rerun()
+        return
+
+    if action_key == "review_promotions":
+        st.session_state.ftue_target_page = "Promotions"
         safe_rerun()
         return
 
@@ -2669,7 +3447,12 @@ def run_ai_guidance_action(action_key: str, scan_data: dict | None, lang: str) -
     st.info(t("ai_guidance.calm_body", lang))
 
 
-def show_ai_guidance(scan_data: dict | None, profile: UserStateProfile | None = None) -> None:
+def show_ai_guidance(
+    scan_data: dict | None,
+    profile: UserStateProfile | None = None,
+    *,
+    show_actions: bool = True,
+) -> None:
     if not scan_data:
         return
     lang = current_language()
@@ -2714,6 +3497,9 @@ def show_ai_guidance(scan_data: dict | None, profile: UserStateProfile | None = 
                 st.caption(t(item["happens_key"], lang))
             if profile.state == "overwhelmed" or item["action_key"] == "archive_promotions":
                 st.caption(t("ai_guidance.safe_delete", lang))
+
+            if not show_actions or item["action_key"] != "archive_promotions":
+                continue
 
             confirm_key = f"ai_guidance_confirm_{item['kind']}_{index}"
             if item["action_key"] == "archive_promotions" and st.session_state.get(confirm_key):
@@ -2930,6 +3716,19 @@ def show_daily_insight(scan_data: dict | None, profile: UserStateProfile | None 
 
 def run_dashboard_scan(apply_after: bool, show_aha_after_success: bool = False) -> bool:
     lang = current_language()
+    gate = st.session_state.get("license_gate") or load_license() or {}
+    if not effective_can_scan(gate):
+        reason = trial_lock_reason(gate)
+        if reason == "expired":
+            st.error(t("trial.expired_title", lang))
+            st.info(t("trial.expired_body", lang))
+        elif reason == "scan_quota":
+            st.error(t("trial.locked_title", lang))
+            st.info(t("trial.locked_body", lang))
+        else:
+            st.error(t("license.banner_inactive", lang))
+        return False
+
     success, stdout, stderr = run_gmail_scan_with_progress()
 
     if success:
@@ -2940,15 +3739,46 @@ def run_dashboard_scan(apply_after: bool, show_aha_after_success: bool = False) 
             st.session_state.last_scan = saved
             remember_scan(saved, current_user_profile(saved).state)
 
-        st.success(t("dashboard.scan_success", lang))
-
         if show_aha_after_success:
             st.session_state.show_ftue_aha = True
             save_ftue_completed()
 
-        if apply_after and saved:
+        if (
+            st.session_state.settings.get("auto_apply_blacklist_after_scan", False)
+            and saved
+            and effective_can_modify(gate)
+        ):
+            with st.spinner(t("dashboard.apply_blacklist_spinner", lang)):
+                blacklist_results = apply_rules_to_scan(
+                    saved,
+                    st.session_state.rules,
+                    blacklist_only=True,
+                    include_user_unwanted_rules=True,
+                )
+                st.session_state.cleanup_results = blacklist_results
+
+            deleted = len(blacklist_results.get("auto_deleted", []))
+            protected = len(blacklist_results.get("protected", []))
+            if deleted:
+                remember_recent_trashed_items(remove_messages_from_scan(result_message_ids(blacklist_results.get("auto_deleted"))))
+            if deleted:
+                st.success(t("dashboard.auto_blacklist_done", lang).format(deleted=deleted))
+            if protected:
+                st.info(t("dashboard.auto_blacklist_protected", lang).format(protected=protected))
+
+        if apply_after and saved and effective_can_modify(gate):
             st.session_state.cleanup_preview = apply_rules_to_scan(saved, st.session_state.rules, dry_run=True)
             st.info(t("cleanup.preview_ready", lang))
+
+        # Charge the trial scan quota AFTER a successful scan (not after a
+        # failure). Refresh the in-memory gate so the next render reflects
+        # the new trial_scans_used count.
+        if not is_preview_mode():
+            mark_trial_scan_used()
+            st.session_state.license_gate = check_license()
+
+        st.session_state.dashboard_scan_just_completed = True
+        safe_rerun()
         return True
 
     st.error(t("dashboard.scan_error", lang))
@@ -2963,7 +3793,7 @@ def dashboard_hero_copy(lang: str) -> dict[str, str]:
             "kicker": "Pagrindinis veiksmas",
             "title": "Jūsų Gmail apžvalga",
             "subtitle": (
-                "FeeHunt peržiūri Gmail prenumeratas, mokėjimų priminimus ir el. pašto triukšmą. "
+                "FeeHunt peržiūri Gmail prenumeratas, mokėjimų kontrolę ir el. pašto triukšmą. "
                 "Nieko nekeičia be jūsų patvirtinimo."
             ),
             "gmail_label": "Gmail būsena",
@@ -2978,22 +3808,22 @@ def dashboard_hero_copy(lang: str) -> dict[str, str]:
             "scan_ready_caption": "Pradėkite nuo vieno greito skenavimo.",
             "scan_done": "Skenavimas baigtas",
             "scan_done_caption": "Paskutinis skenavimas: {last_scan_at}",
-            "result_label": "Ką FeeHunt gali padaryti",
-            "result_empty": "Rasti prenumeratas, mokėjimų priminimus ir reklaminį el. pašto triukšmą.",
-            "result_found": "FeeHunt rado kelis dalykus, kuriuos verta peržiūrėti.",
+            "result_label": "Ką FeeHunt padės sutvarkyti",
+            "result_empty": "Padėti rasti ir sutvarkyti prenumeratas, mokėjimų kontrolę bei el. pašto triukšmą.",
+            "result_found": "FeeHunt paruošė kelis aiškius veiksmus, nuo kurių verta pradėti.",
             "result_clear": "Nieko skubaus nerasta. Galite skenuoti dar kartą, kai norėsite naujos apžvalgos.",
-            "result_payment": "Rastas mokėjimo priminimas. Verta trumpai peržiūrėti.",
-            "result_payments": "Rasti mokėjimų priminimai. Verta pradėti nuo jų.",
-            "result_subscriptions": "Rastos prenumeratos. Rami peržiūra būtų naudinga.",
+            "result_payment": "FeeHunt padės patikrinti mokėjimų kontrolės įrašą prieš jam tampant problema.",
+            "result_payments": "FeeHunt padės pradėti nuo mokėjimų, kurie gali paveikti prieigą ar pinigus.",
+            "result_subscriptions": "FeeHunt padės peržiūrėti prenumeratas ir atidaryti atšaukimo kelią.",
             "priority_payment": "Verta patikrinti prieš kitą mokėjimo ciklą. Trumpa peržiūra gali padėti išvengti praleisto atnaujinimo.",
             "priority_subscriptions": "Geras kitas žingsnis: peržiūrėkite prenumeratas prieš el. pašto triukšmą.",
             "priority_promotions": "Žemesnis prioritetas: reklaminiai laiškai gali palaukti, kol aiškūs svarbesni dalykai.",
             "subscriptions": "prenumeratos",
-            "payments": "mokėjimų priminimai",
+            "payments": "mokėjimų kontrolė",
             "promotions": "reklaminiai laiškai",
             "connect_cta": "Prijungti Gmail",
             "scan_cta": "Skenuoti Gmail",
-            "payment_review_cta": "Peržiūrėti mokėjimų priminimus",
+            "payment_review_cta": "Peržiūrėti mokėjimų kontrolę",
             "review_cta": "Peržiūrėti prenumeratas",
             "cleanup_cta": "Peržiūrėti el. pašto triukšmą",
             "rescan_cta": "Skenuoti Gmail dar kartą",
@@ -3006,7 +3836,7 @@ def dashboard_hero_copy(lang: str) -> dict[str, str]:
         "kicker": "Hero Action Layer",
         "title": "Your Gmail overview",
         "subtitle": (
-            "FeeHunt reviews your Gmail for subscriptions, payment reminders, and email clutter. "
+            "FeeHunt reviews your Gmail for subscriptions, payment control, and email clutter. "
             "Nothing changes without your approval."
         ),
         "gmail_label": "Gmail status",
@@ -3021,22 +3851,22 @@ def dashboard_hero_copy(lang: str) -> dict[str, str]:
         "scan_ready_caption": "Start with one quick scan.",
         "scan_done": "Scan complete",
         "scan_done_caption": "Last scan: {last_scan_at}",
-        "result_label": "What FeeHunt can do",
-        "result_empty": "Find subscriptions, payment reminders, and promotional email clutter.",
-        "result_found": "FeeHunt found a few things worth reviewing.",
+        "result_label": "What FeeHunt can help you fix",
+        "result_empty": "Help find and resolve subscriptions, payment control items, and promotional email clutter.",
+        "result_found": "FeeHunt prepared a few clear actions worth starting with.",
         "result_clear": "Nothing urgent found. You can scan again when you want a fresh view.",
-        "result_payment": "Payment reminder found. Quick review recommended.",
-        "result_payments": "Payment reminders found. Worth reviewing first.",
-        "result_subscriptions": "Subscriptions found. A calm review is recommended.",
+        "result_payment": "FeeHunt can help you check this payment control item before it becomes a problem.",
+        "result_payments": "FeeHunt can help you start with payments that may affect access or money.",
+        "result_subscriptions": "FeeHunt can help you review subscriptions and open the cancellation path.",
         "priority_payment": "Worth checking before your next payment cycle. A quick review may help avoid a missed renewal.",
         "priority_subscriptions": "Good next step: review subscriptions before looking at email clutter.",
         "priority_promotions": "Lower priority: promotional email can wait until the important items are clear.",
         "subscriptions": "subscriptions",
-        "payments": "payment reminders",
+        "payments": "payment control",
         "promotions": "promotional emails",
         "connect_cta": "Connect Gmail",
         "scan_cta": "Scan Gmail",
-        "payment_review_cta": "Review payment reminders",
+        "payment_review_cta": "Review payment control",
         "review_cta": "Review subscriptions",
         "cleanup_cta": "Review email clutter",
         "rescan_cta": "Scan Gmail again",
@@ -3050,13 +3880,15 @@ def dashboard_hero_copy(lang: str) -> dict[str, str]:
 def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, Any]) -> None:
     lang = current_language()
     copy = dashboard_hero_copy(lang)
+    html_text = lambda value: escape(str(value), quote=False)
     scan_data = st.session_state.last_scan
     summary = get_scan_summary(scan_data)
+    subscription_items = get_subscription_item_count(scan_data)
     financial_risks = len((scan_data or {}).get("financial_risks", []) or [])
-    connected = GMAIL_TOKEN_FILE.exists()
+    connected = gmail_is_connected()
     has_findings = bool(
         scan_data
-        and (summary["subscriptions"] or summary["promotions"] or financial_risks)
+        and (subscription_items or summary["promotions"] or financial_risks)
     )
 
     if is_preview_mode():
@@ -3093,7 +3925,7 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
         result_main = copy["result_payments"]
         priority_note = copy["priority_payment"]
         priority_class = "is-attention"
-    elif summary["subscriptions"]:
+    elif subscription_items:
         result_main = copy["result_subscriptions"]
         priority_note = copy["priority_subscriptions"]
         priority_class = "is-medium"
@@ -3104,50 +3936,76 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
     else:
         result_main = copy["result_clear"]
     priority_note_html = (
-        f'<div class="fh-dashboard-priority-note {priority_class}">{priority_note}</div>'
+        f'<div class="fh-dashboard-priority-note {priority_class}">{html_text(priority_note)}</div>'
         if priority_note
         else ""
     )
     payment_item_class = "is-attention" if financial_risks else "is-low"
-    subscription_item_class = "is-medium" if summary["subscriptions"] else "is-low"
+    subscription_item_class = "is-medium" if subscription_items else "is-low"
     promotion_item_class = "is-low"
 
-    st.markdown(
-        f"""
-        <section class="fh-dashboard-hero">
-            <div class="fh-dashboard-hero-grid">
-                <div>
-                    <div class="fh-dashboard-kicker">{fh_icon("spark")}{copy["kicker"]}</div>
-                    <h1 class="fh-dashboard-title">{copy["title"]}</h1>
-                    <p class="fh-dashboard-subtitle">{copy["subtitle"]}</p>
-                    <div class="fh-dashboard-status-row">
-                        <div class="fh-dashboard-status-card">
-                            <div class="fh-dashboard-status-label">{copy["gmail_label"]}</div>
-                            <div class="fh-dashboard-status-value">{gmail_value}</div>
-                            <div class="fh-dashboard-status-caption">{gmail_caption}</div>
-                        </div>
-                        <div class="fh-dashboard-status-card">
-                            <div class="fh-dashboard-status-label">{copy["scan_label"]}</div>
-                            <div class="fh-dashboard-status-value">{scan_value}</div>
-                            <div class="fh-dashboard-status-caption">{scan_caption}</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="fh-dashboard-result-card">
-                    <div class="fh-dashboard-result-title">{copy["result_label"]}</div>
-                    <div class="fh-dashboard-result-main">{result_main}</div>
-                    {priority_note_html}
-                    <div class="fh-dashboard-result-list">
-                        <div class="fh-dashboard-result-item {payment_item_class}"><span>{copy["payments"]}</span><strong>{financial_risks}</strong></div>
-                        <div class="fh-dashboard-result-item {subscription_item_class}"><span>{copy["subscriptions"]}</span><strong>{summary["subscriptions"]}</strong></div>
-                        <div class="fh-dashboard-result-item {promotion_item_class}"><span>{copy["promotions"]}</span><strong>{summary["promotions"]}</strong></div>
-                    </div>
-                </div>
-            </div>
-        </section>
-        """,
-        unsafe_allow_html=True,
+    hero_html = "".join(
+        [
+            '<section class="fh-dashboard-hero">',
+            '<div class="fh-dashboard-hero-grid">',
+            "<div>",
+            f'<div class="fh-dashboard-kicker">{fh_icon("spark")}{html_text(copy["kicker"])}</div>',
+            f'<h1 class="fh-dashboard-title">{html_text(copy["title"])}</h1>',
+            f'<p class="fh-dashboard-subtitle">{html_text(copy["subtitle"])}</p>',
+            '<div class="fh-dashboard-status-row">',
+            '<div class="fh-dashboard-status-card">',
+            f'<div class="fh-dashboard-status-label">{html_text(copy["gmail_label"])}</div>',
+            f'<div class="fh-dashboard-status-value">{html_text(gmail_value)}</div>',
+            f'<div class="fh-dashboard-status-caption">{html_text(gmail_caption)}</div>',
+            "</div>",
+            '<div class="fh-dashboard-status-card">',
+            f'<div class="fh-dashboard-status-label">{html_text(copy["scan_label"])}</div>',
+            f'<div class="fh-dashboard-status-value">{html_text(scan_value)}</div>',
+            f'<div class="fh-dashboard-status-caption">{html_text(scan_caption)}</div>',
+            "</div>",
+            "</div>",
+            "</div>",
+            '<div class="fh-dashboard-result-card">',
+            f'<div class="fh-dashboard-result-title">{html_text(copy["result_label"])}</div>',
+            f'<div class="fh-dashboard-result-main">{html_text(result_main)}</div>',
+            priority_note_html,
+            '<div class="fh-dashboard-result-list">',
+            f'<div class="fh-dashboard-result-item {payment_item_class}"><span>{html_text(copy["payments"])}</span><strong>{financial_risks}</strong></div>',
+            f'<div class="fh-dashboard-result-item {subscription_item_class}"><span>{html_text(copy["subscriptions"])}</span><strong>{subscription_items}</strong></div>',
+            f'<div class="fh-dashboard-result-item {promotion_item_class}"><span>{html_text(copy["promotions"])}</span><strong>{summary["promotions"]}</strong></div>',
+            "</div>",
+            "</div>",
+            "</div>",
+            "</section>",
+        ]
     )
+    if hasattr(st, "html"):
+        st.html(hero_html)
+    else:
+        st.markdown(hero_html, unsafe_allow_html=True)
+
+    # Compact rescan button sits directly BELOW the hero card, right-aligned,
+    # on the light page background so it's clearly visible (the area ABOVE
+    # the hero is dark and clipped). Only render after the first scan — before
+    # that the bottom primary "Scan Gmail" button is the right entry point.
+    if connected and not is_preview_mode() and scan_data:
+        _scan_allowed = effective_can_scan(license_gate)
+        _scan_tooltip = (
+            help_text("scan_gmail", lang)
+            if _scan_allowed
+            else t("trial.scan_disabled_tooltip", lang)
+        )
+        _spacer, _rescan_col = st.columns([3, 2])
+        with _rescan_col:
+            if st.button(
+                copy["rescan_cta"],
+                type="primary",
+                disabled=not _scan_allowed,
+                help=_scan_tooltip,
+                use_container_width=True,
+                key="fh_overview_top_rescan",
+            ):
+                run_dashboard_scan(apply_after)
 
     if is_preview_mode():
         st.button(copy["scan_cta"], disabled=True, type="primary", use_container_width=True)
@@ -3165,46 +4023,223 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
         st.markdown(f'<p class="fh-hero-action-caption">{copy["scan_caption"]}</p>', unsafe_allow_html=True)
         return
 
+    # Primary review CTA + caption are rendered later by
+    # show_dashboard_review_actions(), below the scan results section.
     if has_findings:
-        review_financial_first = bool(financial_risks)
-        review_subscriptions_first = bool(summary["subscriptions"])
-        cta_label = (
-            copy["payment_review_cta"]
-            if review_financial_first
-            else copy["review_cta"]
-            if review_subscriptions_first
-            else copy["cleanup_cta"]
-        )
-        review_col, scan_col = st.columns([2, 1])
-        with review_col:
-            if st.button(cta_label, type="primary", use_container_width=True):
-                target_page = "Subscriptions" if (review_financial_first or review_subscriptions_first) else "Cleanup Rules"
-                st.session_state.ftue_target_page = target_page
-                safe_rerun()
-        with scan_col:
-            if st.button(
-                copy["rescan_cta"],
-                disabled=not license_gate.get("allowed"),
-                help=help_text("scan_gmail", lang),
-                use_container_width=True,
-            ):
-                run_dashboard_scan(apply_after)
-        st.markdown(f'<p class="fh-hero-action-caption">{copy["review_caption"]}</p>', unsafe_allow_html=True)
         return
 
-    can_scan = bool(license_gate.get("allowed"))
+    can_scan = effective_can_scan(license_gate)
+    st.markdown('<div class="fh-dashboard-actions">', unsafe_allow_html=True)
     if st.button(
         copy["rescan_cta"] if scan_data else copy["scan_cta"],
         type="primary",
         disabled=not can_scan,
-        help=help_text("scan_gmail", lang),
+        help=help_text("scan_gmail", lang) if can_scan else t("trial.scan_disabled_tooltip", lang),
         use_container_width=True,
     ):
         run_dashboard_scan(apply_after)
     if not can_scan:
-        st.markdown(f'<p class="fh-hero-action-caption">{copy["disabled_caption"]}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="fh-dashboard-actions-caption">{copy["disabled_caption"]}</p>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<p class="fh-hero-action-caption">{copy["scan_caption"]}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="fh-dashboard-actions-caption">{copy["scan_caption"]}</p>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def show_trial_status_banner(license_gate: dict[str, Any]) -> None:
+    """Render trial-state banners on the dashboard: an intro when scans
+    remain, a quota-locked banner once they're used up, an expired banner
+    once trial_ends_at passes. Active (paid) users see nothing."""
+    if is_preview_mode():
+        return
+    status = str(license_gate.get("status") or "").strip().lower()
+    if status not in {"trial", "expired", "read_only"}:
+        return
+
+    lang = current_language()
+    reason = trial_lock_reason(license_gate)
+
+    if reason == "expired":
+        st.error(f"**{t('trial.expired_title', lang)}**  \n{t('trial.expired_body', lang)}")
+        st.link_button(t("trial.upgrade_cta", lang), PRICING_URL)
+        return
+
+    if reason == "scan_quota":
+        st.warning(f"**{t('trial.locked_title', lang)}**  \n{t('trial.locked_body', lang)}")
+        st.link_button(t("trial.upgrade_cta", lang), PRICING_URL)
+        return
+
+    # Trial still has scans available — show the friendly intro so the
+    # user knows the deal up front instead of being surprised at lock.
+    remaining = trial_scans_remaining(license_gate)
+    used = trial_scans_used(license_gate)
+    # Pick singular vs plural body form so the message reads naturally in
+    # languages with grammatical number (LT especially: "1 skenavimas" vs
+    # "2-3 skenavimai" are different word forms).
+    body_key = "trial.intro_body_one" if remaining == 1 else "trial.intro_body"
+    intro_body = t(body_key, lang).format(remaining=remaining)
+    badge = t("trial.remaining_badge", lang).format(remaining=remaining, total=TRIAL_SCAN_LIMIT)
+    st.info(f"**{t('trial.intro_title', lang)} — {badge}**  \n{intro_body}")
+    if remaining == 1 and used > 0:
+        st.caption(t("trial.last_scan_warning", lang))
+
+
+def show_dashboard_review_actions(license_gate: dict[str, Any]) -> None:
+    """Primary review CTA rendered BELOW the scan results section, so users
+    see what was found before being asked where to go next."""
+    lang = current_language()
+    copy = dashboard_hero_copy(lang)
+    scan_data = st.session_state.last_scan
+    summary = get_scan_summary(scan_data)
+    subscription_items = get_subscription_item_count(scan_data)
+    financial_risks = len((scan_data or {}).get("financial_risks", []) or [])
+    has_findings = bool(
+        scan_data and (subscription_items or summary["promotions"] or financial_risks)
+    )
+    if not has_findings or is_preview_mode() or not gmail_is_connected():
+        return
+
+    review_financial_first = bool(financial_risks)
+    review_subscriptions_first = bool(subscription_items)
+    cta_label = (
+        copy["payment_review_cta"]
+        if review_financial_first
+        else copy["review_cta"]
+        if review_subscriptions_first
+        else copy["cleanup_cta"]
+    )
+    st.markdown('<div class="fh-dashboard-actions fh-actions-stack">', unsafe_allow_html=True)
+    if st.button(cta_label, type="primary", use_container_width=True, key="fh_overview_primary_cta"):
+        target_page = "Subscriptions" if (review_financial_first or review_subscriptions_first) else "Promotions"
+        st.session_state.ftue_target_page = target_page
+        safe_rerun()
+    st.markdown(f'<p class="fh-dashboard-actions-caption">{copy["review_caption"]}</p>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def show_dashboard_blacklist_manager() -> None:
+    """Always-visible sender-list quick-add on the dashboard so users can
+    add senders without hunting through Sender Lists page. Two columns:
+    protected (whitelist) and blocked (blacklist). Matches the same
+    mental model as the full Sender Lists page."""
+    lang = current_language()
+    rules = st.session_state.rules
+    whitelist = rules.get("whitelist", []) or []
+    blacklist = rules.get("blacklist", []) or []
+
+    st.markdown(f"### 📋 {t('senders.page_title', lang).lstrip('📋 ')}")
+    st.caption(t("dashboard.blacklist_caption", lang))
+
+    if st.session_state.pop("clear_dash_wl_entry", False):
+        st.session_state["dash_wl_entry"] = ""
+    if st.session_state.pop("clear_dash_bl_entry", False):
+        st.session_state["dash_bl_entry"] = ""
+
+    wl_col, bl_col = st.columns(2)
+
+    # ─── Protected column (whitelist) ───
+    with wl_col:
+        st.markdown(f"**{t('senders.protected_title', lang)}**")
+        st.caption(t("senders.protected_caption", lang))
+        new_wl = st.text_input(
+            t("senders.protected_input_label", lang),
+            placeholder=t("senders.protected_input_placeholder", lang),
+            key="dash_wl_entry",
+            label_visibility="collapsed",
+        )
+        if st.button(
+            t("senders.protected_add", lang),
+            type="primary",
+            use_container_width=True,
+            key="dash_wl_add_btn",
+        ):
+            value = str(new_wl or "").strip()
+            if not value:
+                st.warning(t("senders.empty_value", lang))
+            elif value.lower() in {w.lower() for w in whitelist}:
+                st.info(t("senders.protected_exists", lang).format(sender=value))
+            else:
+                whitelist.append(value)
+                rules["whitelist"] = whitelist
+                save_rules(rules)
+                st.session_state.rules = rules
+                st.session_state.clear_dash_wl_entry = True
+                st.success(t("senders.protected_added", lang).format(sender=value))
+                safe_rerun()
+        if whitelist:
+            st.caption(t("senders.protected_count", lang).format(count=len(whitelist)))
+        else:
+            st.caption(t("senders.protected_empty", lang))
+
+    # ─── Blocked column (blacklist) ───
+    with bl_col:
+        st.markdown(f"**{t('senders.blocked_title', lang)}**")
+        st.caption(t("senders.blocked_caption", lang))
+        new_bl = st.text_input(
+            t("senders.blocked_input_label", lang),
+            placeholder=t("senders.blocked_input_placeholder", lang),
+            key="dash_bl_entry",
+            label_visibility="collapsed",
+        )
+        if st.button(
+            t("senders.blocked_add", lang),
+            type="primary",
+            use_container_width=True,
+            key="dash_bl_add_btn",
+        ):
+            value = str(new_bl or "").strip()
+            if not value:
+                st.warning(t("senders.empty_value", lang))
+            elif value.lower() in {b.lower() for b in blacklist}:
+                st.info(t("senders.blocked_exists", lang).format(sender=value))
+            else:
+                blacklist.append(value)
+                rules["blacklist"] = blacklist
+                save_rules(rules)
+                st.session_state.rules = rules
+                st.session_state.clear_dash_bl_entry = True
+                st.success(t("senders.blocked_added", lang).format(sender=value))
+                safe_rerun()
+        if blacklist:
+            st.caption(t("senders.blocked_count", lang).format(count=len(blacklist)))
+        else:
+            st.caption(t("senders.blocked_empty", lang))
+
+    # Link to full Sender Lists page
+    if st.button(
+        t("dashboard.blacklist_manage_link", lang),
+        key="dashboard_blacklist_open_rules",
+        type="secondary",
+    ):
+        st.session_state.ftue_target_page = "Cleanup Rules"
+        safe_rerun()
+
+
+def show_dashboard_result_shortcuts(scan_data: dict | None) -> None:
+    if not scan_data:
+        return
+
+    lang = current_language()
+    shortcuts = [
+        (
+            t("dashboard.quick_review_subscriptions", lang),
+            "Subscriptions",
+            "dashboard_shortcut_subscriptions",
+        ),
+        (
+            t("dashboard.quick_review_promotions", lang),
+            "Promotions",
+            "dashboard_shortcut_promotions",
+        ),
+    ]
+
+    st.markdown('<div class="fh-dashboard-actions">', unsafe_allow_html=True)
+    cols = st.columns(len(shortcuts))
+    for col, (label, target_page, key) in zip(cols, shortcuts):
+        with col:
+            if st.button(label, type="primary", use_container_width=True, key=key):
+                st.session_state.ftue_target_page = target_page
+                safe_rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def show_dashboard_control_panel(
@@ -3221,7 +4256,7 @@ def show_dashboard_control_panel(
     if profile.state in ("new", "overwhelmed"):
         render_memory_trust(lang)
 
-    connected = GMAIL_TOKEN_FILE.exists()
+    connected = gmail_is_connected()
     status_col, connect_col, scan_col = st.columns([1.2, 1, 1])
     with status_col:
         if is_preview_mode():
@@ -3235,7 +4270,13 @@ def show_dashboard_control_panel(
         if is_preview_mode():
             st.button(t("ftue.connect_cta", lang), disabled=True, use_container_width=True)
         elif connected:
-            st.button(t("ftue.connect_cta", lang), disabled=True, use_container_width=True)
+            if st.button(t("ftue.reconnect_cta", lang), help=help_text("connect_gmail", lang), use_container_width=True):
+                try:
+                    get_gmail_service(force_reauth=True)
+                    st.success(t("gmail.connected_success", lang))
+                    safe_rerun()
+                except Exception as e:
+                    st.error(friendly_error_message(e))
         elif st.button(t("ftue.connect_cta", lang), type="primary", help=help_text("connect_gmail", lang), use_container_width=True):
             try:
                 get_gmail_service()
@@ -3245,11 +4286,12 @@ def show_dashboard_control_panel(
                 st.error(friendly_error_message(e))
 
     with scan_col:
+        _ctrl_scan_allowed = effective_can_scan(license_gate)
         if st.button(
             t("dashboard.scan_button", lang),
             type="primary",
-            disabled=is_preview_mode() or not license_gate.get("allowed") or not connected,
-            help=help_text("scan_gmail", lang),
+            disabled=is_preview_mode() or not _ctrl_scan_allowed or not connected,
+            help=help_text("scan_gmail", lang) if _ctrl_scan_allowed else t("trial.scan_disabled_tooltip", lang),
             use_container_width=True,
         ):
             run_dashboard_scan(apply_after)
@@ -3320,7 +4362,7 @@ def show_ftue_onboarding(apply_after: bool) -> bool:
     if st.session_state.settings.get("ftue_completed"):
         return False
 
-    gmail_connected = GMAIL_TOKEN_FILE.exists()
+    gmail_connected = gmail_is_connected()
     active_step = 2 if gmail_connected else 1
 
     st.title(t("ftue.title", lang))
@@ -3427,24 +4469,27 @@ with st.sidebar:
         st.session_state.license_gate = {"allowed": False}
         safe_rerun()
 
-    page_options = ["Dashboard", "Subscriptions", "How to Use FeeHunt", "Cleanup Rules", "Settings"]
+    page_options = ["Dashboard", "Subscriptions", "Promotions", "How to Use FeeHunt", "Cleanup Rules", "Settings"]
     target_page = st.session_state.pop("ftue_target_page", None)
-    page_index = page_options.index(target_page) if target_page in page_options else 0
+    current_page = st.session_state.get("main_navigation")
+    if target_page in page_options:
+        current_page = target_page
+    if current_page not in page_options:
+        current_page = "Dashboard"
+    st.session_state.main_navigation = current_page
     page = st.radio(
         t("sidebar.navigation", lang),
         page_options,
-        index=page_index,
         key="main_navigation",
         format_func=lambda x: {
             "Dashboard": t("page.dashboard", lang),
             "Subscriptions": t("page.subscriptions", lang),
+            "Promotions": t("page.promotions", lang),
             "How to Use FeeHunt": t("page.how_to_use", lang),
             "Cleanup Rules": t("page.cleanup_rules", lang),
             "Settings": t("page.settings", lang),
         }.get(x, x),
     )
-    if target_page in page_options:
-        page = target_page
 
     st.divider()
     st.caption(t("sidebar.footer", lang))
@@ -3461,18 +4506,20 @@ if page == "Dashboard":
         st.session_state.visit_remembered = True
 
     apply_after = st.session_state.settings.get("apply_rules_after_scan", False)
+    if st.session_state.pop("dashboard_scan_just_completed", False):
+        st.success(t("dashboard.scan_success", lang))
     show_dashboard_hero_action_layer(apply_after, license_gate)
+    render_recent_trash_undo("dashboard")
+    # Review CTAs and category shortcuts moved BELOW the results section
+    # so users see what was found before being asked where to go next.
 
     if not is_preview_mode():
         show_license_banner(license_gate)
+    show_trial_status_banner(license_gate)
 
     if apply_after:
         st.success(t("dashboard.auto_cleanup_on", lang))
 
-    st.markdown('<div class="fh-layer-heading"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="fh-dashboard-secondary-label">Calm insight</div>', unsafe_allow_html=True)
-    render_adaptive_context(user_profile)
-    show_daily_insight(st.session_state.last_scan, user_profile)
     if user_profile.state != "new":
         show_progress_summary(st.session_state.last_scan, user_profile)
         show_positive_reinforcement(user_profile)
@@ -3551,9 +4598,6 @@ if page == "Dashboard":
                 last_scan_at=format_local_datetime(last_scan_at, current_timezone())
             ))
 
-        show_ai_guidance(scan_data, user_profile)
-
-        st.divider()
         max_items = int(st.session_state.settings.get("max_dashboard_items", 3) or 3)
         if user_profile.state in ("calm", "returning", "steady"):
             max_items = min(max_items, 2)
@@ -3587,6 +4631,12 @@ if page == "Dashboard":
             for item in promotional_items[:max_items]:
                 show_email_card(item, "📢", "promotions")
 
+        # Action CTAs at the bottom: primary review CTA, then category shortcuts.
+        show_dashboard_review_actions(license_gate)
+        show_dashboard_result_shortcuts(scan_data)
+        st.divider()
+        show_dashboard_blacklist_manager()
+
     else:
         st.divider()
         st.markdown(t("dashboard.get_started", lang))
@@ -3596,6 +4646,8 @@ if page == "Dashboard":
             st.info(t("dashboard.privacy", lang))
         with col_b:
             st.info(t("dashboard.fast", lang))
+        st.divider()
+        show_dashboard_blacklist_manager()
 
     st.divider()
     st.caption(t("dashboard.footer", lang))
@@ -3607,6 +4659,7 @@ if page == "Dashboard":
 
 elif page == "Subscriptions":
     st.title(t("subscriptions.page_title", lang))
+    render_recent_trash_undo("subscriptions")
 
     scan_data = st.session_state.last_scan
 
@@ -3635,6 +4688,42 @@ elif page == "Subscriptions":
 
 
 # ============================================================
+# Promotions
+# ============================================================
+
+elif page == "Promotions":
+    st.title(t("promotions.page_title", lang))
+    render_recent_trash_undo("promotions")
+
+    scan_data = st.session_state.last_scan
+
+    if not scan_data:
+        st.info(t("subscriptions.no_scan", lang))
+        st.markdown(t("subscriptions.no_scan_instruction", lang))
+    else:
+        promotional_items = []
+        seen_promotional_ids = set()
+        for section in ("promotional_emails", "shop_emails", "newsletter_emails"):
+            for item in scan_data.get(section, []) or []:
+                item_id = item.get("message_id") or get_email_identity(item, section)
+                if item_id not in seen_promotional_ids:
+                    promotional_items.append(item)
+                    seen_promotional_ids.add(item_id)
+
+        if promotional_items:
+            st.subheader(t("promotions.heading", lang), help=help_text("promotions", lang))
+            st.info(t("promotions.found", lang).format(count=len(promotional_items)))
+            show_selectable_email_review(
+                promotional_items,
+                location_key="promotions_review",
+                icon="📢",
+                card_type="promotions",
+            )
+        else:
+            st.success(t("promotions.none", lang))
+
+
+# ============================================================
 # How to Use FeeHunt
 # ============================================================
 
@@ -3648,144 +4737,274 @@ elif page == "How to Use FeeHunt":
 
 elif page == "Cleanup Rules":
     st.title(t("cleanup.title", lang))
+    render_recent_trash_undo("cleanup")
 
-    tabs = st.tabs([
-        t("cleanup.tab_unwanted", lang),
-        t("cleanup.tab_category_rules", lang),
-        t("cleanup.tab_whitelist", lang),
-        t("cleanup.tab_blacklist", lang),
-        t("cleanup.tab_custom", lang),
-        t("cleanup.tab_results", lang),
-    ])
+    st.caption(t("senders.page_lead", lang))
+    st.divider()
 
     rules = st.session_state.rules
+    settings = st.session_state.settings.copy()
 
+    # ───────────────────────────────────────────────────────────
+    # 🛡️ Protected senders (whitelist)
+    # ───────────────────────────────────────────────────────────
+    st.subheader(t("senders.protected_title", lang))
+    st.caption(t("senders.protected_caption", lang))
 
+    whitelist = rules.get("whitelist", []) or []
 
-    # ── Tab 1: Mano nepageidaujami siuntėjai ──
-    with tabs[0]:
-        st.subheader(t("cleanup.unwanted_title", lang))
-        st.caption(t("cleanup.unwanted_caption", lang))
+    if st.session_state.pop("clear_senders_whitelist_entry", False):
+        st.session_state["senders_whitelist_entry"] = ""
 
-        settings = st.session_state.settings.copy()
-        unwanted_senders = [
-            normalize_rule_value(sender)
-            for sender in settings.get("promo_senders", [])
-            if normalize_rule_value(sender)
-        ]
-        unwanted_keywords = [
-            normalize_rule_value(keyword)
-            for keyword in settings.get("promo_keywords", [])
-            if normalize_rule_value(keyword)
-        ]
+    wl_input_col, wl_button_col = st.columns([3, 1])
+    with wl_input_col:
+        new_wl = st.text_input(
+            t("senders.protected_input_label", lang),
+            placeholder=t("senders.protected_input_placeholder", lang),
+            key="senders_whitelist_entry",
+            label_visibility="collapsed",
+        )
+    with wl_button_col:
+        wl_add = st.button(
+            t("senders.protected_add", lang),
+            type="primary",
+            use_container_width=True,
+            key="senders_whitelist_add",
+        )
 
-        st.info(t("cleanup.control_info", lang))
+    if wl_add:
+        value = str(new_wl or "").strip()
+        if not value:
+            st.warning(t("senders.empty_value", lang))
+        elif value.lower() in {w.lower() for w in whitelist}:
+            st.info(t("senders.protected_exists", lang).format(sender=value))
+        else:
+            whitelist.append(value)
+            rules["whitelist"] = whitelist
+            save_rules(rules)
+            st.session_state.rules = rules
+            st.session_state.clear_senders_whitelist_entry = True
+            st.success(t("senders.protected_added", lang).format(sender=value))
+            safe_rerun()
+
+    if whitelist:
+        st.caption(t("senders.protected_count", lang).format(count=len(whitelist)))
+        for index, entry in enumerate(whitelist):
+            row_l, row_r = st.columns([5, 1])
+            with row_l:
+                st.markdown(f"• ✅ `{entry}`")
+            with row_r:
+                if st.button(
+                    t("senders.remove", lang),
+                    key=f"senders_wl_rm_{index}",
+                    use_container_width=True,
+                ):
+                    whitelist.pop(index)
+                    rules["whitelist"] = whitelist
+                    save_rules(rules)
+                    st.session_state.rules = rules
+                    safe_rerun()
+    else:
+        st.caption(t("senders.protected_empty", lang))
+
+    st.divider()
+
+    # ───────────────────────────────────────────────────────────
+    # 🚫 Blocked senders (blacklist)
+    # ───────────────────────────────────────────────────────────
+    st.subheader(t("senders.blocked_title", lang))
+    st.caption(t("senders.blocked_caption", lang))
+
+    blacklist = rules.get("blacklist", []) or []
+
+    if st.session_state.pop("clear_senders_blacklist_entry", False):
+        st.session_state["senders_blacklist_entry"] = ""
+
+    bl_input_col, bl_button_col = st.columns([3, 1])
+    with bl_input_col:
+        new_bl = st.text_input(
+            t("senders.blocked_input_label", lang),
+            placeholder=t("senders.blocked_input_placeholder", lang),
+            key="senders_blacklist_entry",
+            label_visibility="collapsed",
+        )
+    with bl_button_col:
+        bl_add = st.button(
+            t("senders.blocked_add", lang),
+            type="primary",
+            use_container_width=True,
+            key="senders_blacklist_add",
+        )
+
+    if bl_add:
+        value = str(new_bl or "").strip()
+        if not value:
+            st.warning(t("senders.empty_value", lang))
+        elif value.lower() in {b.lower() for b in blacklist}:
+            st.info(t("senders.blocked_exists", lang).format(sender=value))
+        else:
+            blacklist.append(value)
+            rules["blacklist"] = blacklist
+            save_rules(rules)
+            st.session_state.rules = rules
+            st.session_state.clear_senders_blacklist_entry = True
+            st.success(t("senders.blocked_added", lang).format(sender=value))
+            safe_rerun()
+
+    if blacklist:
+        st.caption(t("senders.blocked_count", lang).format(count=len(blacklist)))
+        for index, entry in enumerate(blacklist):
+            row_l, row_r = st.columns([5, 1])
+            with row_l:
+                st.markdown(f"• 🚫 `{entry}`")
+            with row_r:
+                if st.button(
+                    t("senders.remove", lang),
+                    key=f"senders_bl_rm_{index}",
+                    use_container_width=True,
+                ):
+                    blacklist.pop(index)
+                    rules["blacklist"] = blacklist
+                    save_rules(rules)
+                    st.session_state.rules = rules
+                    safe_rerun()
+    else:
+        st.caption(t("senders.blocked_empty", lang))
+
+    # ───────────────────────────────────────────────────────────
+    # ⚙️ Auto-action setting + Apply now button
+    # ───────────────────────────────────────────────────────────
+    st.markdown(f"#### {t('senders.action_title', lang)}")
+    current_auto = bool(settings.get("auto_apply_blacklist_after_scan", True))
+    new_auto = st.checkbox(
+        t("senders.action_auto_label", lang),
+        value=current_auto,
+        key="senders_auto_action_checkbox",
+    )
+    if new_auto:
+        st.success(
+            f"{t('senders.auto_action_on_badge', lang)} — {t('senders.action_auto_help', lang)}"
+        )
+    else:
+        st.info(
+            f"{t('senders.auto_action_off_badge', lang)} — {t('senders.action_review_help', lang)}"
+        )
+    if new_auto != current_auto:
+        settings["auto_apply_blacklist_after_scan"] = new_auto
+        if save_settings(settings):
+            st.session_state.settings = settings
+            safe_rerun()
+
+    # ── Apply-now: trash unwanted-sender emails from the last scan ──
+    # without waiting for the next scan. Uses the existing blacklist
+    # and last_scan results; respects whitelist via apply_rules_to_scan.
+    scan_data = st.session_state.last_scan
+    if scan_data and blacklist:
+        already_blocked_lc = {b.lower() for b in blacklist}
+        matching_emails: list[dict] = []
+        seen_ids: set[str] = set()
+        for section in (
+            "subscriptions",
+            "financial_risks",
+            "promotional_emails",
+            "shop_emails",
+            "newsletter_emails",
+        ):
+            for item in scan_data.get(section, []) or []:
+                sender = str(item.get("sender", "")).lower()
+                if not any(b in sender for b in already_blocked_lc):
+                    continue
+                mid = item.get("message_id") or get_email_identity(item, section)
+                if mid in seen_ids:
+                    continue
+                seen_ids.add(mid)
+                matching_emails.append(item)
+
+        if matching_emails:
+            st.markdown(
+                f"**{t('senders.apply_now_preview_some', lang).format(count=len(matching_emails))}**"
+            )
+            if effective_can_modify(st.session_state.get("license_gate") or {}):
+                if st.button(
+                    t("senders.apply_now_button", lang).format(count=len(matching_emails)),
+                    type="primary",
+                    use_container_width=True,
+                    key="senders_apply_now_btn",
+                ):
+                    with st.spinner(t("dashboard.apply_blacklist_spinner", lang)):
+                        results = apply_rules_to_scan(
+                            scan_data,
+                            rules,
+                            blacklist_only=True,
+                            include_user_unwanted_rules=False,
+                        )
+                        st.session_state.cleanup_results = results
+                    deleted = len(results.get("auto_deleted", []))
+                    if deleted:
+                        remember_recent_trashed_items(
+                            remove_messages_from_scan(
+                                result_message_ids(results.get("auto_deleted"))
+                            )
+                        )
+                        st.success(
+                            t("senders.apply_now_done", lang).format(count=deleted)
+                        )
+                    safe_rerun()
+            else:
+                st.caption(t("senders.apply_now_locked", lang))
+        else:
+            st.caption(t("senders.apply_now_preview_none", lang))
+
+    st.divider()
+
+    # ───────────────────────────────────────────────────────────
+    # ⚙️ Advanced controls (collapsed) — power-user options
+    # ───────────────────────────────────────────────────────────
+    with st.expander(t("senders.advanced_expander", lang), expanded=False):
+        st.caption(t("senders.advanced_help", lang))
 
         scan_data = st.session_state.last_scan
-        detected_senders = collect_detected_senders(scan_data)
-        all_senders = sorted(set(detected_senders + unwanted_senders))
 
-        st.markdown(t("cleanup.mark_unwanted", lang))
-
-        if not all_senders:
-            st.info(t("cleanup.no_detected_senders", lang))
-        else:
-            selected_senders = []
-            for sender in all_senders:
-                checked = sender in unwanted_senders
-                if st.checkbox(sender, value=checked, key=f"unwanted_sender_{sender}"):
-                    selected_senders.append(sender)
-
-            if st.button(t("cleanup.save_unwanted", lang), type="primary", key="save_unwanted_senders"):
-                settings["promo_senders"] = sorted(set(selected_senders))
-                settings["promo_keywords"] = sorted(set(unwanted_keywords))
-                if save_settings(settings):
-                    st.session_state.settings = settings
-                    st.success(t("cleanup.unwanted_saved", lang))
-                    st.caption(t("cleanup.rescan_caption", lang))
-                    safe_rerun()
-                else:
-                    st.error(t("cleanup.save_error", lang))
-
-        st.divider()
-        st.markdown(t("cleanup.add_sender_heading", lang))
-        manual_sender = st.text_input(
-            t("cleanup.sender_input", lang),
-            placeholder=t("cleanup.sender_placeholder", lang),
-            key="manual_unwanted_sender",
-        )
-
-        if st.button(t("cleanup.add_sender", lang), key="add_manual_unwanted_sender"):
-            normalized_sender = normalize_rule_value(manual_sender)
-            if not normalized_sender:
-                st.warning(t("cleanup.enter_sender", lang))
-            else:
-                settings["promo_senders"] = add_unique_rule_value(unwanted_senders, normalized_sender)
-                settings["promo_keywords"] = sorted(set(unwanted_keywords))
-                if save_settings(settings):
-                    st.session_state.settings = settings
-                    st.success(t("cleanup.sender_added", lang).format(sender=normalized_sender))
-                    safe_rerun()
-                else:
-                    st.error(t("cleanup.save_error", lang))
-
-        st.divider()
-        st.markdown(t("cleanup.keywords_heading", lang))
-        st.caption(t("cleanup.keywords_caption", lang))
-
-        manual_keyword = st.text_input(
-            t("cleanup.keyword_input", lang),
-            placeholder=t("cleanup.keyword_placeholder", lang),
-            key="manual_promo_keyword",
-        )
-
-        col_kw_add, col_kw_save = st.columns(2)
-        with col_kw_add:
-            if st.button(t("cleanup.add_keyword", lang), key="add_manual_promo_keyword"):
-                normalized_keyword = normalize_rule_value(manual_keyword)
-                if not normalized_keyword:
-                    st.warning(t("cleanup.enter_keyword", lang))
-                else:
-                    settings["promo_senders"] = sorted(set(unwanted_senders))
-                    settings["promo_keywords"] = add_unique_rule_value(unwanted_keywords, normalized_keyword)
-                    if save_settings(settings):
-                        st.session_state.settings = settings
-                        st.success(t("cleanup.keyword_added", lang).format(keyword=normalized_keyword))
+        # Multi-select from detected senders (former Tab 0)
+        if scan_data:
+            detected_senders = collect_detected_senders(scan_data)
+            if detected_senders:
+                st.markdown("**" + t("cleanup.mark_unwanted", lang) + "**")
+                already_blocked = {b.lower() for b in blacklist}
+                detected_picker_key = "advanced_detected_picker"
+                if detected_picker_key in st.session_state:
+                    st.session_state[detected_picker_key] = [
+                        s for s in st.session_state[detected_picker_key] if s in detected_senders
+                    ]
+                selected = st.multiselect(
+                    t("cleanup.sender_selection_label", lang),
+                    options=detected_senders,
+                    key=detected_picker_key,
+                )
+                if st.button(
+                    t("senders.blocked_add", lang),
+                    key="advanced_detected_add_all",
+                ):
+                    added = 0
+                    for sender in selected:
+                        if sender.lower() not in already_blocked:
+                            blacklist.append(sender)
+                            already_blocked.add(sender.lower())
+                            added += 1
+                    if added:
+                        rules["blacklist"] = blacklist
+                        save_rules(rules)
+                        st.session_state.rules = rules
+                        st.success(t("senders.blocked_added", lang).format(sender=f"{added} senders"))
                         safe_rerun()
-                    else:
-                        st.error(t("cleanup.save_error", lang))
+                st.divider()
 
-        if unwanted_keywords:
-            st.markdown(t("cleanup.current_keywords", lang))
-            selected_keywords = []
-            for keyword in sorted(set(unwanted_keywords)):
-                if st.checkbox(keyword, value=True, key=f"promo_keyword_{keyword}"):
-                    selected_keywords.append(keyword)
-
-            with col_kw_save:
-                if st.button(t("cleanup.save_keywords", lang), key="save_promo_keywords"):
-                    settings["promo_senders"] = sorted(set(unwanted_senders))
-                    settings["promo_keywords"] = sorted(set(selected_keywords))
-                    if save_settings(settings):
-                        st.session_state.settings = settings
-                        st.success(t("cleanup.keywords_saved", lang))
-                        safe_rerun()
-                    else:
-                        st.error(t("cleanup.save_error", lang))
-        else:
-            st.caption(t("cleanup.no_keywords", lang))
-
-        st.divider()
-        st.markdown(t("cleanup.how_heading", lang))
-        st.write(t("cleanup.how_text", lang))
-
-    # ── Tab 1: Kategorijų taisyklės ──
-    with tabs[1]:
-        st.subheader(t("cleanup.category_title", lang))
+        # Category default actions (former Tab 1)
+        st.markdown("**" + t("cleanup.category_title", lang) + "**")
         st.caption(t("cleanup.category_caption", lang))
 
         updated_actions = rules["category_actions"].copy()
-        changed = False
+        cat_changed = False
 
         for cat in EMAIL_CATEGORIES:
             cat_id = cat["id"]
@@ -3795,7 +5014,6 @@ elif page == "Cleanup Rules":
             protected = cat.get("protected", False)
 
             col_label, col_select = st.columns([2, 2])
-
             with col_label:
                 st.markdown(f"**{icon} {label}**")
                 st.caption(desc)
@@ -3808,7 +5026,7 @@ elif page == "Cleanup Rules":
                         t("cleanup.action_label", lang),
                         options=["notify"],
                         format_func=lambda x: t(f"category_action.{x}", lang),
-                        key=f"action_{cat_id}",
+                        key=f"advanced_action_{cat_id}",
                         disabled=True,
                     )
                 else:
@@ -3819,15 +5037,17 @@ elif page == "Cleanup Rules":
                         options=options,
                         format_func=lambda x: t(f"category_action.{x}", lang),
                         index=options.index(current) if current in options else 0,
-                        key=f"action_{cat_id}",
+                        key=f"advanced_action_{cat_id}",
                     )
                     if new_val != current:
                         updated_actions[cat_id] = new_val
-                        changed = True
+                        cat_changed = True
 
-            st.divider()
-
-        if st.button(t("cleanup.save_rules", lang), type="primary", key="save_cat_rules"):
+        if st.button(
+            t("cleanup.save_rules", lang),
+            type="primary",
+            key="advanced_save_cat_rules",
+        ):
             rules["category_actions"] = updated_actions
             save_rules(rules)
             st.session_state.rules = rules
@@ -3835,184 +5055,9 @@ elif page == "Cleanup Rules":
 
         st.divider()
 
-        # Pritaikyti dabar
-        scan_data = st.session_state.last_scan
-        if scan_data:
-            if st.button(t("cleanup.preview_now", lang), key="preview_rules_now"):
-                st.session_state.cleanup_preview = apply_rules_to_scan(scan_data, rules, dry_run=True)
-                safe_rerun()
-
-            cleanup_preview = st.session_state.get("cleanup_preview")
-            if cleanup_preview:
-                render_cleanup_preview(cleanup_preview)
-                col_confirm_cleanup, col_cancel_cleanup = st.columns(2)
-                with col_confirm_cleanup:
-                    if st.button(t("cleanup.confirm_apply", lang), type="primary", key="confirm_apply_rules_now", use_container_width=True):
-                        with st.spinner(t("dashboard.apply_rules_spinner", lang)):
-                            results = apply_rules_to_scan(scan_data, rules)
-                            st.session_state.cleanup_results = results
-                            st.session_state.cleanup_preview = None
-                            refresh_scan_data()
-
-                        deleted = len(results.get("auto_deleted", []))
-                        archived = len(results.get("auto_archived", []))
-                        review = len(results.get("needs_review", []))
-
-                        st.success(t("cleanup.done", lang).format(deleted=deleted, archived=archived))
-                        if review:
-                            st.info(t("cleanup.review_waiting", lang).format(review=review))
-                with col_cancel_cleanup:
-                    if st.button(t("safe_action.cancel", lang), key="cancel_apply_rules_now", use_container_width=True):
-                        st.session_state.cleanup_preview = None
-                        safe_rerun()
-
-            if False and st.button(t("cleanup.apply_now", lang), key="apply_rules_now"):
-                with st.spinner(t("dashboard.apply_rules_spinner", lang)):
-                    results = apply_rules_to_scan(scan_data, rules)
-                    st.session_state.cleanup_results = results
-                    refresh_scan_data()
-
-                deleted = len(results.get("auto_deleted", []))
-                archived = len(results.get("auto_archived", []))
-                review = len(results.get("needs_review", []))
-
-                st.success(t("cleanup.done", lang).format(deleted=deleted, archived=archived))
-                if review:
-                    st.info(t("cleanup.review_waiting", lang).format(review=review))
-        else:
-            st.info(t("cleanup.scan_first", lang))
-
-    # ── Tab 2: Baltasis sąrašas ──
-    with tabs[2]:
-        st.subheader(t("cleanup.whitelist_title", lang))
-        st.caption(t("cleanup.whitelist_caption", lang))
-
-        whitelist = rules.get("whitelist", [])
-
-        new_white = st.text_input(
-            t("cleanup.whitelist_input", lang),
-            placeholder=t("cleanup.whitelist_placeholder", lang),
-            key="new_whitelist_entry",
-        )
-
-        if st.button(t("cleanup.whitelist_add", lang), key="add_white"):
-            if new_white and new_white not in whitelist:
-                whitelist.append(new_white.strip())
-                rules["whitelist"] = whitelist
-                save_rules(rules)
-                st.session_state.rules = rules
-                st.success(t("cleanup.whitelist_added", lang).format(sender=new_white))
-                safe_rerun()
-
-        if whitelist:
-            st.markdown(t("cleanup.whitelist_current", lang))
-            for i, entry in enumerate(whitelist):
-                col_e, col_d = st.columns([4, 1])
-                with col_e:
-                    st.write(f"✅ {entry}")
-                with col_d:
-                    if st.button(t("actions.remove", lang), key=f"rm_white_{i}"):
-                        whitelist.pop(i)
-                        rules["whitelist"] = whitelist
-                        save_rules(rules)
-                        st.session_state.rules = rules
-                        safe_rerun()
-        else:
-            st.info(t("cleanup.whitelist_empty", lang))
-
-    # ── Tab 3: Juodasis sąrašas ──
-    with tabs[3]:
-        st.subheader(t("cleanup.blacklist_title", lang))
-        st.caption(t("cleanup.blacklist_caption", lang))
-
-        blacklist = rules.get("blacklist", [])
-
-        new_black = st.text_input(
-            t("cleanup.blacklist_input", lang),
-            placeholder=t("cleanup.blacklist_placeholder", lang),
-            key="new_blacklist_entry",
-        )
-
-        if st.button(t("cleanup.blacklist_add", lang), key="add_black"):
-            if new_black and new_black not in blacklist:
-                blacklist.append(new_black.strip())
-                rules["blacklist"] = blacklist
-                save_rules(rules)
-                st.session_state.rules = rules
-                st.success(t("cleanup.blacklist_added", lang).format(sender=new_black))
-                safe_rerun()
-
-        if blacklist:
-            st.markdown(t("cleanup.blacklist_current", lang))
-            for i, entry in enumerate(blacklist):
-                col_e, col_d = st.columns([4, 1])
-                with col_e:
-                    st.write(f"🚫 {entry}")
-                with col_d:
-                    if st.button(t("actions.remove", lang), key=f"rm_black_{i}"):
-                        blacklist.pop(i)
-                        rules["blacklist"] = blacklist
-                        save_rules(rules)
-                        st.session_state.rules = rules
-                        safe_rerun()
-        else:
-            st.info(t("cleanup.blacklist_empty", lang))
-
-    # ── Tab 4: Mano kategorijos ──
-    with tabs[4]:
-        st.subheader(t("cleanup.custom_title", lang))
-        st.caption(t("cleanup.custom_caption", lang))
-
-        custom_categories = rules.get("custom_categories", [])
-
-        with st.form("new_custom_category"):
-            c_name = st.text_input(t("cleanup.custom_name", lang), placeholder=t("cleanup.custom_name_placeholder", lang))
-            c_keywords = st.text_input(t("cleanup.custom_keywords", lang), placeholder=t("cleanup.custom_keywords_placeholder", lang))
-            c_action = st.selectbox(
-                t("cleanup.action_label", lang),
-                options=list(CATEGORY_ACTIONS.keys()),
-                format_func=lambda x: t(f"category_action.{x}", lang),
-            )
-            submitted = st.form_submit_button(t("cleanup.custom_create", lang))
-
-            if submitted and c_name and c_keywords:
-                kw_list = [k.strip() for k in c_keywords.split(",") if k.strip()]
-                custom_categories.append({
-                    "id": f"custom_{len(custom_categories)}",
-                    "label": c_name,
-                    "keywords": kw_list,
-                    "action": c_action,
-                })
-                rules["custom_categories"] = custom_categories
-                save_rules(rules)
-                st.session_state.rules = rules
-                st.success(t("cleanup.custom_created", lang).format(name=c_name))
-                safe_rerun()
-
-        if custom_categories:
-            st.markdown(t("cleanup.custom_current", lang))
-            for i, cat in enumerate(custom_categories):
-                col_info, col_del = st.columns([4, 1])
-                with col_info:
-                    action_label = t(f"category_action.{cat['action']}", lang)
-                    st.write(f"**{cat['label']}** – {action_label}")
-                    st.caption(t("cleanup.custom_keyword_label", lang).format(keywords=", ".join(cat.get("keywords", []))))
-                with col_del:
-                    if st.button(t("actions.remove", lang), key=f"rm_cat_{i}"):
-                        custom_categories.pop(i)
-                        rules["custom_categories"] = custom_categories
-                        save_rules(rules)
-                        st.session_state.rules = rules
-                        safe_rerun()
-        else:
-            st.info(t("cleanup.custom_empty", lang))
-
-    # ── Tab 5: Valymo rezultatai ──
-    with tabs[5]:
-        st.subheader(t("cleanup.results_title", lang))
-
+        # Past cleanup results (former Tab 5)
+        st.markdown("**" + t("cleanup.results_title", lang) + "**")
         cleanup_results = st.session_state.get("cleanup_results")
-
         if not cleanup_results:
             st.info(t("cleanup.no_results", lang))
         else:
@@ -4021,45 +5066,21 @@ elif page == "Cleanup Rules":
             review = cleanup_results.get("needs_review", [])
             notified = cleanup_results.get("notified", [])
             protected = cleanup_results.get("protected", [])
-
             col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric(t("cleanup.metric_deleted", lang), len(deleted))
             col2.metric(t("cleanup.metric_archived", lang), len(archived))
             col3.metric(t("cleanup.metric_review", lang), len(review))
             col4.metric(t("cleanup.metric_notified", lang), len(notified))
             col5.metric(t("cleanup.metric_protected", lang), len(protected))
-
-            if review:
-                st.divider()
-                st.subheader(t("cleanup.waiting_title", lang))
-                st.caption(t("cleanup.waiting_caption", lang))
-                for item in review:
-                    show_email_card(item, "❓", "review")
-
-            if deleted:
-                st.divider()
-                with st.expander(t("cleanup.deleted_expander", lang).format(count=len(deleted))):
-                    for item in deleted:
-                        subject = item.get("subject") or t("email.no_subject", lang)
-                        sender = item.get("sender") or ""
-                        reason = item.get("reason") or item.get("category") or ""
-                        st.write(f"🗑 **{subject}** – {sender} _{reason}_")
-
-            if archived:
-                st.divider()
-                with st.expander(t("cleanup.archived_expander", lang).format(count=len(archived))):
-                    for item in archived:
-                        subject = item.get("subject") or t("email.no_subject", lang)
-                        sender = item.get("sender") or ""
-                        st.write(f"📥 **{subject}** – {sender}")
-
-
-# ============================================================
-# Settings
-# ============================================================
-
 elif page == "Settings":
     st.title(t("settings.title", lang))
+
+    settings = st.session_state.settings.copy()
+    settings_lang = normalize_language(settings.get("language", "en"))
+    st.write(f"**{t('settings.language', settings_lang)}**")
+    render_language_picker("settings", settings_lang, compact=False)
+
+    lang = current_language()
 
     license_data = load_license()
     st.subheader(t("license.account_heading", lang), help=help_text("license_activation", lang))
@@ -4141,30 +5162,10 @@ elif page == "Settings":
 
     st.divider()
 
-    settings = st.session_state.settings.copy()
-    settings_lang = normalize_language(settings.get("language", "en"))
-    language_options = {
-        t("language.english", settings_lang): "en",
-        t("language.lithuanian", settings_lang): "lt",
-    }
-    language_labels = list(language_options.keys())
-    current_language_label = (
-        t("language.lithuanian", settings_lang)
-        if settings_lang == "lt"
-        else t("language.english", settings_lang)
-    )
-
-    selected_language = st.selectbox(
-        t("settings.language", lang),
-        language_labels,
-        index=language_labels.index(current_language_label),
-    )
-    settings["language"] = language_options[selected_language]
-
     settings["currency"] = st.selectbox(
         t("settings.currency", settings["language"]),
         ["USD", "EUR", "GBP"],
-        index=["USD", "EUR", "GBP"].index(settings.get("currency", "USD")),
+        index=["USD", "EUR", "GBP"].index(normalize_currency(settings.get("currency", "USD"))),
     )
 
     timezone_options = [
@@ -4190,7 +5191,7 @@ elif page == "Settings":
     settings["auto_scan"] = st.selectbox(
         t("settings.auto_scan", settings["language"]),
         ["off", "hourly", "daily"],
-        index=["off", "hourly", "daily"].index(settings.get("auto_scan", "off")),
+        index=["off", "hourly", "daily"].index(normalize_auto_scan(settings.get("auto_scan", "off"))),
         format_func=lambda x: {
             "off": t("settings.auto_scan_off", settings["language"]),
             "hourly": t("settings.auto_scan_hourly", settings["language"]),
@@ -4202,6 +5203,12 @@ elif page == "Settings":
         t("settings.apply_rules", settings["language"]),
         value=bool(settings.get("apply_rules_after_scan", False)),
         help=t("settings.apply_rules_help", settings["language"]),
+    )
+
+    settings["auto_apply_blacklist_after_scan"] = st.checkbox(
+        t("settings.auto_apply_blacklist", settings["language"]),
+        value=bool(settings.get("auto_apply_blacklist_after_scan", False)),
+        help=t("settings.auto_apply_blacklist_help", settings["language"]),
     )
 
     settings["safe_mode"] = st.checkbox(
@@ -4233,7 +5240,7 @@ elif page == "Settings":
         t("settings.max_dashboard", settings["language"]),
         min_value=1,
         max_value=10,
-        value=int(settings.get("max_dashboard_items", 3) or 3),
+        value=clamp_int(settings.get("max_dashboard_items", 3), 1, 10, 3),
     )
 
     if st.button(t("settings.save", settings["language"]), type="primary"):

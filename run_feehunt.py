@@ -1,8 +1,10 @@
 import os
 import sys
+import time
 import webbrowser
 from pathlib import Path
 from threading import Timer
+from urllib.request import urlopen
 
 
 def configure_console_encoding() -> None:
@@ -43,6 +45,9 @@ def get_app_dir() -> Path:
 
 APP_DIR = get_app_dir()
 APP_FILE = APP_DIR / "app.py"
+SERVER_HOST = "127.0.0.1"
+SERVER_PORT = "8501"
+SERVER_URL = f"http://{SERVER_HOST}:{SERVER_PORT}"
 
 # Labai svarbu PyInstaller aplinkoje:
 # pridedame _internal aplanką į import kelią
@@ -59,7 +64,25 @@ from streamlit.web import cli as stcli
 
 
 def open_browser():
-    webbrowser.open("http://localhost:8501")
+    webbrowser.open(SERVER_URL)
+
+
+def open_browser_when_ready() -> None:
+    for _ in range(60):
+        try:
+            with urlopen(SERVER_URL, timeout=1):
+                webbrowser.open(SERVER_URL)
+                return
+        except Exception:
+            time.sleep(0.5)
+
+
+def server_is_running() -> bool:
+    try:
+        with urlopen(SERVER_URL, timeout=1):
+            return True
+    except Exception:
+        return False
 
 
 def main():
@@ -77,15 +100,20 @@ def main():
         input(t("runner.press_enter"))
         sys.exit(1)
 
-    Timer(2.0, open_browser).start()
+    if server_is_running():
+        safe_print(f"FeeHunt is already running at {SERVER_URL}", flush=True)
+        webbrowser.open(SERVER_URL)
+        return
+
+    Timer(0.5, open_browser_when_ready).start()
 
     sys.argv = [
         "streamlit",
         "run",
         str(APP_FILE),
         "--global.developmentMode=false",
-        "--server.port=8501",
-        "--server.address=localhost",
+        f"--server.port={SERVER_PORT}",
+        f"--server.address={SERVER_HOST}",
         "--server.headless=true",
         "--browser.gatherUsageStats=false",
     ]

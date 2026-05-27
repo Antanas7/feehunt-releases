@@ -70,7 +70,7 @@ LICENSING_API_BASE_URL = os.environ.get("FEEHUNT_API_BASE_URL", "https://feehunt
 # Gmail OAuth
 # ============================================================
 
-GMAIL_SCOPES = ["https://mail.google.com/"]
+GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
 
 # ============================================================
@@ -78,6 +78,25 @@ GMAIL_SCOPES = ["https://mail.google.com/"]
 # ============================================================
 
 MAX_EMAILS_TO_SCAN = 200
+MAX_EMAILS_PER_TARGETED_QUERY = 80
+
+GMAIL_TARGETED_SCAN_QUERIES = [
+    'newer_than:365d -in:trash "payment failed"',
+    'newer_than:365d -in:trash "failed payment"',
+    'newer_than:365d -in:trash "failed to process"',
+    'newer_than:365d -in:trash "insufficient funds"',
+    'newer_than:365d -in:trash "card declined"',
+    'newer_than:365d -in:trash "payment required"',
+    'newer_than:365d -in:trash "past due"',
+    'newer_than:365d -in:trash overdue',
+    'newer_than:365d -in:trash subscription',
+    'newer_than:365d -in:trash billing',
+    'newer_than:365d -in:trash renewal',
+    'newer_than:365d -in:trash "recurring payment"',
+    'newer_than:365d -in:trash "auto-renew"',
+    'newer_than:365d -in:trash invoice',
+    'newer_than:365d -in:trash membership',
+]
 GMAIL_USER_ID = "me"
 GMAIL_MESSAGE_FORMAT = "full"
 
@@ -110,6 +129,10 @@ DEFAULT_SETTINGS = {
     "safe_mode": True,
     "max_dashboard_items": 3,
     "apply_rules_after_scan": False,
+    # Default ON: once user puts a sender on the unwanted list, the
+    # natural expectation is "FeeHunt will delete their stuff". User can
+    # switch to "ask me first" in Sender Lists if they want safer review.
+    "auto_apply_blacklist_after_scan": True,
     "ftue_completed": False,
     "adaptive_guidance_enabled": True,
 }
@@ -201,8 +224,9 @@ KEYWORDS = {
         "subscription", "billing", "payment", "invoice", "renewal",
         "charged", "charge", "trial", "plan", "membership",
         "recurring payment", "auto-renew", "auto renewal",
-        "failed payment", "payment failed", "card declined",
-        "past due", "overdue", "receipt", "statement",
+        "failed payment", "payment failed", "payment failed to process",
+        "failed to process", "card declined", "insufficient funds",
+        "insufficient funds on card", "past due", "overdue", "receipt", "statement",
         "prenumerata", "prenumeratos", "mokėjimas", "mokejimas",
         "sąskaita", "saskaita", "atnaujinimas",
         "nepavyko apmokėti", "kortelė atmesta", "kortele atmesta",
@@ -230,8 +254,10 @@ KEYWORDS = {
         "weekly digest", "monthly update", "roundup",
     ],
     "financial_risks": [
-        "failed payment", "payment failed", "card declined",
-        "past due", "overdue", "account suspended", "payment required",
+        "failed payment", "payment failed", "payment failed to process",
+        "failed to process", "card declined", "insufficient funds",
+        "insufficient funds on card", "past due", "overdue",
+        "account suspended", "payment required", "action required",
         "nepavyko apmokėti", "kortelė atmesta", "kortele atmesta",
         "vėluojantis mokėjimas", "paskyra sustabdyta",
     ],
@@ -239,8 +265,9 @@ KEYWORDS = {
 
 HIGH_CONFIDENCE_SUBSCRIPTION_KEYWORDS = [
     "recurring payment", "auto-renew", "auto renewal",
-    "failed payment", "payment failed", "card declined",
-    "past due", "overdue",
+    "failed payment", "payment failed", "payment failed to process",
+    "failed to process", "card declined", "insufficient funds",
+    "insufficient funds on card", "past due", "overdue",
     "nepavyko apmokėti", "kortelė atmesta", "kortele atmesta",
     "vėluojantis mokėjimas", "veluojantis mokejimas",
 ]
@@ -256,8 +283,9 @@ HIGH_CONFIDENCE_SHOP_KEYWORDS = [
 ]
 
 HIGH_CONFIDENCE_FINANCIAL_KEYWORDS = [
-    "failed payment", "payment failed", "card declined",
-    "past due", "overdue", "account suspended",
+    "failed payment", "payment failed", "payment failed to process",
+    "failed to process", "card declined", "insufficient funds",
+    "insufficient funds on card", "past due", "overdue", "account suspended",
     "nepavyko apmokėti", "kortelė atmesta", "paskyra sustabdyta",
 ]
 

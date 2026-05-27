@@ -16,10 +16,14 @@ required_datas = [
     ("main.py", "."),
     ("config.py", "."),
     ("feehunt_analyzer.py", "."),
+    ("gmail_auth.py", "."),
     ("gmail_actions.py", "."),
     ("licensing.py", "."),
+    ("local_memory.py", "."),
     ("subscription_actions.py", "."),
+    ("time_utils.py", "."),
     ("translations.py", "."),
+    ("user_state.py", "."),
     ("requirements.txt", "."),
     ("credentials.json", "."),
     (".streamlit/config.toml", ".streamlit"),
@@ -104,8 +108,9 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
+    icon="icon.ico",
 )
 
 coll = COLLECT(

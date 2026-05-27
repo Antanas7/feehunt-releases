@@ -15,9 +15,14 @@ from config import LICENSE_FILE, LICENSING_API_BASE_URL
 from time_utils import days_until_local, now_utc, parse_datetime_utc
 
 
-DEFAULT_TRIAL_DAYS = 14
+DEFAULT_TRIAL_DAYS = 7
 OFFLINE_GRACE_DAYS = 7
 LICENSE_KEY_PREFIX = "FHUNT-"
+
+# Trial users get this many full scans (with all features) before being
+# asked to activate a paid plan. Once exhausted, the app keeps showing
+# the prior scan's results but blocks new scans and auto-cleanup.
+TRIAL_SCAN_LIMIT = 3
 
 
 def _now() -> datetime:
@@ -83,10 +88,15 @@ def _write_json(path, data: dict[str, Any]) -> bool:
 
 def _api_post(endpoint: str, payload: dict[str, Any], timeout: int = 20) -> dict[str, Any]:
     url = f"{LICENSING_API_BASE_URL.rstrip('/')}/{endpoint.lstrip('/')}"
+    body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(
         url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        data=body,
+        headers={
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json",
+            "User-Agent": "FeeHunt/1.2.0 (+https://feehunt.pro)",
+        },
         method="POST",
     )
     try:
@@ -98,7 +108,13 @@ def _api_post(endpoint: str, payload: dict[str, Any], timeout: int = 20) -> dict
             data = json.loads(text)
         except Exception:
             data = {}
-        return {"ok": False, "offline": False, "error": data.get("error") or f"HTTP {exc.code}"}
+        return {
+            "ok": False,
+            "offline": False,
+            "status": str(data.get("status") or "error"),
+            "http_status": exc.code,
+            "error": data.get("error") or data.get("message") or f"HTTP {exc.code}",
+        }
     except Exception as exc:
         return {"ok": False, "offline": True, "error": str(exc)}
 
@@ -111,6 +127,28 @@ def _api_post(endpoint: str, payload: dict[str, Any], timeout: int = 20) -> dict
 
 def load_license() -> dict[str, Any] | None:
     return _read_json(LICENSE_FILE)
+
+
+# Fields that live on the local license file only — server never returns
+# them, so each refresh of the gate must merge them back in or the trial
+# counter (and similar local-only state) would be wiped on every save.
+_LOCAL_ONLY_LICENSE_FIELDS = (
+    "trial_scans_used",
+    "trial_scan_last_used_at",
+    "trial_first_scan_at",
+    "connected_gmail_accounts",
+)
+
+
+def _merge_local_only_fields(gate: dict[str, Any]) -> dict[str, Any]:
+    """Copy local-only fields from the existing license file into the new
+    gate dict before it's written back. Without this, save_license(gate)
+    overwrites trial_scans_used and the scan quota never enforces."""
+    existing = _read_json(LICENSE_FILE) or {}
+    for field in _LOCAL_ONLY_LICENSE_FIELDS:
+        if field in existing and field not in gate:
+            gate[field] = existing[field]
+    return gate
 
 
 def save_license(license_data: dict[str, Any]) -> bool:
@@ -145,6 +183,7 @@ def activate_license(license_key: str) -> dict[str, Any]:
     )
     gate = _gate_from_verify_response(key, result, online=not result.get("offline"))
     if gate.get("allowed"):
+        _merge_local_only_fields(gate)
         save_license(gate)
     return gate
 
@@ -178,6 +217,7 @@ def check_license(force_online: bool = False) -> dict[str, Any]:
 
     gate = _gate_from_verify_response(local["license_key"], result, online=not result.get("offline"))
     if gate.get("allowed"):
+        _merge_local_only_fields(gate)
         save_license(gate)
     return gate
 
@@ -205,7 +245,6 @@ def _gate_from_verify_response(license_key: str, data: dict[str, Any], online: b
         "last_checked_at": _now().isoformat() if allowed else None,
         "message": data.get("message") or data.get("error") or ("FeeHunt license is active." if allowed else "FeeHunt license could not be verified."),
     }
-
 
 def get_trial_status(license_data: dict[str, Any] | None = None) -> dict[str, Any]:
     data = license_data or load_license() or {}
@@ -289,3 +328,88 @@ def can_add_gmail_account(license_data: dict[str, Any] | None, gmail_address: st
         "gmail_address": normalized_email,
         "message": "" if allowed else "Upgrade your FeeHunt plan to connect more Gmail accounts.",
     }
+
+
+# ============================================================
+# Trial scan quota tracking
+# ============================================================
+#
+# Trial users get TRIAL_SCAN_LIMIT full scans (with all features) before
+# the app shifts to read-only-mode and asks them to activate a paid plan.
+# Active (paid) users are never quota-limited. The trial date window is
+# enforced separately by trial_ends_at.
+#
+# State lives on the local license file (not local memory) so it survives
+# settings reset but is naturally scoped per device. Cross-device tracking
+# would require server-side enforcement (Phase 2).
+
+def trial_scans_used(license_data: dict[str, Any] | None = None) -> int:
+    data = license_data if license_data is not None else load_license() or {}
+    try:
+        return max(0, int(data.get("trial_scans_used", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def trial_scans_remaining(license_data: dict[str, Any] | None = None) -> int:
+    return max(0, TRIAL_SCAN_LIMIT - trial_scans_used(license_data))
+
+
+def mark_trial_scan_used() -> int:
+    """Increment trial_scans_used on the local license file. Returns the
+    new count. Safe to call for non-trial users — it just increments the
+    counter (which is ignored by effective_can_scan when status='active')."""
+    data = load_license() or {}
+    used = trial_scans_used(data) + 1
+    data["trial_scans_used"] = used
+    data["trial_scan_last_used_at"] = _now().isoformat()
+    if used == 1:
+        data.setdefault("trial_first_scan_at", data["trial_scan_last_used_at"])
+    save_license(data)
+    return used
+
+
+def _trial_window_expired(license_data: dict[str, Any]) -> bool:
+    ends_at = _parse_datetime(license_data.get("trial_ends_at"))
+    if ends_at is None:
+        return False
+    return _now() >= ends_at
+
+
+def trial_lock_reason(gate: dict[str, Any] | None = None) -> str:
+    """Return why a trial user is blocked, or 'none' if not blocked.
+    Values: 'none' | 'scan_quota' | 'expired' | 'no_license'"""
+    data = gate if gate is not None else (load_license() or {})
+    status = str(data.get("status") or "").strip().lower()
+    if status == "active":
+        return "none"
+    if status not in {"trial", "expired", "read_only"}:
+        return "no_license"
+    if status in {"expired", "read_only"}:
+        return "expired"
+    if _trial_window_expired(data):
+        return "expired"
+    if trial_scans_used(data) >= TRIAL_SCAN_LIMIT:
+        return "scan_quota"
+    return "none"
+
+
+def effective_can_scan(gate: dict[str, Any] | None = None) -> bool:
+    """True only when the user is allowed to start a NEW scan right now."""
+    data = gate if gate is not None else (load_license() or {})
+    if not data.get("allowed"):
+        return False
+    status = str(data.get("status") or "").strip().lower()
+    if status == "active":
+        return True
+    if status == "trial":
+        return trial_lock_reason(data) == "none"
+    return False
+
+
+def effective_can_modify(gate: dict[str, Any] | None = None) -> bool:
+    """True when the user can change Gmail state via FeeHunt rules
+    (blacklist auto-apply, whitelist auto-protect, post-scan cleanup
+    automation). Manual per-email actions on already-shown results stay
+    open regardless — gate them at scan initiation, not action time."""
+    return effective_can_scan(gate)

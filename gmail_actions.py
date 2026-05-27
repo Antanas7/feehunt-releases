@@ -1,73 +1,20 @@
 from urllib.parse import urlparse
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-
-from config import (
-    GMAIL_SCOPES,
-    GMAIL_CREDENTIALS_FILE,
-    GMAIL_TOKEN_FILE,
-    GMAIL_USER_ID,
-)
+from config import GMAIL_USER_ID
+from gmail_auth import get_gmail_service as get_authorized_gmail_service
 from licensing import register_gmail_account
-
-
-CREDENTIALS_PATH = GMAIL_CREDENTIALS_FILE
-TOKEN_PATH = GMAIL_TOKEN_FILE
 
 
 # ============================================================
 # Gmail Service
 # ============================================================
 
-def get_gmail_service():
-    if not CREDENTIALS_PATH.exists():
-        raise FileNotFoundError(
-            "What is wrong: FeeHunt cannot find the Gmail sign-in configuration included with the app.\n"
-            "Why it matters: Google sign-in cannot open without this OAuth client file.\n"
-            "How to fix it: download FeeHunt Beta v1.1 again, extract the whole ZIP, "
-            "and run FeeHunt.exe from the extracted folder."
-        )
-
-    creds = None
-
-    if TOKEN_PATH.exists():
-        try:
-            creds = Credentials.from_authorized_user_file(
-                str(TOKEN_PATH), GMAIL_SCOPES
-            )
-        except Exception:
-            creds = None
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-            except Exception:
-                creds = None
-
-        if not creds or not creds.valid:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                str(CREDENTIALS_PATH), GMAIL_SCOPES
-            )
-            creds = flow.run_local_server(port=0)
-
-        TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(TOKEN_PATH, "w", encoding="utf-8") as token:
-            token.write(creds.to_json())
-
-    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
-    try:
-        profile = service.users().getProfile(userId=GMAIL_USER_ID).execute()
-        registration = register_gmail_account(profile.get("emailAddress", ""))
-        if not registration.get("registered") and registration.get("status") == "plan_limit_exceeded":
-            raise PermissionError(registration.get("message") or "FeeHunt plan limit reached.")
-    except PermissionError:
-        raise
-    except Exception:
-        pass
+def get_gmail_service(*, force_reauth: bool = False):
+    service = get_authorized_gmail_service(force_reauth=force_reauth)
+    profile = service.users().getProfile(userId=GMAIL_USER_ID).execute()
+    registration = register_gmail_account(profile.get("emailAddress", ""))
+    if not registration.get("registered") and registration.get("status") == "plan_limit_exceeded":
+        raise PermissionError(registration.get("message") or "FeeHunt plan limit reached.")
     return service
 
 
@@ -136,6 +83,26 @@ def delete_email(message_id: str) -> dict:
     ).execute()
 
 
+def delete_emails(message_ids: list[str]) -> dict:
+    service = get_gmail_service()
+    changed = []
+    errors = []
+
+    for message_id in message_ids:
+        if not message_id:
+            continue
+        try:
+            service.users().messages().trash(
+                userId=GMAIL_USER_ID,
+                id=message_id,
+            ).execute()
+            changed.append(message_id)
+        except Exception as error:
+            errors.append({"message_id": message_id, "error": str(error)})
+
+    return {"changed": changed, "errors": errors}
+
+
 def restore_trashed_email(message_id: str) -> dict:
     service = get_gmail_service()
     return service.users().messages().untrash(
@@ -170,6 +137,25 @@ def get_message_full(message_id: str) -> dict:
 # Unsubscribe Support
 # ============================================================
 
+DIRECT_BROWSER_UNFRIENDLY_UNSUBSCRIBE_HOSTS = {
+    "unsubscribes.spmta.com",
+    "mg.account.hostinger.com",
+}
+
+
+def is_direct_browser_unfriendly_unsubscribe_url(url: str | None) -> bool:
+    if not url:
+        return False
+
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    return (
+        host in DIRECT_BROWSER_UNFRIENDLY_UNSUBSCRIBE_HOSTS
+        or host.endswith(".spmta.com")
+        or (host.startswith("mg.") and "hostinger" in host)
+    )
+
+
 def extract_unsubscribe_url(header_value: str) -> str | None:
     if not header_value:
         return None
@@ -187,7 +173,7 @@ def extract_unsubscribe_url(header_value: str) -> str | None:
     return None
 
 
-def get_unsubscribe_link(message_id: str) -> str | None:
+def get_unsubscribe_link(message_id: str, *, include_browser_unfriendly: bool = False) -> str | None:
     service = get_gmail_service()
 
     message = service.users().messages().get(
@@ -201,7 +187,14 @@ def get_unsubscribe_link(message_id: str) -> str | None:
 
     for header in headers:
         if header.get("name", "").lower() == "list-unsubscribe":
-            return extract_unsubscribe_url(header.get("value", ""))
+            unsubscribe_url = extract_unsubscribe_url(header.get("value", ""))
+            if (
+                unsubscribe_url
+                and not include_browser_unfriendly
+                and is_direct_browser_unfriendly_unsubscribe_url(unsubscribe_url)
+            ):
+                return None
+            return unsubscribe_url
 
     return None
 

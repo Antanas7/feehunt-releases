@@ -5,25 +5,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-
 from config import (
     APP_DIR,
     APP_NAME,
     APP_VERSION,
-    GMAIL_SCOPES,
-    GMAIL_CREDENTIALS_FILE,
-    GMAIL_TOKEN_FILE,
     LAST_SCAN_RESULTS_FILE,
     USER_DATA_DIR,
     MAX_EMAILS_TO_SCAN,
+    MAX_EMAILS_PER_TARGETED_QUERY,
+    GMAIL_TARGETED_SCAN_QUERIES,
     DEFAULT_ESTIMATED_SAVINGS_PER_SUBSCRIPTION,
 )
 
 from feehunt_analyzer import analyze_email
+from gmail_auth import get_gmail_service as get_authorized_gmail_service
 from licensing import register_gmail_account
 
 
@@ -104,6 +99,49 @@ def save_scan_results(data: dict[str, Any]) -> None:
         json.dump(data, file, ensure_ascii=False, indent=2)
 
 
+def list_messages(service, *, query: str | None = None, limit: int = MAX_EMAILS_TO_SCAN) -> list[dict[str, str]]:
+    messages: list[dict[str, str]] = []
+    page_token = None
+
+    while len(messages) < limit:
+        request = {
+            "userId": "me",
+            "maxResults": min(100, limit - len(messages)),
+        }
+        if query:
+            request["q"] = query
+        if page_token:
+            request["pageToken"] = page_token
+
+        response = service.users().messages().list(**request).execute()
+        messages.extend(response.get("messages", []))
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            break
+
+    return messages
+
+
+def collect_scan_messages(service) -> list[dict[str, str]]:
+    seen_ids: set[str] = set()
+    collected: list[dict[str, str]] = []
+
+    for message in list_messages(service, limit=MAX_EMAILS_TO_SCAN):
+        message_id = message.get("id")
+        if message_id and message_id not in seen_ids:
+            seen_ids.add(message_id)
+            collected.append(message)
+
+    for query in GMAIL_TARGETED_SCAN_QUERIES:
+        for message in list_messages(service, query=query, limit=MAX_EMAILS_PER_TARGETED_QUERY):
+            message_id = message.get("id")
+            if message_id and message_id not in seen_ids:
+                seen_ids.add(message_id)
+                collected.append(message)
+
+    return collected
+
+
 def format_critical_error(error: Exception) -> str:
     if isinstance(error, FileNotFoundError) and "credentials.json" in str(error):
         return (
@@ -126,44 +164,11 @@ def format_critical_error(error: Exception) -> str:
 # ============================================================
 
 def get_gmail_service():
-    credentials_path = GMAIL_CREDENTIALS_FILE
-    token_path = GMAIL_TOKEN_FILE
-
-    if not credentials_path.exists():
-        raise FileNotFoundError(f"credentials.json not found at {credentials_path}")
-
-    creds = None
-    if token_path.exists():
-        try:
-            creds = Credentials.from_authorized_user_file(str(token_path), GMAIL_SCOPES)
-        except Exception:
-            creds = None
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-            except Exception:
-                creds = None
-
-        if not creds or not creds.valid:
-            flow = InstalledAppFlow.from_client_secrets_file(str(credentials_path), GMAIL_SCOPES)
-            creds = flow.run_local_server(port=0)
-
-        token_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(token_path, "w", encoding="utf-8") as token:
-            token.write(creds.to_json())
-
-    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
-    try:
-        profile = service.users().getProfile(userId="me").execute()
-        registration = register_gmail_account(profile.get("emailAddress", ""))
-        if not registration.get("registered") and registration.get("status") == "plan_limit_exceeded":
-            raise PermissionError(registration.get("message") or "FeeHunt plan limit reached.")
-    except PermissionError:
-        raise
-    except Exception:
-        pass
+    service = get_authorized_gmail_service()
+    profile = service.users().getProfile(userId="me").execute()
+    registration = register_gmail_account(profile.get("emailAddress", ""))
+    if not registration.get("registered") and registration.get("status") == "plan_limit_exceeded":
+        raise PermissionError(registration.get("message") or "FeeHunt plan limit reached.")
     return service
 
 
@@ -174,12 +179,7 @@ def get_gmail_service():
 def scan_gmail() -> dict[str, Any]:
     service = get_gmail_service()
 
-    response = service.users().messages().list(
-        userId="me",
-        maxResults=MAX_EMAILS_TO_SCAN,
-    ).execute()
-
-    messages = response.get("messages", [])
+    messages = collect_scan_messages(service)
     total = len(messages)
 
     financial_risks = []
@@ -220,7 +220,7 @@ def scan_gmail() -> dict[str, Any]:
 
             if analysis["is_financial_risk"]:
                 financial_risks.append(email_data)
-            if analysis["is_subscription"]:
+            if analysis["is_subscription"] and not analysis["is_financial_risk"]:
                 subscriptions.append(email_data)
             if analysis["is_promotional"]:
                 promotional_emails.append(email_data)
@@ -238,6 +238,7 @@ def scan_gmail() -> dict[str, Any]:
             safe_print(f"Klaida apdorojant laišką {message.get('id', 'unknown')}: {error}")
 
     subscription_count = len(subscriptions)
+    subscription_and_risk_count = subscription_count + len(financial_risks)
     promo_count = len(promotional_emails) + len(shop_emails) + len(newsletter_emails)
     estimated_savings = subscription_count * DEFAULT_ESTIMATED_SAVINGS_PER_SUBSCRIPTION
 
@@ -246,7 +247,7 @@ def scan_gmail() -> dict[str, Any]:
         "app_version": APP_VERSION,
         "last_scan_at": datetime.now().isoformat(timespec="seconds"),
         "emails_scanned": total,
-        "subscriptions_found": subscription_count,
+        "subscriptions_found": subscription_and_risk_count,
         "promotions_found": promo_count,
         "estimated_savings": estimated_savings,
         "financial_risks": financial_risks,
