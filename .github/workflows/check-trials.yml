@@ -1,0 +1,40 @@
+name: Daily trial reminder check
+
+# Calls the FeeHunt /api/check-trials endpoint once a day. That endpoint
+# finds trial users whose trial is ~3 days from expiry and emails them a
+# reminder (and flips truly-expired trials to expired). The endpoint is
+# guarded by FEEHUNT_CRON_SECRET, which must be set BOTH:
+#   - in Cloudflare Pages env vars (so the endpoint accepts the call), and
+#   - in this repo's Actions secrets (so this workflow can send it).
+# Both must hold the SAME value.
+
+on:
+  schedule:
+    # 07:00 UTC every day. GitHub may delay scheduled runs under load;
+    # a daily cadence is fine since the reminder window is ~3 days wide.
+    - cron: "0 7 * * *"
+  workflow_dispatch: {}   # lets you run it manually from the Actions tab
+
+jobs:
+  check-trials:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/check-trials
+        env:
+          CRON_SECRET: ${{ secrets.FEEHUNT_CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::FEEHUNT_CRON_SECRET repo secret is not set. Add it in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "Calling https://feehunt.pro/api/check-trials ..."
+          http_code=$(curl -s -o response.json -w "%{http_code}" \
+            -H "x-feehunt-cron-secret: $CRON_SECRET" \
+            "https://feehunt.pro/api/check-trials")
+          echo "HTTP $http_code"
+          echo "Response:"; cat response.json; echo
+          if [ "$http_code" != "200" ]; then
+            echo "::error::check-trials returned HTTP $http_code (expected 200). 401 = secret mismatch between GitHub and Cloudflare."
+            exit 1
+          fi
+          echo "Trial reminder check completed successfully."
