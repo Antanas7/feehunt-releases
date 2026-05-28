@@ -459,12 +459,42 @@ Object.entries(FH_LANGUAGE_OVERRIDES).forEach(([code, overrides]) => {
 const FH_STATIC_PAGE_TRANSLATIONS = {
   en: {
     download: {
-      title: "Download | FeeHunt",
-      description: "Download FeeHunt beta for Windows.",
-      hero: ["Windows beta", "Download FeeHunt for Windows.", "FeeHunt is currently available as a Windows beta app for local Gmail subscription review and inbox cleanup.", "Download FeeHunt Beta for Windows"],
-      install: ["Installation Steps", ["Download the FeeHunt beta ZIP file.", "Extract the ZIP file to a folder on your computer.", "Open FeeHunt.exe.", "FeeHunt will start a local app in your browser at http://localhost:8501.", "Click Connect Gmail.", "Sign in to Google."]],
-      gmail: ["Gmail Sign-In", "FeeHunt connects to Gmail using Google's OAuth authorization system. This allows you to approve access through Google instead of giving FeeHunt your password.", "FeeHunt never asks for your Gmail password. Access is approved through Google's secure sign-in flow.", "No manual credentials.json setup is required. FeeHunt opens Google's sign-in window and saves your token locally on your computer."],
-      local: ["Local Data", "FeeHunt stores tokens, settings, and scan results locally in your Windows user profile. Your Gmail password is never requested by FeeHunt.", "Scan results and settings stay on your computer unless a future feature clearly says otherwise.", "FeeHunt is beta software. Gmail actions such as archive, delete, mark as spam, and mark as important affect your real Gmail account. Use them thoughtfully."],
+      title: "Download FeeHunt | FeeHunt",
+      description: "Download FeeHunt for Windows. We walk you through the install step by step, including the Windows security warning you will see.",
+      hero: {
+        eyebrow: "Windows app · 5-minute setup",
+        title: "Download FeeHunt and we'll walk you through every step.",
+        lead: "FeeHunt is a small Windows program. You'll see one Windows warning and one Google warning during setup — both are normal. We tell you what to click each time. Honestly, it's a 5-minute job.",
+        button: "⬇ Download FeeHunt for Windows",
+        meta: "Free 7-day trial · No credit card · Works on Windows 10 and 11",
+      },
+      walk: {
+        title: "What happens after you click download",
+        s1: { title: "A file will start downloading", body: "Your browser will save FeeHunt-Setup-v1.2.exe to your Downloads folder. It's a small file (~80 MB) and takes about 30 seconds on most connections." },
+        s2: { title: "Double-click the downloaded file", body: "Open your Downloads folder and double-click FeeHunt-Setup-v1.2.exe." },
+        s3: {
+          title: "Windows will show a blue warning — this is normal",
+          body: "What you'll see: A blue box titled \"Windows protected your PC\" with a small \"Don't run\" button. This appears for every new Windows app that doesn't yet have a paid Microsoft certificate. FeeHunt is in beta and the certificate is coming soon.",
+          action: "<strong>What to click:</strong> Click the small <em>\"More info\"</em> link on the LEFT of the box. A new <em>\"Run anyway\"</em> button will appear. Click that.",
+        },
+        s4: { title: "Click through the installer (Next, Next, Install)", body: "A standard Windows installer appears. Three short screens, all default settings are fine: click Next → Next → Install → Finish. FeeHunt will open automatically." },
+        s5: { title: "Paste your license key", body: "FeeHunt opens in your browser at http://localhost:8501 — this is FeeHunt running locally on your computer, not a website. Paste the FHUNT-XXXX-XXXX-XXXX-XXXX key from your email, click Activate." },
+        s6: {
+          title: "Click \"Connect Gmail\" — Google will show a warning, too",
+          body: "What you'll see: Google opens a sign-in window. After picking your account, Google says \"Google hasn't verified this app\". This means the same as the Windows warning: FeeHunt is in beta, and the Google verification audit is in progress.",
+          action: "<strong>What to click:</strong> Click <em>\"Advanced\"</em> at the bottom-left, then <em>\"Go to FeeHunt (unsafe)\"</em>. Then approve the Gmail permissions FeeHunt requests.",
+          trust: "🔒 FeeHunt never sees or stores your Gmail password. Google's official OAuth flow grants FeeHunt a token that you can revoke at any moment in your Google account settings.",
+        },
+        s7: { title: "Done! Click \"Scan Gmail\" and see what FeeHunt finds.", body: "Your first scan takes about 1–2 minutes and reads the most recent 200 emails. Nothing is changed in Gmail until you confirm. From now on, FeeHunt runs from your Start menu like any other app." },
+        help: "Stuck at any step? Email <a href=\"mailto:support@feehunt.pro\">support@feehunt.pro</a> — we usually reply within a day.",
+      },
+      trust: {
+        title: "Why FeeHunt is safe",
+        local: "<strong>Everything runs on your computer.</strong> Scan results, settings, and tokens are stored in your Windows user profile. Nothing about your email content is sent to FeeHunt's servers.",
+        password: "<strong>FeeHunt never sees your Gmail password.</strong> Google's OAuth grants a scoped token; you approve through Google's own sign-in window.",
+        revoke: "<strong>You can revoke access any time.</strong> Open <a href=\"https://myaccount.google.com/permissions\" target=\"_blank\" rel=\"noopener\">Google account permissions</a> and remove FeeHunt with one click.",
+        read: "<strong>FeeHunt is beta software.</strong> Gmail actions like archive, delete, mark as spam, and mark as important affect your real Gmail account — review before acting.",
+      },
     },
     faqPage: {
       title: "FAQ | FeeHunt",
@@ -505,7 +535,6 @@ const FH_STATIC_PAGE_TRANSLATIONS = {
 
 FH_STATIC_PAGE_TRANSLATIONS.lt = clone(FH_STATIC_PAGE_TRANSLATIONS.en);
 mergeTranslation(FH_STATIC_PAGE_TRANSLATIONS.lt, {
-  download: { title: "Atsisiųsti | FeeHunt", description: "Atsisiųskite FeeHunt beta versiją Windows.", hero: ["Windows beta", "Atsisiųskite FeeHunt Windows programą.", "FeeHunt šiuo metu veikia kaip Windows beta programa vietinei Gmail prenumeratų peržiūrai ir pašto tvarkymui.", "Atsisiųsti FeeHunt Beta Windows"], install: ["Diegimo žingsniai", ["Atsisiųskite FeeHunt beta ZIP failą.", "Išskleiskite ZIP failą į aplanką kompiuteryje.", "Atidarykite FeeHunt.exe.", "FeeHunt paleis vietinę programą naršyklėje adresu http://localhost:8501.", "Paspauskite Connect Gmail.", "Prisijunkite prie Google."]], gmail: ["Gmail prisijungimas", "FeeHunt jungiasi prie Gmail per Google OAuth autorizaciją. Taip prieigą patvirtinate per Google, o ne perduodate slaptažodį FeeHunt.", "FeeHunt niekada neprašo Gmail slaptažodžio. Prieiga patvirtinama per saugų Google prisijungimą.", "Rankinis credentials.json nustatymas nereikalingas. FeeHunt atidaro Google prisijungimo langą ir saugo tokeną lokaliai jūsų kompiuteryje."], local: ["Vietiniai duomenys", "FeeHunt saugo tokenus, nustatymus ir skenavimo rezultatus jūsų Windows vartotojo profilyje. Gmail slaptažodžio FeeHunt neprašo.", "Skenavimo rezultatai ir nustatymai lieka jūsų kompiuteryje, nebent būsima funkcija aiškiai nurodys kitaip.", "FeeHunt yra beta programinė įranga. Gmail veiksmai, tokie kaip archyvavimas, trynimas, žymėjimas kaip šlamštas ar svarbus laiškas, paveikia tikrą Gmail paskyrą. Naudokite apgalvotai."] },
   faqPage: { title: "DUK | FeeHunt", description: "Dažniausi klausimai apie FeeHunt.", hero: ["DUK", "Klausimai prieš išbandant FeeHunt?", "Aiškūs atsakymai apie privatumą, Gmail prieigą, bandymus, atšaukimą ir paskyrų limitus."], items: [["Kaip veikia FeeHunt?", "FeeHunt jungiasi prie Gmail per Google OAuth ir skenuoja naujausius laiškus ieškodamas prenumeratų, atnaujinimų, sąskaitų, nepavykusių mokėjimų, reklamų ir galimų sukčiavimo rizikų."], ["Ar mano el. paštas privatus?", "FeeHunt kuriamas kaip privatumą sauganti vietinė darbalaukio programa. Analizė vyksta jūsų kompiuteryje. FeeHunt neparduoda jūsų duomenų."], ["Ar galiu atsaukti bet kada?", "Taip. FeeHunt sukurtas su aiškiu prenumeratos valdymu ir atšaukimu."], ["Kokios Gmail paskyros palaikomos?", "FeeHunt sukurtas Gmail paskyroms, prijungtoms per Google OAuth. Beta laikotarpiu dėmesys skiriamas Gmail ir Windows."], ["Kas nutiks po nemokamo bandymo?", "Po 14 dienų bandymo pasirinktas mokamas planas taps aktyvus, nebent atsauksite iki bandymo pabaigos."], ["Kiek Gmail paskyrų galiu prijungti?", "Basic planas palaiko 1 Gmail paskyrą. Family planas palaiko iki 3 Gmail paskyrų."]] },
   contact: { title: "Kontaktai | FeeHunt", description: "Susisiekite su FeeHunt.", hero: ["Kontaktai", "Susisiekite su FeeHunt.", "Turite klausimą, klaidos pranešimą, produkto idėją ar verslo užklausą? Mums svarbu išgirsti."], left: ["Bendros užklausos", "El. paštas: ", "Beta atsiliepimams naudokite Feedback puslapį, kad galėtume greičiau surinkti struktūruotą informaciją.", "Siųsti atsiliepimą"], right: ["Ką įtraukti", ["Jūsų operacinę sistemą", "Ar naudojate beta ar viešą versiją", "Trumpą problemos ar klausimo aprašymą", "Ekrano kopijas tik jei jose nėra privataus el. pašto turinio"], "Nesiųskite privataus el. pašto turinio, OAuth tokenų, licencijos raktų ar jautrios paskyros informacijos."] },
   feedback: { title: "Atsiliepimai | FeeHunt", description: "Siųskite FeeHunt beta atsiliepimus.", hero: ["Atsiliepimai", "Padėkite formuoti FeeHunt.", "Beta atsiliepimai padeda gerinti aptikimo kokybę, atšaukimo srautus, įvedimą ir privatumą saugantį dizainą."], left: ["Ką siųsti", ["Klaidų pranešimus", "Neaiškius nustatymo žingsnius", "Neteisingai aptiktas prenumeratas", "Funkcijų idėjas", "Sėkmingo atšaukimo istorijas"]], right: ["Kontaktai", "Atsiliepimus siųskite: ", "Nesiųskite privataus el. pašto turinio, OAuth tokenų, licencijos raktų ar jautrios paskyros informacijos.", "Siųsti atsiliepimą"] },
@@ -524,14 +553,6 @@ const shortLanguageNames = {
   const [languageName, accountWord, keyWord, trialWord, downloadWord] = shortLanguageNames[code];
   FH_STATIC_PAGE_TRANSLATIONS[code] = clone(FH_STATIC_PAGE_TRANSLATIONS.en);
   mergeTranslation(FH_STATIC_PAGE_TRANSLATIONS[code], {
-    download: {
-      title: `${downloadWord} | FeeHunt`,
-      description: `Download FeeHunt beta for Windows in ${languageName}.`,
-      hero: ["Windows beta", `${downloadWord} FeeHunt for Windows.`, `FeeHunt is available as a Windows beta app for local Gmail subscription review and inbox cleanup. This page is prepared in ${languageName}.`, `${downloadWord} FeeHunt Beta for Windows`],
-      install: ["Installation", ["Download the FeeHunt beta file.", "Extract the file to a folder on your computer.", "Open FeeHunt.exe.", "FeeHunt starts locally at http://localhost:8501.", "Click Connect Gmail.", "Sign in with Google."]],
-      gmail: ["Gmail access", "FeeHunt connects to Gmail through Google OAuth, so you approve access with Google instead of sharing your password.", "FeeHunt never asks for your Gmail password.", "FeeHunt opens Google's sign-in window and saves access locally on your computer."],
-      local: ["Local data", "FeeHunt stores tokens, settings, and scan results locally in your Windows user profile.", "Scan results and settings stay on your computer.", "FeeHunt is beta software. Gmail actions affect your real Gmail account, so review them carefully."],
-    },
     faqPage: {
       title: "FAQ | FeeHunt",
       description: `FeeHunt FAQ in ${languageName}.`,
@@ -638,12 +659,42 @@ const FH_FINAL_TRANSLATION_PATCHES = {
       form: ["FeeHunt licencijos raktas", "Valdyti / atšaukti prenumeratą", "Reikia rakto dar kartą?", "Siųsti licencijos raktą dar kartą"],
     },
     download: {
-      title: "Atsisiųsti | FeeHunt",
-      description: "Atsisiųskite FeeHunt beta versiją Windows.",
-      hero: ["Windows beta", "Atsisiųskite FeeHunt Windows programą.", "FeeHunt šiuo metu veikia kaip Windows beta programa vietinei Gmail prenumeratų peržiūrai ir pašto tvarkymui.", "Atsisiųsti FeeHunt Beta Windows"],
-      install: ["Diegimo žingsniai", ["Atsisiųskite FeeHunt beta ZIP failą.", "Išskleiskite ZIP failą į aplanką kompiuteryje.", "Atidarykite FeeHunt.exe.", "FeeHunt paleis vietinę programą naršyklėje adresu http://localhost:8501.", "Paspauskite Connect Gmail.", "Prisijunkite prie Google."]],
-      gmail: ["Gmail prisijungimas", "FeeHunt jungiasi prie Gmail per Google OAuth autorizaciją. Taip prieigą patvirtinate per Google, o ne perduodate slaptažodį FeeHunt.", "FeeHunt niekada neprašo Gmail slaptažodžio. Prieiga patvirtinama per saugų Google prisijungimą.", "Rankinis credentials.json nustatymas nereikalingas. FeeHunt atidaro Google prisijungimo langą ir saugo tokeną lokaliai jūsų kompiuteryje."],
-      local: ["Vietiniai duomenys", "FeeHunt saugo tokenus, nustatymus ir skenavimo rezultatus jūsų Windows vartotojo profilyje. Gmail slaptažodžio FeeHunt neprašo.", "Skenavimo rezultatai ir nustatymai lieka jūsų kompiuteryje, nebent būsima funkcija aiškiai nurodys kitaip.", "FeeHunt yra beta programinė įranga. Gmail veiksmai, tokie kaip archyvavimas, trynimas, žymėjimas kaip šlamštas ar svarbus laiškas, paveikia tikrą Gmail paskyrą. Naudokite apgalvotai."],
+      title: "Atsisiųsti FeeHunt | FeeHunt",
+      description: "Atsisiųskite FeeHunt Windows kompiuteriui. Žingsnis po žingsnio pravesime per įdiegimą, įskaitant Windows saugumo įspėjimą, kurį pamatysite.",
+      hero: {
+        eyebrow: "Windows programa · 5 min. įdiegimas",
+        title: "Atsisiųskite FeeHunt — pravesime per kiekvieną žingsnį.",
+        lead: "FeeHunt yra nedidelė Windows programa. Įdiegimo metu pamatysite vieną Windows įspėjimą ir vieną Google įspėjimą — abu yra normalūs. Kiekvieną kartą pasakysime, ką spausti. Iš tiesų tai 5 minučių darbas.",
+        button: "⬇ Atsisiųsti FeeHunt Windows kompiuteriui",
+        meta: "Nemokamas 7 dienų bandymas · Kortelės nereikia · Veikia Windows 10 ir 11",
+      },
+      walk: {
+        title: "Kas vyksta paspaudus atsisiųsti",
+        s1: { title: "Pradės siųstis failas", body: "Naršyklė išsaugos FeeHunt-Setup-v1.2.exe į jūsų Atsisiuntimų (Downloads) aplanką. Tai nedidelis failas (~80 MB), atsisiunčia per maždaug 30 sekundžių." },
+        s2: { title: "Du kartus spustelėkite atsisiųstą failą", body: "Atidarykite Atsisiuntimų aplanką ir dukart spustelėkite FeeHunt-Setup-v1.2.exe." },
+        s3: {
+          title: "Windows parodys mėlyną įspėjimą — tai normalu",
+          body: "Ką pamatysite: mėlyną langą pavadinimu „Windows protected your PC“ su mažu mygtuku „Don't run“. Šis langas pasirodo kiekvienai naujai Windows programai, kuri dar neturi mokamo Microsoft sertifikato. FeeHunt yra beta versija, sertifikatas netrukus bus.",
+          action: "<strong>Ką spausti:</strong> Paspauskite mažą nuorodą <em>„More info“</em> KAIRĖJE lango pusėje. Atsiras naujas mygtukas <em>„Run anyway“</em>. Paspauskite jį.",
+        },
+        s4: { title: "Pereikite per diegiklį (Next, Next, Install)", body: "Pasirodys įprastas Windows diegiklis. Trys trumpi ekranai, visi numatytieji nustatymai tinka: spauskite Next → Next → Install → Finish. FeeHunt atsidarys automatiškai." },
+        s5: { title: "Įklijuokite licencijos raktą", body: "FeeHunt atsidarys jūsų naršyklėje adresu http://localhost:8501 — tai FeeHunt, veikiantis lokaliai jūsų kompiuteryje, ne svetainė. Įklijuokite FHUNT-XXXX-XXXX-XXXX-XXXX raktą iš laiško ir paspauskite Aktyvuoti." },
+        s6: {
+          title: "Paspauskite „Connect Gmail“ — Google taip pat parodys įspėjimą",
+          body: "Ką pamatysite: Google atidarys prisijungimo langą. Pasirinkus paskyrą, Google parašys „Google hasn't verified this app“. Tai reiškia tą patį kaip Windows įspėjimas: FeeHunt yra beta versija, o Google patvirtinimo auditas vyksta.",
+          action: "<strong>Ką spausti:</strong> Paspauskite <em>„Advanced“</em> apačioje kairėje, tada <em>„Go to FeeHunt (unsafe)“</em>. Tada patvirtinkite Gmail leidimus, kurių prašo FeeHunt.",
+          trust: "🔒 FeeHunt niekada nemato ir nesaugo jūsų Gmail slaptažodžio. Oficiali Google OAuth sistema suteikia FeeHunt prieigos raktą, kurį bet kada galite atšaukti savo Google paskyros nustatymuose.",
+        },
+        s7: { title: "Baigta! Paspauskite „Skenuoti Gmail“ ir pamatykite, ką FeeHunt randa.", body: "Pirmas skenavimas trunka maždaug 1–2 minutes ir perskaito naujausius 200 laiškų. Niekas Gmail nekeičiama, kol nepatvirtinsite. Nuo šiol FeeHunt paleidžiate iš Start meniu kaip bet kurią kitą programą." },
+        help: "Užstrigote kuriame nors žingsnyje? Parašykite <a href=\"mailto:support@feehunt.pro\">support@feehunt.pro</a> — paprastai atsakome per dieną.",
+      },
+      trust: {
+        title: "Kodėl FeeHunt saugus",
+        local: "<strong>Viskas vyksta jūsų kompiuteryje.</strong> Skenavimo rezultatai, nustatymai ir tokenai saugomi jūsų Windows vartotojo profilyje. Joks jūsų laiškų turinys nesiunčiamas į FeeHunt serverius.",
+        password: "<strong>FeeHunt niekada nemato jūsų Gmail slaptažodžio.</strong> Google OAuth suteikia ribotą prieigos raktą; jūs patvirtinate per paties Google prisijungimo langą.",
+        revoke: "<strong>Prieigą galite atšaukti bet kada.</strong> Atidarykite <a href=\"https://myaccount.google.com/permissions\" target=\"_blank\" rel=\"noopener\">Google paskyros leidimus</a> ir pašalinkite FeeHunt vienu paspaudimu.",
+        read: "<strong>FeeHunt yra beta programinė įranga.</strong> Gmail veiksmai — archyvavimas, trynimas, žymėjimas kaip šlamštas ar svarbus — paveikia tikrą Gmail paskyrą. Peržiūrėkite prieš veiksmą.",
+      },
     },
     faqPage: {
       title: "DUK | FeeHunt",
@@ -1050,34 +1101,10 @@ function applyAccount(text) {
 }
 
 function applyDownload(text) {
-  const page = text.download;
-  if (!page) return;
-  document.title = page.title;
-  setAttr('meta[name="description"]', "content", page.description);
-  setText(".page-hero .eyebrow", page.hero[0]);
-  setText(".page-hero h1", page.hero[1]);
-  setText(".page-hero .lead", page.hero[2]);
-  setText(".page-hero .button", page.hero[3]);
-  const blocks = document.querySelectorAll(".copy-block");
-  if (blocks[0]) {
-    setTextFrom(blocks[0], "h2", page.install[0]);
-    setList(blocks[0].querySelector("ol"), page.install[1]);
-  }
-  if (blocks[1]) {
-    setTextFrom(blocks[1], "h2", page.gmail[0]);
-    const paragraphs = blocks[1].querySelectorAll("p");
-    if (paragraphs[0]) paragraphs[0].textContent = page.gmail[1];
-    setTextFrom(blocks[1], ".notice", page.gmail[2]);
-    if (paragraphs[1]) paragraphs[1].textContent = page.gmail[3];
-  }
-  if (blocks[2]) {
-    setTextFrom(blocks[2], "h2", page.local[0]);
-    const paragraphs = blocks[2].querySelectorAll("p");
-    if (paragraphs[0]) paragraphs[0].textContent = page.local[1];
-    const notices = blocks[2].querySelectorAll(".notice");
-    if (notices[0]) notices[0].textContent = page.local[2];
-    if (notices[1]) notices[1].textContent = page.local[3];
-  }
+  // The /download page now uses data-i18n / data-i18n-html attributes
+  // (the step-by-step install walkthrough). The generic walker handles
+  // it; languages without a download.walk bundle keep the English HTML.
+  applyDataI18n(text, "download");
 }
 
 function applyFaqPage(text) {

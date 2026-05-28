@@ -145,19 +145,28 @@ export async function sendLicenseEmail(env, email, licenseKey, plan, kind = "new
       to: email,
       subject,
       html: `
-        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;background:#f6f7f4;color:#17211b">
+        <div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px;background:#f6f7f4;color:#17211b">
           <h1 style="margin:0 0 8px;color:#16664f">FeeHunt</h1>
           <h2 style="margin:0 0 16px">${isActivePlan ? "Your FeeHunt plan is active" : `Your ${TRIAL_DAYS}-day free trial is ready`}</h2>
-          <p>${isActivePlan ? "Install FeeHunt, paste this license key, connect Gmail, and scan for subscriptions." : "No credit card required. Install FeeHunt, paste this license key, connect Gmail, and scan for subscriptions."}</p>
+          <p style="line-height:1.5">${isActivePlan ? "Here is your license key. Follow the 5 steps below to start." : "No credit card required. Here is your license key — follow the 5 steps below to start."}</p>
           <div style="background:#fff;border:1px solid #dce4dd;border-radius:8px;padding:20px;text-align:center;margin:22px 0">
             <div style="font-size:12px;color:#5c6a61;text-transform:uppercase;font-weight:700">Your license key</div>
             <div style="font-family:Consolas,monospace;font-size:22px;color:#16664f;font-weight:800;letter-spacing:2px;word-break:break-all">${licenseKey}</div>
           </div>
-          <p><strong>Plan:</strong> ${planLabel}${isActivePlan ? "" : `<br><strong>Trial:</strong> ${TRIAL_DAYS} days`}</p>
+          <p style="margin:0 0 6px"><strong>Plan:</strong> ${planLabel}${isActivePlan ? "" : `&nbsp;&nbsp;|&nbsp;&nbsp;<strong>Trial:</strong> ${TRIAL_DAYS} days`}</p>
+          <h3 style="margin:24px 0 8px;color:#16664f">How to start — 5 steps</h3>
+          <ol style="line-height:1.6;padding-left:20px;margin:0 0 8px">
+            <li>Click <strong>Download FeeHunt</strong> below and run the file.</li>
+            <li><strong>Windows will show a blue "Windows protected your PC" warning — this is normal for new beta apps.</strong> Click <em>"More info"</em> then <em>"Run anyway"</em>.</li>
+            <li>Click through the installer (Next → Next → Install). FeeHunt opens automatically.</li>
+            <li>Paste the license key above into FeeHunt and click Activate.</li>
+            <li>Click <strong>Connect Gmail</strong>. Google shows a similar "app not verified" notice — click <em>Advanced → Go to FeeHunt</em>, then approve. FeeHunt never sees your password.</li>
+          </ol>
           <p style="text-align:center;margin:26px 0">
             <a href="${downloadUrl}" style="background:#16664f;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Download FeeHunt</a>
           </p>
-          <p style="font-size:13px;color:#5c6a61">FeeHunt does not store Gmail contents on this licensing server. Gmail scan results stay on the user's computer.</p>
+          <p style="font-size:14px;line-height:1.5"><a href="${downloadUrl}" style="color:#16664f;font-weight:700">See the full install guide with pictures →</a><br>Stuck on any step? Just reply to this email or write to support@feehunt.pro.</p>
+          <p style="font-size:13px;color:#5c6a61;border-top:1px solid #dce4dd;padding-top:14px;margin-top:20px">FeeHunt does not store Gmail contents on this licensing server. Gmail scan results stay on your computer.</p>
         </div>
       `,
     }),

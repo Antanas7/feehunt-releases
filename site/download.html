@@ -1,36 +1,143 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Download | FeeHunt</title>
-  <meta name="description" content="Download FeeHunt beta for Windows.">
+  <title>Download FeeHunt | FeeHunt</title>
+  <meta name="description" content="Download FeeHunt for Windows. We walk you through the install step by step, including the Windows security warning you will see.">
   <link rel="canonical" href="https://feehunt.pro/download">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="FeeHunt">
-  <meta property="og:title" content="Download | FeeHunt">
+  <meta property="og:title" content="Download FeeHunt | FeeHunt">
   <meta property="og:description" content="Download FeeHunt for Windows.">
   <meta property="og:url" content="https://feehunt.pro/download">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Download | FeeHunt">
+  <meta name="twitter:title" content="Download FeeHunt | FeeHunt">
   <meta name="twitter:description" content="Download FeeHunt for Windows.">
-  <link rel="stylesheet" href="styles.css?v=20260526-i18n-consolidated">
+  <link rel="stylesheet" href="styles.css?v=20260527-install-guide">
 </head>
 <body data-page="download">
-  <header class="site-header"><nav class="nav" aria-label="Primary navigation"><a class="brand" href="index.html"><span class="brand-mark">F</span><span>FeeHunt</span></a><button class="menu-button" type="button" aria-expanded="false">Menu</button><div class="nav-links"><a href="index.html">Home</a><a href="pricing.html">Pricing</a><a href="download.html" aria-current="page">Download</a><a href="faq.html">FAQ</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="contact.html">Contact</a></div><div class="nav-actions"><div class="language-menu"><button class="language-toggle" type="button" aria-expanded="false" aria-label="Switch language">🌐 English <span>▼</span></button><div class="language-dropdown" role="menu"><button type="button" data-language="en">English</button><button type="button" data-language="lt">Lietuviu</button></div></div><a class="button secondary" href="download.html">Download Beta</a></div></nav></header>
+  <header class="site-header">
+    <nav class="nav" aria-label="Primary navigation">
+      <a class="brand" href="index.html"><span class="brand-mark">F</span><span>FeeHunt</span></a>
+      <button class="menu-button" type="button" aria-expanded="false">Menu</button>
+      <div class="nav-links">
+        <a href="index.html">Home</a><a href="pricing.html">Pricing</a><a href="download.html" aria-current="page">Download</a><a href="faq.html">FAQ</a><a href="login.html">Log in</a>
+      </div>
+      <div class="nav-actions"><div class="language-menu"><button class="language-toggle" type="button" aria-expanded="false" aria-label="Switch language">🌐 English <span>▼</span></button><div class="language-dropdown" role="menu"><button type="button" data-language="en">English</button><button type="button" data-language="lt">Lietuvių</button></div></div><a class="button secondary" href="signup.html">Start Trial</a></div>
+    </nav>
+  </header>
   <main>
-    <section class="page-hero"><div class="container"><p class="eyebrow">Windows beta</p><h1>Download FeeHunt for Windows.</h1><p class="lead">FeeHunt is currently available as a Windows beta app for local Gmail subscription review and inbox cleanup.</p><p><a class="button primary" href="https://github.com/Antanas7/feehunt-releases/releases/download/v1.2/FeeHunt-Setup-v1.2.exe">Download FeeHunt Beta for Windows</a></p></div></section>
-    <section class="section">
-      <div class="container grid two">
-        <div class="copy-block"><h2>Installation Steps</h2><ol><li>Download the FeeHunt beta ZIP file.</li><li>Extract the ZIP file to a folder on your computer.</li><li>Open <code>FeeHunt.exe</code>.</li><li>FeeHunt will start a local app in your browser at <code>http://localhost:8501</code>.</li><li>Click <code>Connect Gmail</code>.</li><li>Sign in to Google.</li></ol></div>
-        <div class="copy-block"><h2>Gmail Sign-In</h2><p>FeeHunt connects to Gmail using Google's OAuth authorization system. This allows you to approve access through Google instead of giving FeeHunt your password.</p><div class="notice trust">FeeHunt never asks for your Gmail password. Access is approved through Google's secure sign-in flow.</div><p>No manual <code>credentials.json</code> setup is required in FeeHunt Beta v1.1. FeeHunt opens Google's sign-in window and saves your token locally on your computer.</p></div>
+    <section class="page-hero">
+      <div class="container narrow">
+        <p class="eyebrow" data-i18n="hero.eyebrow">Windows app · 5-minute setup</p>
+        <h1 data-i18n="hero.title">Download FeeHunt and we'll walk you through every step.</h1>
+        <p class="lead" data-i18n="hero.lead">FeeHunt is a small Windows program. You'll see one Windows warning and one Google warning during setup — both are normal. We tell you what to click each time. Honestly, it's a 5-minute job.</p>
+        <p class="hero-cta">
+          <a class="button primary big" href="https://github.com/Antanas7/feehunt-releases/releases/download/v1.2/FeeHunt-Setup-v1.2.exe" data-i18n="hero.button">⬇ Download FeeHunt for Windows</a>
+        </p>
+        <p class="hero-meta" data-i18n="hero.meta">Free 7-day trial · No credit card · Works on Windows 10 and 11</p>
       </div>
     </section>
-    <section class="section band"><div class="container"><div class="copy-block"><h2>Local Data</h2><p>FeeHunt stores tokens, settings, and scan results locally in your Windows user profile. Your Gmail password is never requested by FeeHunt.</p><div class="notice trust">Scan results and settings stay on your computer unless a future feature clearly says otherwise.</div><div class="notice">FeeHunt is beta software. Gmail actions such as archive, delete, mark as spam, and mark as important affect your real Gmail account. Use them thoughtfully.</div></div></div></section>
+
+    <section class="section install-walkthrough">
+      <div class="container narrow">
+        <h2 class="walk-title" data-i18n="walk.title">What happens after you click download</h2>
+
+        <!-- Step 1 -->
+        <article class="walk-step">
+          <div class="walk-step-num">1</div>
+          <div class="walk-step-body">
+            <h3 data-i18n="walk.s1.title">A file will start downloading</h3>
+            <p data-i18n="walk.s1.body">Your browser will save <code>FeeHunt-Setup-v1.2.exe</code> to your Downloads folder. It's a small file (~80 MB) and takes about 30 seconds on most connections.</p>
+          </div>
+        </article>
+
+        <!-- Step 2 -->
+        <article class="walk-step">
+          <div class="walk-step-num">2</div>
+          <div class="walk-step-body">
+            <h3 data-i18n="walk.s2.title">Double-click the downloaded file</h3>
+            <p data-i18n="walk.s2.body">Open your Downloads folder and double-click <code>FeeHunt-Setup-v1.2.exe</code>.</p>
+          </div>
+        </article>
+
+        <!-- Step 3 - SmartScreen warning, EXPLAINED -->
+        <article class="walk-step walk-step-warn">
+          <div class="walk-step-num">3</div>
+          <div class="walk-step-body">
+            <h3 data-i18n="walk.s3.title">Windows will show a blue warning — this is normal</h3>
+            <p data-i18n="walk.s3.body"><strong>What you'll see:</strong> A blue box titled <em>"Windows protected your PC"</em> with a small "Don't run" button. This appears for every new Windows app that doesn't yet have a paid Microsoft certificate. FeeHunt is in beta and the certificate is coming soon.</p>
+            <div class="walk-warning-mock" aria-hidden="true">
+              <div class="walk-warning-title">⚠️ Windows protected your PC</div>
+              <div class="walk-warning-text">Microsoft Defender SmartScreen prevented an unrecognized app from starting.</div>
+              <div class="walk-warning-actions">
+                <span class="walk-warning-link">More info</span>
+                <span class="walk-warning-btn">Don't run</span>
+              </div>
+            </div>
+            <p data-i18n-html="walk.s3.action"><strong>What to click:</strong> Click the small <em>"More info"</em> link on the LEFT of the box. A new <em>"Run anyway"</em> button will appear. Click that.</p>
+          </div>
+        </article>
+
+        <!-- Step 4 -->
+        <article class="walk-step">
+          <div class="walk-step-num">4</div>
+          <div class="walk-step-body">
+            <h3 data-i18n="walk.s4.title">Click through the installer (Next, Next, Install)</h3>
+            <p data-i18n="walk.s4.body">A standard Windows installer appears. Three short screens, all default settings are fine: click <strong>Next → Next → Install → Finish</strong>. FeeHunt will open automatically.</p>
+          </div>
+        </article>
+
+        <!-- Step 5 -->
+        <article class="walk-step">
+          <div class="walk-step-num">5</div>
+          <div class="walk-step-body">
+            <h3 data-i18n="walk.s5.title">Paste your license key</h3>
+            <p data-i18n="walk.s5.body">FeeHunt opens in your browser at <code>http://localhost:8501</code> — this is FeeHunt running locally on your computer, not a website. Paste the FHUNT-XXXX-XXXX-XXXX-XXXX key from your email, click Activate.</p>
+          </div>
+        </article>
+
+        <!-- Step 6 - Google OAuth warning, EXPLAINED -->
+        <article class="walk-step walk-step-warn">
+          <div class="walk-step-num">6</div>
+          <div class="walk-step-body">
+            <h3 data-i18n="walk.s6.title">Click "Connect Gmail" — Google will show a warning, too</h3>
+            <p data-i18n="walk.s6.body"><strong>What you'll see:</strong> Google opens a sign-in window. After picking your account, Google says <em>"Google hasn't verified this app"</em>. This means the same as the Windows warning: FeeHunt is in beta, and the Google verification audit is in progress.</p>
+            <p data-i18n-html="walk.s6.action"><strong>What to click:</strong> Click <em>"Advanced"</em> at the bottom-left, then <em>"Go to FeeHunt (unsafe)"</em>. Then approve the Gmail permissions FeeHunt requests.</p>
+            <p class="walk-trust" data-i18n="walk.s6.trust">🔒 FeeHunt never sees or stores your Gmail password. Google's official OAuth flow grants FeeHunt a token that you can revoke at any moment in your Google account settings.</p>
+          </div>
+        </article>
+
+        <!-- Step 7 -->
+        <article class="walk-step walk-step-final">
+          <div class="walk-step-num">✓</div>
+          <div class="walk-step-body">
+            <h3 data-i18n="walk.s7.title">Done! Click "Scan Gmail" and see what FeeHunt finds.</h3>
+            <p data-i18n="walk.s7.body">Your first scan takes about 1–2 minutes and reads the most recent 200 emails. Nothing is changed in Gmail until you confirm. From now on, FeeHunt runs from your Start menu like any other app.</p>
+          </div>
+        </article>
+
+        <div class="walk-help">
+          <p data-i18n-html="walk.help">Stuck at any step? Email <a href="mailto:support@feehunt.pro">support@feehunt.pro</a> — we usually reply within a day.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section band">
+      <div class="container narrow">
+        <h2 data-i18n="trust.title">Why FeeHunt is safe</h2>
+        <ul class="trust-list">
+          <li data-i18n-html="trust.local"><strong>Everything runs on your computer.</strong> Scan results, settings, and tokens are stored in your Windows user profile. Nothing about your email content is sent to FeeHunt's servers.</li>
+          <li data-i18n-html="trust.password"><strong>FeeHunt never sees your Gmail password.</strong> Google's OAuth grants a scoped token; you approve through Google's own sign-in window.</li>
+          <li data-i18n-html="trust.revoke"><strong>You can revoke access any time.</strong> Open <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google account permissions</a> and remove FeeHunt with one click.</li>
+          <li data-i18n-html="trust.read"><strong>FeeHunt is beta software.</strong> Gmail actions like archive, delete, mark as spam, and mark as important affect your real Gmail account — review before acting.</li>
+        </ul>
+      </div>
+    </section>
   </main>
-  <footer class="site-footer"><div class="footer-inner"><span>� FeeHunt</span><div class="footer-links"><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms of Service</a><a href="contact.html">Contact</a></div></div></footer>
-  <script src="script.js?v=20260526-i18n-consolidated"></script>
-  <script src="i18n.js?v=20260526-i18n-consolidated"></script>
+  <footer class="site-footer"><div class="footer-inner"><span>© FeeHunt</span><div class="footer-links"><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms</a><a href="contact.html">Contact</a></div></div></footer>
+  <script src="script.js?v=20260527-install-guide"></script>
+  <script src="i18n.js?v=20260527-install-guide"></script>
 </body>
 </html>
-

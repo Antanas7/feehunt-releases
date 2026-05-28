@@ -260,9 +260,8 @@ document.querySelectorAll("[data-api-form]").forEach((form) => {
 
     try {
       if (type === "register") {
-        const result = await postJson("/api/register-trial", data);
-        const messages = getRuntimeMessages();
-        showFormMessage(form, result.message || messages.registerSuccess);
+        await postJson("/api/register-trial", data);
+        renderSignupRoadmap(form, data.email || "");
       }
     } catch (error) {
       console.error("FeeHunt signup flow failed", error);
@@ -272,6 +271,61 @@ document.querySelectorAll("[data-api-form]").forEach((form) => {
     }
   });
 });
+
+// After a successful trial signup, replace the form with a clear numbered
+// roadmap so the user knows exactly what to do next (the install funnel is
+// where non-technical users get lost).
+function renderSignupRoadmap(form, email) {
+  const lt = getPreferredLanguage() === "lt";
+  const safeEmail = escapeHtml(email);
+  const copy = lt
+    ? {
+        title: "Patikrinkite el. paštą",
+        sent: `Raktą išsiuntėme adresu <strong>${safeEmail}</strong>. Laiškas ateina per 1–2 min. (patikrinkite ir „Promotions" / „Spam" aplankus).`,
+        stepsTitle: "Kas toliau — 5 paprasti žingsniai:",
+        s1: "Atidarykite laišką iš FeeHunt ir nukopijuokite licencijos raktą",
+        s2: "Atsisiųskite FeeHunt programą (mygtukas laiške arba žemiau)",
+        s3: "Paleiskite ją — pravesime pro Windows įspėjimą",
+        s4: "Įklijuokite raktą programoje",
+        s5: "Prijunkite Gmail (paaiškiname, kodėl tai saugu)",
+        download: "Atsisiųsti FeeHunt",
+        guide: "Pilnas įdiegimo gidas su paveikslėliais →",
+        help: "Užstrigote? Parašykite support@feehunt.pro",
+      }
+    : {
+        title: "Check your email",
+        sent: `We sent your key to <strong>${safeEmail}</strong>. It arrives in 1–2 min (check Promotions / Spam folders too).`,
+        stepsTitle: "What's next — 5 simple steps:",
+        s1: "Open the FeeHunt email and copy your license key",
+        s2: "Download the FeeHunt app (button in the email, or below)",
+        s3: "Run it — we walk you past the Windows warning",
+        s4: "Paste your key inside the app",
+        s5: "Connect Gmail (we explain why it's safe)",
+        download: "Download FeeHunt",
+        guide: "Full install guide with pictures →",
+        help: "Stuck? Email support@feehunt.pro",
+      };
+  const card = document.createElement("div");
+  card.className = "signup-roadmap";
+  card.innerHTML = `
+    <p class="roadmap-sent">✅ <strong>${copy.title}.</strong> ${copy.sent}</p>
+    <p class="roadmap-steps-title">${copy.stepsTitle}</p>
+    <ol class="roadmap-steps">
+      <li>${copy.s1}</li>
+      <li>${copy.s2}</li>
+      <li>${copy.s3}</li>
+      <li>${copy.s4}</li>
+      <li>${copy.s5}</li>
+    </ol>
+    <div class="roadmap-actions">
+      <a class="button primary" href="download.html">${copy.download}</a>
+      <a class="text-link" href="download.html">${copy.guide}</a>
+    </div>
+    <p class="roadmap-help">${copy.help}</p>
+  `;
+  form.replaceWith(card);
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 // =========================================================
 // Login page: paste-key + verify against /api/verify-license
