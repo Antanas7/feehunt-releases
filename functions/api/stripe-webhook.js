@@ -1,5 +1,5 @@
-import Stripe from "stripe";
 import {
+  constructStripeEvent,
   generateLicenseKey,
   isValidEmail,
   json,
@@ -11,13 +11,6 @@ import {
   supabaseSelect,
   supabaseUpdate,
 } from "./_utils.js";
-
-function stripeClient(env) {
-  return new Stripe(env.STRIPE_SECRET_KEY, {
-    apiVersion: "2025-11-17.clover",
-    httpClient: Stripe.createFetchHttpClient(),
-  });
-}
 
 function stripeIdsFromSession(session) {
   return {
@@ -169,14 +162,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     const payload = await request.text();
-    const stripe = stripeClient(env);
-    const event = await stripe.webhooks.constructEventAsync(
-      payload,
-      signature,
-      env.STRIPE_WEBHOOK_SECRET,
-      undefined,
-      Stripe.createSubtleCryptoProvider()
-    );
+    const event = await constructStripeEvent(payload, signature, env.STRIPE_WEBHOOK_SECRET);
 
     if (await wasWebhookProcessed(env, event)) {
       return json({ received: true, duplicate: true });

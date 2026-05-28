@@ -1,5 +1,4 @@
-import Stripe from "stripe";
-import { isValidEmail, normalizeEmail } from "./_utils.js";
+import { isValidEmail, normalizeEmail, stripeRequest } from "./_utils.js";
 
 const PRICE_IDS = {
   basic: "price_1Tazn1JlxAPRgwiDc90y2ksZ",
@@ -46,30 +45,13 @@ export async function onRequestPost({ request, env }) {
       return json({ error: "Stripe is not configured." }, 500);
     }
 
-    // Cloudflare Pages Functions run on Workers, so Stripe must use fetch.
-    const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-      apiVersion: "2025-11-17.clover",
-      httpClient: Stripe.createFetchHttpClient(),
-    });
-
     const sessionPayload = {
       mode: "subscription",
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: "https://feehunt.pro/success.html?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "https://feehunt.pro/pricing.html",
-      metadata: {
-        plan,
-      },
-      subscription_data: {
-        metadata: {
-          plan,
-        },
-      },
+      metadata: { plan },
+      subscription_data: { metadata: { plan } },
     };
 
     if (isValidEmail(email)) {
@@ -78,7 +60,7 @@ export async function onRequestPost({ request, env }) {
       sessionPayload.subscription_data.metadata.email = email;
     }
 
-    const session = await stripe.checkout.sessions.create(sessionPayload);
+    const session = await stripeRequest(env, "checkout/sessions", sessionPayload);
 
     return json({ url: session.url });
   } catch (error) {

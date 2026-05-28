@@ -1,9 +1,9 @@
-import Stripe from "stripe";
 import {
   isValidLicenseKey,
   json,
   options,
   requireSupabase,
+  stripeRequest,
   supabaseSelect,
 } from "./_utils.js";
 
@@ -64,12 +64,7 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-      apiVersion: "2025-11-17.clover",
-      httpClient: Stripe.createFetchHttpClient(),
-    });
-
-    const portalSession = await stripe.billingPortal.sessions.create({
+    const portalSession = await stripeRequest(env, "billing_portal/sessions", {
       customer: stripeCustomerId,
       return_url: "https://feehunt.pro/account.html",
     });

@@ -179,6 +179,98 @@ export async function sendLicenseEmail(env, email, licenseKey, plan, kind = "new
   return data;
 }
 
+function stripeEncode(params) {
+  const parts = [];
+  const add = (key, value) => {
+    if (value === undefined || value === null) return;
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => add(`${key}[${index}]`, item));
+    } else if (typeof value === "object") {
+      for (const [childKey, childValue] of Object.entries(value)) {
+        add(`${key}[${childKey}]`, childValue);
+      }
+    } else {
+      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+    }
+  };
+  for (const [key, value] of Object.entries(params)) add(key, value);
+  return parts.join("&");
+}
+
+export async function stripeRequest(env, path, params = {}) {
+  if (!env.STRIPE_SECRET_KEY) {
+    throw new Error("STRIPE_SECRET_KEY is not configured.");
+  }
+  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: stripeEncode(params),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error?.message || `Stripe ${path} failed: ${response.status}`);
+    error.type = data.error?.type;
+    throw error;
+  }
+  return data;
+}
+
+async function hmacSha256Hex(secret, message) {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(message));
+  return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function timingSafeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
+export async function constructStripeEvent(payload, header, secret, toleranceSeconds = 300) {
+  if (!header) {
+    throw new Error("Missing Stripe signature header.");
+  }
+  let timestamp = null;
+  const signatures = [];
+  for (const part of header.split(",")) {
+    const index = part.indexOf("=");
+    if (index === -1) continue;
+    const key = part.slice(0, index);
+    const value = part.slice(index + 1);
+    if (key === "t") timestamp = value;
+    else if (key === "v1") signatures.push(value);
+  }
+  if (!timestamp || signatures.length === 0) {
+    throw new Error("Invalid Stripe signature header.");
+  }
+
+  const expected = await hmacSha256Hex(secret, `${timestamp}.${payload}`);
+  if (!signatures.some((signature) => timingSafeEqual(signature, expected))) {
+    throw new Error("Stripe signature verification failed.");
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - Number(timestamp)) > toleranceSeconds) {
+    throw new Error("Stripe signature timestamp is outside the allowed tolerance.");
+  }
+
+  return JSON.parse(payload);
+}
+
 export function accountSetupIssue() {
   return json({
     code: "account_setup_issue",
