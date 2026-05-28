@@ -1,0 +1,65 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manage Subscription | FeeHunt</title>
+  <meta name="description" content="Manage or cancel your FeeHunt subscription.">
+  <link rel="canonical" href="https://feehunt.pro/account">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="FeeHunt">
+  <meta property="og:title" content="Manage Subscription | FeeHunt">
+  <meta property="og:description" content="Manage or cancel your FeeHunt subscription.">
+  <meta property="og:url" content="https://feehunt.pro/account">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Manage Subscription | FeeHunt">
+  <meta name="twitter:description" content="Manage or cancel your FeeHunt subscription.">
+  <link rel="stylesheet" href="styles.css?v=20260526-i18n-consolidated">
+</head>
+<body data-page="account">
+  <header class="site-header">
+    <nav class="nav" aria-label="Primary navigation">
+      <a class="brand" href="index.html"><span class="brand-mark">F</span><span>FeeHunt</span></a>
+      <button class="menu-button" type="button" aria-expanded="false">Menu</button>
+      <div class="nav-links">
+        <a href="index.html">Home</a><a href="pricing.html">Pricing</a><a href="download.html">Download</a><a href="faq.html">FAQ</a><a href="login.html">Log in</a>
+      </div>
+      <div class="nav-actions">
+        <div class="language-menu">
+          <button class="language-toggle" type="button" aria-expanded="false" aria-label="Switch language">🌐 English <span>▼</span></button>
+          <div class="language-dropdown" role="menu">
+            <button type="button" data-language="en">English</button>
+            <button type="button" data-language="lt">Lietuvių</button>
+          </div>
+        </div>
+        <a class="button secondary" href="download.html">Download</a>
+      </div>
+    </nav>
+  </header>
+  <main>
+    <section class="page-hero">
+      <div class="container narrow">
+        <p class="eyebrow">Account</p>
+        <h1>Manage your FeeHunt subscription.</h1>
+        <p class="lead">Paste your FeeHunt license key to securely open Stripe Billing Portal. FeeHunt will never ask for your card details here.</p>
+        <div class="notice trust">Cancellation and billing changes are handled by Stripe. Your Gmail data stays on your computer.</div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="container narrow">
+        <form class="account-form" data-portal-form>
+          <label>FeeHunt license key
+            <input name="license_key" type="text" autocomplete="off" inputmode="latin" placeholder="FHUNT-XXXX-XXXX-XXXX-XXXX" required>
+          </label>
+          <button class="button primary" type="submit">Manage / Cancel Subscription</button>
+          <div class="form-message" role="status"></div>
+        </form>
+        <p class="lead small-lead">Need your key again? <a class="text-link" href="login.html">Resend license key</a>.</p>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer"><div class="footer-inner"><span>© FeeHunt</span><div class="footer-links"><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms</a><a href="contact.html">Contact</a></div></div></footer>
+  <script src="script.js?v=20260526-i18n-consolidated"></script>
+  <script src="i18n.js?v=20260526-i18n-consolidated"></script>
+</body>
+</html>
