@@ -1576,6 +1576,17 @@ try:
 except ImportError:
     pass
 
+# Merge the remaining full NO/ES/DE/FR translations. Together with
+# translations_extra.py this brings those four languages to 100% of the
+# English baseline. Still wrapped in try/except so a missing file never
+# breaks startup (English fallback remains).
+try:
+    from translations_full import FULL_TRANSLATIONS
+    for _code, _bundle in FULL_TRANSLATIONS.items():
+        TRANSLATIONS.setdefault(_code, {}).update(_bundle)
+except ImportError:
+    pass
+
 AUTO_SCAN_ALIASES = {
     "išjungtas": "off",
     "isjungtas": "off",

@@ -24,6 +24,7 @@ required_datas = [
     ("time_utils.py", "."),
     ("translations.py", "."),
     ("translations_extra.py", "."),
+    ("translations_full.py", "."),
     ("user_state.py", "."),
     ("requirements.txt", "."),
     ("credentials.json", "."),
