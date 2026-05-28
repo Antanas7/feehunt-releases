@@ -56,6 +56,14 @@ BRAND_LABELS = {"paypal": "PayPal", "linkedin": "LinkedIn", "whatsapp": "WhatsAp
 def _brand_label(brand: str) -> str:
     return BRAND_LABELS.get(brand, brand.capitalize())
 
+# Free webmail providers: a sender here is a *person*, not the provider brand —
+# and this is exactly where scammers hide behind a fake display name.
+FREE_MAIL_HOSTS = {
+    "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com",
+    "icloud.com", "yahoo.com", "yahoo.co.uk", "proton.me", "protonmail.com",
+    "gmx.com", "gmx.net", "mail.com", "aol.com",
+}
+
 # Common homoglyph / leetspeak substitutions used by typosquatters.
 HOMOGLYPHS = str.maketrans({"0": "o", "1": "l", "3": "e", "4": "a", "5": "s", "8": "b"})
 
@@ -262,3 +270,77 @@ def analyze_phishing(
     is_risk = bool(strong) or len(weak) >= 2
 
     return {"is_phishing_risk": is_risk, "reasons": reasons if is_risk else []}
+
+
+# Second-level domain labels (e.g. ".co.uk") — skip them when guessing a
+# friendly sender name so "amazon.co.uk" reads as "Amazon", not "Co".
+_SECOND_LEVEL_LABELS = {"co", "com", "org", "net", "gov", "ac", "edu"}
+
+
+def derive_sender_label(host: str) -> str:
+    """Best-effort friendly name from a domain: 'inspire.pinterest.com' -> 'Pinterest'."""
+    if not host:
+        return ""
+    parts = host.split(".")
+    if len(parts) >= 3 and parts[-2] in _SECOND_LEVEL_LABELS:
+        label = parts[-3]
+    elif len(parts) >= 2:
+        label = parts[-2]
+    else:
+        label = parts[0]
+    return label.replace("-", " ").title()
+
+
+def analyze_sender(sender_raw: str) -> dict:
+    """Sender-only profile for the "Sender information" panel.
+
+    Runs the address-based phishing checks (the ones that don't need the body),
+    recognizes known brands, and returns a calm verdict:
+      - "legit"   : address matches a known brand's real domain
+      - "caution" : an address red flag fired (mismatch / lookalike / brand-in-domain)
+      - "unknown" : not a known brand, but no red flags either
+    """
+    name, email, host = extract_sender_parts(sender_raw)
+
+    reasons: list[dict] = []
+    for reason in (
+        _check_name_domain_mismatch(name, host),
+        _check_lookalike_domain(host),
+        _check_brand_in_domain(host),
+    ):
+        if reason:
+            reasons.append(reason)
+
+    legit_brand = None
+    for brand, domains in BRAND_DOMAINS.items():
+        if host and any(_host_matches(host, legit) for legit in domains):
+            legit_brand = brand
+            break
+
+    is_free_mail = host in FREE_MAIL_HOSTS
+
+    if reasons:
+        verdict = "caution"
+    elif is_free_mail:
+        verdict = "personal"
+    elif legit_brand:
+        verdict = "legit"
+    else:
+        verdict = "unknown"
+
+    if is_free_mail:
+        display_name = name or email
+    elif legit_brand:
+        display_name = _brand_label(legit_brand)
+    else:
+        display_name = derive_sender_label(host)
+
+    return {
+        "name": name,
+        "email": email,
+        "domain": host,
+        "brand": legit_brand,
+        "display_name": display_name,
+        "verdict": verdict,
+        "reasons": reasons,
+    }

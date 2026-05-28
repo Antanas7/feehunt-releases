@@ -2811,6 +2811,73 @@ def render_action_first_panel(guidance: dict[str, str]) -> None:
     )
 
 
+def count_sender_emails(scan_data: dict | None, host: str) -> int:
+    if not scan_data or not host:
+        return 0
+    from phishing_detector import extract_sender_parts
+    seen = set()
+    for value in scan_data.values():
+        if not isinstance(value, list):
+            continue
+        for email in value:
+            if not isinstance(email, dict):
+                continue
+            _, _, email_host = extract_sender_parts(email.get("sender", ""))
+            if email_host == host:
+                seen.add(email.get("message_id") or id(email))
+    return len(seen)
+
+
+def build_sender_info(item: dict, lang: str) -> dict:
+    from phishing_detector import analyze_sender
+    info = analyze_sender(item.get("sender") or "")
+    domain = info["domain"] or "—"
+    name = info["display_name"] or domain
+    verdict = info["verdict"]
+
+    if verdict == "legit":
+        tone, icon = "ok", "✅"
+        verdict_text = t("sender_info.verdict.legit", lang).format(name=name)
+    elif verdict == "caution":
+        tone, icon = "risk", "⚠️"
+        reason_texts = []
+        for reason in info["reasons"]:
+            code = reason.get("code")
+            params = reason.get("params") or {}
+            try:
+                reason_texts.append(t(f"phishing.reason.{code}", lang).format(**params))
+            except (KeyError, IndexError):
+                reason_texts.append(t(f"phishing.reason.{code}", lang))
+        verdict_text = t("sender_info.verdict.caution", lang) + " " + " ".join(reason_texts)
+    elif verdict == "personal":
+        tone, icon = "info", "ℹ️"
+        verdict_text = t("sender_info.verdict.personal", lang).format(domain=domain)
+    else:
+        tone, icon = "info", "ℹ️"
+        verdict_text = t("sender_info.verdict.unknown", lang)
+
+    return {
+        "domain": domain,
+        "name": name,
+        "icon": icon,
+        "tone": tone,
+        "verdict_text": verdict_text,
+        "identity_text": t("sender_info.identity", lang).format(domain=domain, name=name),
+    }
+
+
+def render_sender_info(item: dict, lang: str, ui_key: str) -> None:
+    if not st.toggle(t("sender_info.title", lang), key=f"sender_info_{ui_key}"):
+        return
+    sinfo = build_sender_info(item, lang)
+    st.markdown(f"**{sinfo['icon']} {sinfo['verdict_text']}**")
+    st.write(sinfo["identity_text"])
+    if sinfo["domain"] != "—":
+        freq = count_sender_emails(st.session_state.get("last_scan"), sinfo["domain"])
+        if freq > 1:
+            st.caption(t("sender_info.frequency", lang).format(count=freq))
+
+
 def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
     lang = current_language()
     subject = item.get("subject") or t("email.no_subject", lang)
@@ -2850,6 +2917,8 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
 
         guidance = build_action_first_guidance(item, card_type, unsubscribe_url, lang)
         render_action_first_panel(guidance)
+
+        render_sender_info(item, lang, safe_key)
 
         if is_preview_mode():
             render_calm_note(t("preview.action_disabled", lang))
