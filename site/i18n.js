@@ -808,10 +808,30 @@ Object.entries(FH_FINAL_TRANSLATION_PATCHES).forEach(([code, overrides]) => {
   mergeTranslation(FH_I18N[code], overrides);
 });
 
+function detectBrowserLanguage() {
+  // First visit (no saved choice): match the browser's preferred language
+  // to a supported site language. Norwegian comes through as nb/nn/no.
+  // Everyone unmatched falls back to English.
+  try {
+    const prefs = navigator.languages && navigator.languages.length
+      ? navigator.languages
+      : [navigator.language || ""];
+    for (const pref of prefs) {
+      const code = String(pref || "").toLowerCase().slice(0, 2);
+      if (code === "nb" || code === "nn" || code === "no") return "no";
+      if (FH_I18N[code]) return code;
+    }
+  } catch (_error) {
+    // navigator may be unavailable; fall through to English.
+  }
+  return "en";
+}
+
 function language() {
   try {
     const stored = window.localStorage.getItem(FH_I18N_KEY);
-    return FH_I18N[stored] ? stored : "en";
+    if (stored && FH_I18N[stored]) return stored;
+    return detectBrowserLanguage();
   } catch (_error) {
     return "en";
   }
