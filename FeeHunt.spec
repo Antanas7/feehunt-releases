@@ -23,6 +23,7 @@ required_datas = [
     ("subscription_actions.py", "."),
     ("time_utils.py", "."),
     ("translations.py", "."),
+    ("translations_extra.py", "."),
     ("user_state.py", "."),
     ("requirements.txt", "."),
     ("credentials.json", "."),
