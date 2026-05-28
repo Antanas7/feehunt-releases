@@ -18,6 +18,7 @@ from config import (
 )
 
 from feehunt_analyzer import analyze_email
+from phishing_detector import analyze_phishing
 from gmail_auth import get_gmail_service as get_authorized_gmail_service
 from licensing import register_gmail_account
 
@@ -84,6 +85,23 @@ def extract_text_from_payload(payload: dict | None) -> str:
 
     process_part(payload)
     return "\n".join(part for part in text_parts if part)
+
+
+def extract_html_from_payload(payload: dict | None) -> str:
+    if not payload:
+        return ""
+    html_parts: list[str] = []
+
+    def process_part(part: dict) -> None:
+        if part.get("mimeType", "").lower() == "text/html":
+            data = part.get("body", {}).get("data")
+            if data:
+                html_parts.append(decode_body(data))
+        for nested_part in part.get("parts", []):
+            process_part(nested_part)
+
+    process_part(payload)
+    return "\n".join(part for part in html_parts if part)
 
 
 def get_header(headers: list[dict], name: str) -> str:
@@ -182,6 +200,7 @@ def scan_gmail() -> dict[str, Any]:
     messages = collect_scan_messages(service)
     total = len(messages)
 
+    phishing_risks = []
     financial_risks = []
     subscriptions = []
     promotional_emails = []
@@ -204,9 +223,11 @@ def scan_gmail() -> dict[str, Any]:
             date = get_header(headers, "Date")
             snippet = msg.get("snippet", "")
             body = extract_text_from_payload(payload)
+            html_body = extract_html_from_payload(payload)
             content = f"{subject}\n{sender}\n{snippet}\n{body}"
 
             analysis = analyze_email(content)
+            phishing = analyze_phishing(sender, subject, f"{snippet}\n{body}", html_body)
 
             email_data = {
                 "message_id": msg["id"],
@@ -218,16 +239,22 @@ def scan_gmail() -> dict[str, Any]:
                 "matched_keywords": analysis["matched_keywords"],
             }
 
-            if analysis["is_financial_risk"]:
-                financial_risks.append(email_data)
-            if analysis["is_subscription"] and not analysis["is_financial_risk"]:
-                subscriptions.append(email_data)
-            if analysis["is_promotional"]:
-                promotional_emails.append(email_data)
-            if analysis["is_shop"]:
-                shop_emails.append(email_data)
-            if analysis["is_newsletter"]:
-                newsletter_emails.append(email_data)
+            # A phishing email is the most important thing to surface, so it
+            # takes priority and is shown only in its own section (no duplicates).
+            if phishing["is_phishing_risk"]:
+                email_data["phishing_reasons"] = phishing["reasons"]
+                phishing_risks.append(email_data)
+            else:
+                if analysis["is_financial_risk"]:
+                    financial_risks.append(email_data)
+                if analysis["is_subscription"] and not analysis["is_financial_risk"]:
+                    subscriptions.append(email_data)
+                if analysis["is_promotional"]:
+                    promotional_emails.append(email_data)
+                if analysis["is_shop"]:
+                    shop_emails.append(email_data)
+                if analysis["is_newsletter"]:
+                    newsletter_emails.append(email_data)
 
             safe_print(
                 f"PROGRESS:{index}/{total}:{subject[:60] if subject else '(be temos)'}",
@@ -249,7 +276,9 @@ def scan_gmail() -> dict[str, Any]:
         "emails_scanned": total,
         "subscriptions_found": subscription_and_risk_count,
         "promotions_found": promo_count,
+        "phishing_found": len(phishing_risks),
         "estimated_savings": estimated_savings,
+        "phishing_risks": phishing_risks,
         "financial_risks": financial_risks,
         "subscriptions": subscriptions,
         "promotional_emails": promotional_emails,

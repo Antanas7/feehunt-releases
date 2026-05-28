@@ -125,6 +125,8 @@ TRANSLATIONS = {
         "subscriptions.found": "Found **{count}** subscription-related emails.",
         "subscriptions.none": "✅ No subscription alerts found.",
         "financial_risks.heading": "💳 Payment Control",
+        "phishing_risks.heading": "⚠️ Possible scam (phishing)",
+        "phishing_risks.intro": "FeeHunt found emails that may be trying to trick you. Here is exactly why each one looks dangerous.",
         "financial_risks.warning": (
             "Found **{count}** emails worth reviewing first. "
             "Nothing changes without your approval."
@@ -464,6 +466,8 @@ TRANSLATIONS = {
         "subscriptions.found": "Rasta **{count}** prenumeratų susijusių laiškų.",
         "subscriptions.none": "✅ Prenumeratų įspėjimų nerasta.",
         "financial_risks.heading": "💳 Mokėjimų kontrolė",
+        "phishing_risks.heading": "⚠️ Galimas sukčiavimas (phishing)",
+        "phishing_risks.intro": "FeeHunt rado laiškų, kurie gali bandyti jus apgauti. Štai tiksliai kodėl kiekvienas atrodo pavojingas.",
         "financial_risks.warning": (
             "Rasta **{count}** laiškų, kuriuos verta peržiūrėti pirmiausia. "
             "Nieko nekeičiama be jūsų patvirtinimo."
@@ -1152,6 +1156,16 @@ ACTION_FIRST_TRANSLATIONS = {
         "action_first.risk.explain": "{service} appears to be a payment, account, card, or access warning.",
         "action_first.risk.next": "Safest next step: open the email and verify billing directly with the provider.",
         "action_first.risk.control": "FeeHunt helps you stay safe; it will not change Gmail without confirmation.",
+        "action_first.phishing.kicker": "FeeHunt safety alert",
+        "action_first.phishing.danger": "This email looks like a phishing (scam) attempt.",
+        "action_first.phishing.explain_generic": "Several signs suggest this sender may be impersonating a real company.",
+        "action_first.phishing.next": "Safest next step: do not click any links and do not enter any details. If unsure, open the official website yourself by typing its address.",
+        "action_first.phishing.control": "FeeHunt only warns you; it never changes Gmail without your confirmation.",
+        "phishing.reason.name_domain_mismatch": "The sender's name says \"{brand}\", but the email was sent from {domain} — the name does not match the address.",
+        "phishing.reason.lookalike_domain": "The address {domain} imitates {legit} — it looks like a fake lookalike domain.",
+        "phishing.reason.hidden_link": "A link shows \"{shown}\" but actually leads to {actual}.",
+        "phishing.reason.brand_in_domain": "\"{brand}\" appears inside the address {domain}, but this is not {brand}'s real domain.",
+        "phishing.reason.urgency_credentials": "The email pressures you to act fast and asks you to confirm a password, identity, or payment — a common scam tactic.",
         "action_first.promotions.danger": "This looks like promotional email.",
         "action_first.promotions.explain": "{service} appears promotional or newsletter-like.",
         "action_first.promotions.next": "Safest next step: ignore, archive, delete, or unsubscribe if it is not useful.",
@@ -1178,6 +1192,16 @@ ACTION_FIRST_TRANSLATIONS = {
         "action_first.risk.explain": "{service} atrodo kaip mokėjimo, paskyros, kortelės ar prieigos įspėjimas.",
         "action_first.risk.next": "Saugiausias žingsnis: atidaryti laišką ir patikrinti mokėjimą tiesiogiai pas tiekėją.",
         "action_first.risk.control": "FeeHunt padeda išlikti saugiai; Gmail nekeičiamas be jūsų patvirtinimo.",
+        "action_first.phishing.kicker": "FeeHunt saugumo įspėjimas",
+        "action_first.phishing.danger": "Šis laiškas atrodo kaip sukčiavimas (phishing).",
+        "action_first.phishing.explain_generic": "Keli požymiai rodo, kad siuntėjas gali apsimetinėti tikra įmone.",
+        "action_first.phishing.next": "Saugiausias žingsnis: neatidarykite jokių nuorodų ir neįveskite jokių duomenų. Jei abejojate, atidarykite oficialią svetainę patys įvesdami jos adresą.",
+        "action_first.phishing.control": "FeeHunt tik įspėja; Gmail niekada nekeičiamas be jūsų patvirtinimo.",
+        "phishing.reason.name_domain_mismatch": "Siuntėjo vardas sako „{brand}“, bet laiškas atsiųstas iš {domain} — vardas neatitinka adreso.",
+        "phishing.reason.lookalike_domain": "Adresas {domain} imituoja {legit} — atrodo kaip suklastotas panašus domenas.",
+        "phishing.reason.hidden_link": "Nuoroda rodo „{shown}“, bet iš tikrųjų veda į {actual}.",
+        "phishing.reason.brand_in_domain": "„{brand}“ yra adrese {domain}, bet tai nėra tikras {brand} domenas.",
+        "phishing.reason.urgency_credentials": "Laiškas skuba jus veikti ir prašo patvirtinti slaptažodį, tapatybę ar mokėjimą — dažna sukčių taktika.",
         "action_first.promotions.danger": "Tai panašu į reklaminį laišką.",
         "action_first.promotions.explain": "{service} atrodo kaip reklaminis arba naujienlaiškio siuntėjas.",
         "action_first.promotions.next": "Saugiausias žingsnis: ignoruoti, archyvuoti, ištrinti arba atsisakyti, jei nenaudinga.",
@@ -1586,6 +1610,70 @@ try:
         TRANSLATIONS.setdefault(_code, {}).update(_bundle)
 except ImportError:
     pass
+
+# Phishing detection (v2.0) strings for NO/ES/DE/FR. EN/LT live inline above.
+# Merged last so these high-trust safety messages are never left in English
+# for users in those languages.
+PHISHING_TRANSLATIONS = {
+    "no": {
+        "phishing_risks.heading": "⚠️ Mulig svindel (phishing)",
+        "phishing_risks.intro": "FeeHunt fant e-poster som kan prøve å lure deg. Her er nøyaktig hvorfor hver enkelt ser farlig ut.",
+        "action_first.phishing.kicker": "FeeHunt sikkerhetsvarsel",
+        "action_first.phishing.danger": "Denne e-posten ser ut som et phishing-forsøk (svindel).",
+        "action_first.phishing.explain_generic": "Flere tegn tyder på at avsenderen kan utgi seg for å være et ekte selskap.",
+        "action_first.phishing.next": "Tryggeste neste steg: ikke klikk på noen lenker og ikke oppgi noen opplysninger. Er du usikker, åpne den offisielle nettsiden selv ved å skrive inn adressen.",
+        "action_first.phishing.control": "FeeHunt bare varsler deg; den endrer aldri Gmail uten din bekreftelse.",
+        "phishing.reason.name_domain_mismatch": "Avsenderens navn sier «{brand}», men e-posten ble sendt fra {domain} – navnet stemmer ikke med adressen.",
+        "phishing.reason.lookalike_domain": "Adressen {domain} etterligner {legit} – den ser ut som et falskt domene som ligner.",
+        "phishing.reason.hidden_link": "En lenke viser «{shown}», men fører faktisk til {actual}.",
+        "phishing.reason.brand_in_domain": "«{brand}» finnes i adressen {domain}, men dette er ikke {brand}s ekte domene.",
+        "phishing.reason.urgency_credentials": "E-posten presser deg til å handle raskt og ber deg bekrefte et passord, en identitet eller en betaling – et vanlig svindeltriks.",
+    },
+    "es": {
+        "phishing_risks.heading": "⚠️ Posible estafa (phishing)",
+        "phishing_risks.intro": "FeeHunt encontró correos que podrían intentar engañarte. Aquí tienes exactamente por qué cada uno parece peligroso.",
+        "action_first.phishing.kicker": "Alerta de seguridad de FeeHunt",
+        "action_first.phishing.danger": "Este correo parece un intento de phishing (estafa).",
+        "action_first.phishing.explain_generic": "Varias señales sugieren que este remitente podría estar suplantando a una empresa real.",
+        "action_first.phishing.next": "Paso más seguro: no hagas clic en ningún enlace ni introduzcas ningún dato. Si tienes dudas, abre tú mismo el sitio web oficial escribiendo su dirección.",
+        "action_first.phishing.control": "FeeHunt solo te avisa; nunca cambia Gmail sin tu confirmación.",
+        "phishing.reason.name_domain_mismatch": "El nombre del remitente dice «{brand}», pero el correo se envió desde {domain}: el nombre no coincide con la dirección.",
+        "phishing.reason.lookalike_domain": "La dirección {domain} imita a {legit}: parece un dominio falso que se le parece.",
+        "phishing.reason.hidden_link": "Un enlace muestra «{shown}» pero en realidad lleva a {actual}.",
+        "phishing.reason.brand_in_domain": "«{brand}» aparece en la dirección {domain}, pero este no es el dominio real de {brand}.",
+        "phishing.reason.urgency_credentials": "El correo te presiona para actuar rápido y te pide confirmar una contraseña, identidad o pago: una táctica habitual de estafa.",
+    },
+    "de": {
+        "phishing_risks.heading": "⚠️ Möglicher Betrug (Phishing)",
+        "phishing_risks.intro": "FeeHunt hat E-Mails gefunden, die versuchen könnten, Sie zu täuschen. Hier sehen Sie genau, warum jede einzelne gefährlich aussieht.",
+        "action_first.phishing.kicker": "FeeHunt-Sicherheitswarnung",
+        "action_first.phishing.danger": "Diese E-Mail sieht wie ein Phishing-Versuch (Betrug) aus.",
+        "action_first.phishing.explain_generic": "Mehrere Anzeichen deuten darauf hin, dass dieser Absender sich als echtes Unternehmen ausgeben könnte.",
+        "action_first.phishing.next": "Sicherster nächster Schritt: Klicken Sie auf keine Links und geben Sie keine Daten ein. Im Zweifel öffnen Sie die offizielle Website selbst, indem Sie die Adresse eingeben.",
+        "action_first.phishing.control": "FeeHunt warnt Sie nur; es ändert Gmail niemals ohne Ihre Bestätigung.",
+        "phishing.reason.name_domain_mismatch": "Der Absendername lautet „{brand}“, aber die E-Mail wurde von {domain} gesendet – der Name passt nicht zur Adresse.",
+        "phishing.reason.lookalike_domain": "Die Adresse {domain} imitiert {legit} – sie sieht aus wie eine gefälschte, ähnlich aussehende Domain.",
+        "phishing.reason.hidden_link": "Ein Link zeigt „{shown}“, führt aber tatsächlich zu {actual}.",
+        "phishing.reason.brand_in_domain": "„{brand}“ kommt in der Adresse {domain} vor, aber dies ist nicht die echte Domain von {brand}.",
+        "phishing.reason.urgency_credentials": "Die E-Mail drängt Sie zu schnellem Handeln und bittet Sie, ein Passwort, eine Identität oder eine Zahlung zu bestätigen – eine gängige Betrugsmasche.",
+    },
+    "fr": {
+        "phishing_risks.heading": "⚠️ Arnaque possible (hameçonnage)",
+        "phishing_risks.intro": "FeeHunt a trouvé des e-mails qui pourraient tenter de vous tromper. Voici exactement pourquoi chacun semble dangereux.",
+        "action_first.phishing.kicker": "Alerte de sécurité FeeHunt",
+        "action_first.phishing.danger": "Cet e-mail ressemble à une tentative d'hameçonnage (arnaque).",
+        "action_first.phishing.explain_generic": "Plusieurs signes suggèrent que cet expéditeur pourrait usurper l'identité d'une véritable entreprise.",
+        "action_first.phishing.next": "Étape la plus sûre : ne cliquez sur aucun lien et ne saisissez aucune information. En cas de doute, ouvrez vous-même le site officiel en tapant son adresse.",
+        "action_first.phishing.control": "FeeHunt se contente de vous avertir ; il ne modifie jamais Gmail sans votre confirmation.",
+        "phishing.reason.name_domain_mismatch": "Le nom de l'expéditeur indique « {brand} », mais l'e-mail a été envoyé depuis {domain} — le nom ne correspond pas à l'adresse.",
+        "phishing.reason.lookalike_domain": "L'adresse {domain} imite {legit} — elle ressemble à un faux domaine similaire.",
+        "phishing.reason.hidden_link": "Un lien affiche « {shown} » mais mène en réalité à {actual}.",
+        "phishing.reason.brand_in_domain": "« {brand} » apparaît dans l'adresse {domain}, mais ce n'est pas le vrai domaine de {brand}.",
+        "phishing.reason.urgency_credentials": "L'e-mail vous pousse à agir vite et vous demande de confirmer un mot de passe, une identité ou un paiement — une tactique d'arnaque courante.",
+    },
+}
+for _code, _bundle in PHISHING_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_code, {}).update(_bundle)
 
 AUTO_SCAN_ALIASES = {
     "išjungtas": "off",

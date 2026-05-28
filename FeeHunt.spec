@@ -16,6 +16,7 @@ required_datas = [
     ("main.py", "."),
     ("config.py", "."),
     ("feehunt_analyzer.py", "."),
+    ("phishing_detector.py", "."),
     ("gmail_auth.py", "."),
     ("gmail_actions.py", "."),
     ("licensing.py", "."),

@@ -1628,6 +1628,7 @@ def collect_detected_senders(scan_data: dict | None) -> list[str]:
         return []
 
     possible_sections = [
+        "phishing_risks",
         "financial_risks",
         "subscriptions",
         "promotional_emails",
@@ -1673,6 +1674,7 @@ def remove_messages_from_scan(message_ids: list[str]) -> list[dict]:
     removed_by_id: dict[str, dict] = {}
 
     for section in (
+        "phishing_risks",
         "financial_risks",
         "subscriptions",
         "promotional_emails",
@@ -1717,6 +1719,7 @@ def restore_messages_to_scan(items: list[dict]) -> None:
         scan_data = load_last_scan_results() or {}
 
     section_names = (
+        "phishing_risks",
         "financial_risks",
         "subscriptions",
         "promotional_emails",
@@ -2479,6 +2482,7 @@ def email_search_text(email: dict) -> str:
 def collect_unique_scan_emails(scan_data: dict) -> list[dict]:
     unique: dict[str, dict] = {}
     for section in (
+        "phishing_risks",
         "financial_risks",
         "subscriptions",
         "promotional_emails",
@@ -2718,6 +2722,27 @@ def build_action_first_guidance(
         signal_count = sum(len(values or []) for values in matched_keywords.values() if isinstance(values, list))
     elif isinstance(matched_keywords, list):
         signal_count = len(matched_keywords)
+
+    if card_type == "phishing_risk":
+        reason_texts = []
+        for reason in item.get("phishing_reasons") or []:
+            code = reason.get("code")
+            params = reason.get("params") or {}
+            if not code:
+                continue
+            try:
+                reason_texts.append(t(f"phishing.reason.{code}", lang).format(**params))
+            except (KeyError, IndexError):
+                reason_texts.append(t(f"phishing.reason.{code}", lang))
+        explain = " ".join(reason_texts) or t("action_first.phishing.explain_generic", lang)
+        return {
+            "tone": "risk",
+            "kicker": t("action_first.phishing.kicker", lang),
+            "danger": t("action_first.phishing.danger", lang),
+            "explain": explain,
+            "next": t("action_first.phishing.next", lang),
+            "control": t("action_first.phishing.control", lang),
+        }
 
     if card_type == "financial_risk":
         danger = t("action_first.risk.danger", lang)
@@ -4825,6 +4850,7 @@ if page == "Dashboard":
             max_items = min(max_items, 2)
         elif user_profile.state == "overwhelmed":
             max_items = min(max_items, 3)
+        phishing_risks = scan_data.get("phishing_risks", []) or []
         financial_risks = scan_data.get("financial_risks", []) or []
         subscriptions = scan_data.get("subscriptions", []) or []
         promotional_items = []
@@ -4835,6 +4861,12 @@ if page == "Dashboard":
                 if item_id not in seen_promotional_ids:
                     promotional_items.append(item)
                     seen_promotional_ids.add(item_id)
+
+        if phishing_risks:
+            st.subheader(t("phishing_risks.heading", lang))
+            render_calm_note(t("phishing_risks.intro", lang))
+            for item in phishing_risks[:max_items]:
+                show_email_card(item, "⚠️", "phishing_risk")
 
         if financial_risks:
             st.subheader(t("financial_risks.heading", lang), help=help_text("financial_risks", lang))

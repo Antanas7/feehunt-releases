@@ -95,7 +95,7 @@ def _api_post(endpoint: str, payload: dict[str, Any], timeout: int = 20) -> dict
         headers={
             "Content-Type": "application/json; charset=utf-8",
             "Accept": "application/json",
-            "User-Agent": "FeeHunt/1.3.0 (+https://feehunt.pro)",
+            "User-Agent": "FeeHunt/1.4.0 (+https://feehunt.pro)",
         },
         method="POST",
     )
