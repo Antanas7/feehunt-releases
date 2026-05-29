@@ -426,13 +426,33 @@ def inject_calm_styles() -> None:
             transform: translateY(0);
             box-shadow: inset 0 2px 4px rgba(23, 33, 27, 0.10) !important;
         }
+        .stButton > button:not([kind="primary"]):not(:disabled),
         .stButton > button:not([kind="primary"]):not(:disabled) *,
-        .stButton > button:not([kind="primary"]):not(:disabled) p,
-        .stButton > button:not([kind="primary"]):not(:disabled) span,
+        .stButton > button:not([kind="primary"]):not(:disabled):hover *,
+        .stButton > button:not([kind="primary"]):not(:disabled):focus *,
+        .stButton > button:not([kind="primary"]):not(:disabled):active *,
+        .stLinkButton > a:not([kind="primary"]),
         .stLinkButton > a:not([kind="primary"]) *,
-        .stLinkButton > a:not([kind="primary"]) p,
-        .stLinkButton > a:not([kind="primary"]) span {
+        .stLinkButton > a:not([kind="primary"]):hover *,
+        .stLinkButton > a:not([kind="primary"]):focus *,
+        .stLinkButton > a:not([kind="primary"]):active * {
             color: var(--fh-green-dark) !important;
+        }
+
+        /* Saved sender entries (Sender Lists) — readable, not faint code text. */
+        .fh-sender-entry {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 38px;
+            padding: 6px 12px;
+            border: 1px solid var(--fh-border);
+            border-radius: 9px;
+            background: var(--fh-surface-soft);
+            color: var(--fh-text);
+            font-weight: 650;
+            font-size: 0.95rem;
+            word-break: break-all;
         }
 
         /* Disabled — quiet and flat. */
@@ -5257,7 +5277,10 @@ elif page == "Cleanup Rules":
         for index, entry in enumerate(whitelist):
             row_l, row_r = st.columns([5, 1])
             with row_l:
-                st.markdown(f"• ✅ `{entry}`")
+                st.markdown(
+                    f"<div class='fh-sender-entry'>✅ <span>{escape(str(entry), quote=False)}</span></div>",
+                    unsafe_allow_html=True,
+                )
             with row_r:
                 if st.button(
                     t("senders.remove", lang),
@@ -5321,7 +5344,10 @@ elif page == "Cleanup Rules":
         for index, entry in enumerate(blacklist):
             row_l, row_r = st.columns([5, 1])
             with row_l:
-                st.markdown(f"• 🚫 `{entry}`")
+                st.markdown(
+                    f"<div class='fh-sender-entry'>🚫 <span>{escape(str(entry), quote=False)}</span></div>",
+                    unsafe_allow_html=True,
+                )
             with row_r:
                 if st.button(
                     t("senders.remove", lang),
