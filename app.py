@@ -351,54 +351,91 @@ def inject_calm_styles() -> None:
             font-weight: 750;
         }
         .stButton > button, .stLinkButton > a {
-            border-radius: 8px;
+            border-radius: 11px;
             font-weight: 700;
+            padding: 0.5rem 1.05rem;
+            min-height: 44px;
+            letter-spacing: 0.1px;
             transition:
-                transform 180ms ease,
+                transform 160ms ease,
                 box-shadow 220ms ease,
-                background 220ms ease,
-                border-color 220ms ease,
-                color 220ms ease;
+                background 200ms ease,
+                border-color 200ms ease,
+                color 180ms ease;
         }
-        .stLinkButton > a {
-            background: var(--fh-ink-button) !important;
-            border-color: var(--fh-ink-button) !important;
-            color: #ffffff !important;
-        }
-        .stLinkButton > a:hover, .stLinkButton > a:focus, .stLinkButton > a:active {
-            background: var(--fh-ink-button-hover) !important;
-            border-color: var(--fh-green) !important;
-            color: #ffffff !important;
-            text-decoration: none !important;
-        }
-        .stLinkButton > a:hover *, .stLinkButton > a:focus *, .stLinkButton > a:active * {
-            color: #ffffff !important;
-        }
-        .stButton > button:not([kind="primary"]):hover,
-        .stButton > button:not([kind="primary"]):focus {
-            border-color: var(--fh-green);
-            color: var(--fh-text);
-        }
+
+        /* Primary — the one main action: rich green, glossy, gently raised. */
         .stButton > button[kind="primary"], .stLinkButton > a[kind="primary"] {
-            background: var(--fh-green) !important;
-            border-color: var(--fh-green) !important;
+            background: linear-gradient(180deg, #1c7a60 0%, #145e48 100%) !important;
+            border: 1px solid rgba(10, 54, 42, 0.55) !important;
             color: #ffffff !important;
             min-height: 46px;
-            box-shadow: 0 10px 24px rgba(15, 77, 59, 0.18);
-            animation: fh-action-anchor 5.8s ease-in-out infinite;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.20),
+                inset 0 -1px 0 rgba(5, 12, 10, 0.18),
+                0 8px 18px rgba(15, 77, 59, 0.22) !important;
         }
-        .stButton > button[kind="primary"]:hover, .stLinkButton > a[kind="primary"]:hover {
-            background: var(--fh-green-dark) !important;
-            border-color: var(--fh-green-dark) !important;
+        .stButton > button[kind="primary"]:hover, .stLinkButton > a[kind="primary"]:hover,
+        .stButton > button[kind="primary"]:focus, .stLinkButton > a[kind="primary"]:focus {
+            background: linear-gradient(180deg, #22886c 0%, #176b52 100%) !important;
+            border-color: rgba(10, 54, 42, 0.6) !important;
             color: #ffffff !important;
             transform: translateY(-1px);
-            box-shadow: 0 14px 30px rgba(15, 77, 59, 0.24);
-            animation-play-state: paused;
+            text-decoration: none !important;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.24),
+                inset 0 -1px 0 rgba(5, 12, 10, 0.20),
+                0 13px 26px rgba(15, 77, 59, 0.28) !important;
         }
         .stButton > button[kind="primary"]:active, .stLinkButton > a[kind="primary"]:active {
             transform: translateY(0);
-            box-shadow: 0 8px 18px rgba(15, 77, 59, 0.18);
+            box-shadow:
+                inset 0 2px 5px rgba(5, 12, 10, 0.28),
+                0 4px 10px rgba(15, 77, 59, 0.18) !important;
         }
+        .stButton > button[kind="primary"] *,
+        .stLinkButton > a[kind="primary"] * {
+            color: #ffffff !important;
+        }
+
+        /* Secondary — supporting actions: soft, light, tactile; recede calmly. */
+        .stButton > button:not([kind="primary"]):not(:disabled),
+        .stLinkButton > a:not([kind="primary"]) {
+            background: linear-gradient(180deg, #ffffff 0%, #f1f8f4 100%) !important;
+            border: 1px solid var(--fh-border) !important;
+            color: var(--fh-green-dark) !important;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.9),
+                0 3px 9px rgba(23, 33, 27, 0.07) !important;
+        }
+        .stButton > button:not([kind="primary"]):not(:disabled):hover,
+        .stButton > button:not([kind="primary"]):not(:disabled):focus,
+        .stLinkButton > a:not([kind="primary"]):hover,
+        .stLinkButton > a:not([kind="primary"]):focus,
+        .stLinkButton > a:not([kind="primary"]):active {
+            background: linear-gradient(180deg, #ffffff 0%, #e9f4ee 100%) !important;
+            border-color: var(--fh-green) !important;
+            color: var(--fh-green-dark) !important;
+            transform: translateY(-1px);
+            text-decoration: none !important;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.95),
+                0 8px 18px rgba(15, 77, 59, 0.14) !important;
+        }
+        .stButton > button:not([kind="primary"]):not(:disabled):active {
+            transform: translateY(0);
+            box-shadow: inset 0 2px 4px rgba(23, 33, 27, 0.10) !important;
+        }
+        .stButton > button:not([kind="primary"]):not(:disabled) *,
+        .stButton > button:not([kind="primary"]):not(:disabled) p,
+        .stButton > button:not([kind="primary"]):not(:disabled) span,
+        .stLinkButton > a:not([kind="primary"]) *,
+        .stLinkButton > a:not([kind="primary"]) p,
+        .stLinkButton > a:not([kind="primary"]) span {
+            color: var(--fh-green-dark) !important;
+        }
+
+        /* Disabled — quiet and flat. */
         .stButton > button:disabled {
             background: #e8f0eb !important;
             border: 1px solid #c7d6ce !important;
@@ -415,20 +452,6 @@ def inject_calm_styles() -> None:
             color: #425248 !important;
             fill: #425248 !important;
             stroke: #425248 !important;
-        }
-        .stButton > button:not([kind="primary"]):not(:disabled) {
-            color: var(--fh-text) !important;
-        }
-        .stButton > button:not([kind="primary"]):not(:disabled) *,
-        .stButton > button:not([kind="primary"]):not(:disabled) p,
-        .stButton > button:not([kind="primary"]):not(:disabled) span {
-            color: var(--fh-text) !important;
-        }
-        .stButton > button[kind="primary"] *,
-        .stButton > button[kind="primary"]:hover *,
-        .stLinkButton > a[kind="primary"] *,
-        .stLinkButton > a[kind="primary"]:hover * {
-            color: #ffffff !important;
         }
         .fh-trust-strip {
             display: flex;
@@ -2943,11 +2966,11 @@ def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str
                 if direct_url
                 else t("wizard.open_site", lang).format(domain=urlparse(primary_url).netloc)
             )
-            st.link_button(label, primary_url, use_container_width=True)
+            st.link_button(label, primary_url, type="primary", use_container_width=True)
             st.caption(f"→ {urlparse(primary_url).netloc}")
         else:
             search_url = "https://www.google.com/search?q=" + quote_plus(f"{service} cancel subscription")
-            st.link_button(t("wizard.open_search", lang), search_url, use_container_width=True)
+            st.link_button(t("wizard.open_search", lang), search_url, type="primary", use_container_width=True)
         # A List-Unsubscribe link, when present, is offered as a secondary way
         # to at least stop the emails (folded in here so the wizard is the one path).
         if unsubscribe_url:
