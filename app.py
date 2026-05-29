@@ -4622,6 +4622,16 @@ def show_dashboard_result_shortcuts(scan_data: dict | None) -> None:
         ),
     ]
 
+    # Risky / unrecognized emails live on the safety page now, so surface a calm
+    # pointer here (otherwise they'd have no presence on the overview at all).
+    review_count = len(scan_data.get("phishing_risks", []) or [])
+    if review_count:
+        shortcuts.append((
+            t("dashboard.quick_review_safety", lang).format(count=review_count),
+            "Check a Message",
+            "dashboard_shortcut_safety",
+        ))
+
     st.markdown('<div class="fh-dashboard-actions">', unsafe_allow_html=True)
     cols = st.columns(len(shortcuts))
     for col, (label, target_page, key) in zip(cols, shortcuts):

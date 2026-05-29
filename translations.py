@@ -33,6 +33,7 @@ TRANSLATIONS = {
         "dashboard.quick_review_payments": "Review payment control",
         "dashboard.quick_review_subscriptions": "Review subscriptions",
         "dashboard.quick_review_promotions": "Review promotional emails",
+        "dashboard.quick_review_safety": "Worth reviewing: {count}",
         "onboarding.title": "💸 Welcome to FeeHunt!",
         "onboarding.subtitle": "Before starting, one setup step is required",
         "onboarding.credentials_missing": (
@@ -377,6 +378,7 @@ TRANSLATIONS = {
         "dashboard.quick_review_payments": "Peržiūrėti mokėjimų kontrolę",
         "dashboard.quick_review_subscriptions": "Peržiūrėti prenumeratas",
         "dashboard.quick_review_promotions": "Peržiūrėti reklamas",
+        "dashboard.quick_review_safety": "Verta peržiūrėti: {count}",
         "onboarding.title": "💸 Sveiki atvykę į FeeHunt!",
         "onboarding.subtitle": "Prieš pradedant – reikalingas vienas nustatymo žingsnis",
         "onboarding.credentials_missing": (
