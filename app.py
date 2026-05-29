@@ -5006,8 +5006,8 @@ if page == "Dashboard":
 
         # Scan results now live on their dedicated category pages so the
         # overview stays clean: status + numbers only, no per-email actions.
-        # These shortcuts route the user to the right category page.
-        show_dashboard_review_actions(license_gate)
+        # One set of shortcuts routes the user to the category pages; the
+        # adaptive review CTA was removed to avoid duplicate routing buttons.
         show_dashboard_result_shortcuts(scan_data)
 
     else:
