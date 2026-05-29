@@ -161,6 +161,53 @@ NON_SUBSCRIPTION_MARKETING_KEYWORDS = [
     "verified suppliers", "webinars",
 ]
 
+# Routine account / security notices: verify-your-email, new-device-login,
+# password resets, 2FA codes. These are NOT subscriptions to cancel and not
+# (by themselves) financial risks — they were landing in the wrong category
+# because of a stray "your subscription" footer or a generic "verify" phrase
+# (e.g. Porkbun "Backup Email Verification", TradingView "New device login").
+# Genuine phishing that imitates these is still caught by phishing_detector
+# (lookalike domain / hidden link / name mismatch).
+ACCOUNT_NOTICE_KEYWORDS = [
+    "verify your email", "verify your email address", "email verification",
+    "email address verification", "confirm your email",
+    "confirm your email address", "backup email", "new device",
+    "device login", "login detected", "new sign-in", "new sign in",
+    "new login", "was this you", "password reset", "reset your password",
+    "verification code", "security code", "one-time code",
+    "two-factor", "2fa",
+    # Lithuanian
+    "patvirtinkite el. paštą", "patvirtinkite el. pasta",
+    "el. pašto patvirtinimas", "naujas prisijungimas",
+    "prisijungimas iš naujo įrenginio", "slaptažodžio atstatymas",
+    "patvirtinimo kodas",
+]
+
+# The genuinely money/access-at-risk signals (a real problem), as opposed to
+# routine verification — these always count as a financial risk.
+HARD_FINANCIAL_THREAT_KEYWORDS = [
+    "failed payment", "payment failed", "payment failed to process",
+    "failed to process", "card declined", "insufficient funds",
+    "insufficient funds on card", "past due", "overdue",
+    "account suspended", "payment required", "payment was unsuccessful",
+    "subscription access has been paused", "subscription paused",
+    "update your payment", "payment method needs",
+    "account locked", "your account has been locked",
+    # Lithuanian
+    "nepavyko apmokėti", "nepavyko apmoketi",
+    "kortelė atmesta", "kortele atmesta",
+    "vėluojantis mokėjimas", "veluojantis mokejimas",
+    "paskyra sustabdyta", "paskyra užblokuota", "paskyra uzblokuota",
+]
+
+
+def is_account_notice(content: str) -> bool:
+    """A routine account/security/verification notice (not a subscription or,
+    by itself, a financial threat)."""
+    return contains_any_keyword(content, ACCOUNT_NOTICE_KEYWORDS) and not contains_any_keyword(
+        content, HARD_FINANCIAL_THREAT_KEYWORDS
+    )
+
 
 # ============================================================
 # Helper funkcijos
@@ -213,6 +260,12 @@ THRESHOLD = 0.5
 
 
 def get_subscription_confidence(content: str) -> float:
+    # A routine account/security notice (verify email, login alert, ...) is
+    # never a subscription to cancel, even if it carries a "your subscription"
+    # marketing footer.
+    if is_account_notice(content):
+        return 0.0
+
     if contains_any_keyword(content, FINANCIAL_RISK_SIGNAL_KEYWORDS):
         return 1.0
 
@@ -264,6 +317,12 @@ def get_newsletter_confidence(content: str) -> float:
 
 
 def get_financial_confidence(content: str) -> float:
+    # A real money/access problem is always a financial risk.
+    if contains_any_keyword(content, HARD_FINANCIAL_THREAT_KEYWORDS):
+        return 1.0
+    # A routine verify-email / login notice is not a financial risk on its own.
+    if is_account_notice(content):
+        return 0.0
     if contains_any_keyword(content, FINANCIAL_RISK_SIGNAL_KEYWORDS):
         return 1.0
     return 0.0
