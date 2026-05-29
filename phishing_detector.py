@@ -97,6 +97,7 @@ _LINK_RE = re.compile(
     r'<a\s[^>]*href\s*=\s*["\']([^"\']+)["\'][^>]*>(.*?)</a>',
     re.IGNORECASE | re.DOTALL,
 )
+_URL_RE = re.compile(r'https?://[^\s<>"\')\]]+', re.IGNORECASE)
 _TAG_RE = re.compile(r"<[^>]+>")
 _DOMAIN_IN_TEXT_RE = re.compile(r"([a-z0-9][a-z0-9.-]*\.[a-z]{2,})")
 
@@ -344,3 +345,53 @@ def analyze_sender(sender_raw: str) -> dict:
         "verdict": verdict,
         "reasons": reasons,
     }
+
+
+def analyze_pasted_message(sender_raw: str = "", text: str = "") -> dict:
+    """Power the "Is this real?" tool: judge a message the user is worried about.
+
+    Works on plain pasted text (no HTML), so it relies on the sender address (if
+    given), urgency + credential-request language, and any links found in the
+    text checked against known brands. Verdict is intentionally a little more
+    sensitive than the background scan because the user explicitly asked.
+    Returns {"verdict": "danger"|"caution"|"likely_safe", "reasons": [...]}.
+    """
+    reasons: list[dict] = []
+
+    name, _email, host = extract_sender_parts(sender_raw)
+    if host:
+        for reason in (
+            _check_name_domain_mismatch(name, host),
+            _check_lookalike_domain(host),
+            _check_brand_in_domain(host),
+        ):
+            if reason:
+                reasons.append(reason)
+
+    if _check_urgency_credentials((text or "").lower()):
+        reasons.append({"code": "urgency_credentials", "params": {}})
+
+    for url in _URL_RE.findall(text or ""):
+        url_host = urlparse(url).netloc.lower().split(":", 1)[0]
+        if url_host.startswith("www."):
+            url_host = url_host[4:]
+        for reason in (_check_lookalike_domain(url_host), _check_brand_in_domain(url_host)):
+            if reason:
+                reasons.append(reason)
+
+    deduped: list[dict] = []
+    seen_codes: set[str] = set()
+    for reason in reasons:
+        if reason["code"] not in seen_codes:
+            seen_codes.add(reason["code"])
+            deduped.append(reason)
+
+    strong = [r for r in deduped if r["code"] in STRONG_CODES]
+    if strong:
+        verdict = "danger"
+    elif deduped:
+        verdict = "caution"
+    else:
+        verdict = "likely_safe"
+
+    return {"verdict": verdict, "reasons": deduped}

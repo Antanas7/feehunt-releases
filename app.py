@@ -4785,7 +4785,7 @@ with st.sidebar:
         st.session_state.license_gate = {"allowed": False}
         safe_rerun()
 
-    page_options = ["Dashboard", "Subscriptions", "Promotions", "How to Use FeeHunt", "Cleanup Rules", "Settings"]
+    page_options = ["Dashboard", "Check a Message", "Subscriptions", "Promotions", "How to Use FeeHunt", "Cleanup Rules", "Settings"]
     target_page = st.session_state.pop("ftue_target_page", None)
     current_page = st.session_state.get("main_navigation")
     if target_page in page_options:
@@ -4799,6 +4799,7 @@ with st.sidebar:
         key="main_navigation",
         format_func=lambda x: {
             "Dashboard": t("page.dashboard", lang),
+            "Check a Message": t("page.check_message", lang),
             "Subscriptions": t("page.subscriptions", lang),
             "Promotions": t("page.promotions", lang),
             "How to Use FeeHunt": t("page.how_to_use", lang),
@@ -5044,6 +5045,54 @@ elif page == "Promotions":
             )
         else:
             st.success(t("promotions.none", lang))
+
+
+# ============================================================
+# Check a Message ("Is this real?")
+# ============================================================
+
+elif page == "Check a Message":
+    st.title(t("check.title", lang))
+    st.write(t("check.intro", lang))
+
+    sender_in = st.text_input(
+        t("check.sender_label", lang),
+        key="check_sender",
+        placeholder=t("check.sender_placeholder", lang),
+    )
+    text_in = st.text_area(
+        t("check.text_label", lang),
+        key="check_text",
+        height=200,
+        placeholder=t("check.text_placeholder", lang),
+    )
+
+    if st.button(t("check.button", lang), type="primary", use_container_width=True):
+        if not (sender_in.strip() or text_in.strip()):
+            st.warning(t("check.empty", lang))
+        else:
+            from phishing_detector import analyze_pasted_message
+            result = analyze_pasted_message(sender_in, text_in)
+            verdict = result["verdict"]
+
+            if verdict == "danger":
+                st.error("⚠️ " + t("check.verdict.danger", lang))
+            elif verdict == "caution":
+                st.warning("⚠️ " + t("check.verdict.caution", lang))
+            else:
+                st.success("✅ " + t("check.verdict.likely_safe", lang))
+
+            if result["reasons"]:
+                st.markdown("**" + t("check.why", lang) + "**")
+                for reason in result["reasons"]:
+                    code = reason.get("code")
+                    params = reason.get("params") or {}
+                    try:
+                        st.markdown("- " + t(f"phishing.reason.{code}", lang).format(**params))
+                    except (KeyError, IndexError):
+                        st.markdown("- " + t(f"phishing.reason.{code}", lang))
+
+            st.info(t("check.disclaimer", lang))
 
 
 # ============================================================
