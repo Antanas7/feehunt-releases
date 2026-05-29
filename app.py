@@ -26,7 +26,7 @@ from gmail_actions import (
     unmark_spam,
     get_unsubscribe_link,
 )
-from subscription_actions import cancel_subscription
+from subscription_actions import cancel_subscription, sender_website_url
 from licensing import (
     TRIAL_SCAN_LIMIT,
     activate_license,
@@ -2878,6 +2878,82 @@ def render_sender_info(item: dict, lang: str, ui_key: str) -> None:
             st.caption(t("sender_info.frequency", lang).format(count=freq))
 
 
+CANCEL_WIZARD_STEPS = 4
+
+
+def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str, lang: str) -> None:
+    """A small step-by-step guide, shown inside a subscription email card, that
+    leads the user to the exact cancellation page and back. FeeHunt only guides;
+    every page-open and the final delete is an explicit user click."""
+    state_key = f"cwiz_{safe_key}"
+    step = st.session_state.get(state_key, 0)
+    service = readable_service_name(item)
+    direct_url = item.get("direct_cancel_url")
+    try:
+        site_url = sender_website_url(sender)
+    except Exception:
+        site_url = None
+
+    st.divider()
+
+    # Step 0 — the offer. The wizard stays out of the way until invited.
+    if step == 0:
+        render_calm_note(t("wizard.offer", lang))
+        if st.button(t("wizard.start", lang), key=f"cwiz_start_{safe_key}",
+                     type="primary", use_container_width=True):
+            st.session_state[state_key] = 1
+            safe_rerun()
+        return
+
+    st.markdown(f"**🧭 {t('wizard.title', lang).format(service=service)}**")
+    st.caption(t("wizard.step_label", lang).format(n=step, total=CANCEL_WIZARD_STEPS))
+
+    if step == 1:
+        st.write(t("wizard.s1.body", lang).format(service=service))
+    elif step == 2:
+        st.write(t("wizard.s2.body", lang).format(service=service))
+        if direct_url:
+            st.link_button(t("safe_action.open_direct_cancel", lang), direct_url,
+                           use_container_width=True)
+            st.caption(f"→ {urlparse(direct_url).netloc}")
+        elif site_url:
+            st.link_button(t("wizard.open_site", lang).format(domain=urlparse(site_url).netloc),
+                           site_url, use_container_width=True)
+        else:
+            search_url = "https://www.google.com/search?q=" + quote_plus(f"{service} cancel subscription")
+            st.link_button(t("wizard.open_search", lang), search_url, use_container_width=True)
+    elif step == 3:
+        st.write(t("wizard.s3.body", lang).format(service=service))
+    elif step == 4:
+        st.write(t("wizard.s4.body", lang))
+        # Reuse the standard safe delete flow, but with a wizard-scoped widget key
+        # so it never collides with the delete button rendered lower in the card.
+        show_safe_email_action(
+            "delete",
+            t("wizard.s4.delete", lang),
+            message_id,
+            delete_email,
+            "safe_action.done_delete",
+            restore_trashed_email,
+            ui_key=f"{safe_key}_wiz",
+        )
+
+    col_back, col_next = st.columns(2)
+    with col_back:
+        if st.button(t("wizard.back", lang), key=f"cwiz_back_{safe_key}", use_container_width=True):
+            st.session_state[state_key] = step - 1  # step 0 folds the wizard back to the offer
+            safe_rerun()
+    with col_next:
+        if step < CANCEL_WIZARD_STEPS:
+            if st.button(t("wizard.next", lang), key=f"cwiz_next_{safe_key}",
+                         type="primary", use_container_width=True):
+                st.session_state[state_key] = step + 1
+                safe_rerun()
+        elif st.button(t("wizard.close", lang), key=f"cwiz_close_{safe_key}", use_container_width=True):
+            st.session_state[state_key] = 0
+            safe_rerun()
+
+
 def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
     lang = current_language()
     subject = item.get("subject") or t("email.no_subject", lang)
@@ -2919,6 +2995,9 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
         render_action_first_panel(guidance)
 
         render_sender_info(item, lang, safe_key)
+
+        if card_type in ("financial_risk", "subscriptions") and message_id and not is_preview_mode():
+            render_cancel_wizard(item, sender, message_id, safe_key, lang)
 
         if is_preview_mode():
             render_calm_note(t("preview.action_disabled", lang))

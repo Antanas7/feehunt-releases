@@ -63,6 +63,13 @@ def _sender_website(sender):
     return domain
 
 
+def sender_website_url(sender):
+    """Public: the sender's own root website as an https URL, or None when the
+    sender is a generic mailbox provider (gmail.com, ...) with no useful site."""
+    domain = _sender_website(sender)
+    return f"https://{domain}" if domain else None
+
+
 def cancel_subscription(sender, email_id):
     """Lead the user toward cancelling: a known billing page, else the sender's
     own website, else (last resort) a search. FeeHunt never cancels for them."""
