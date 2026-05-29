@@ -103,6 +103,27 @@ _DOMAIN_IN_TEXT_RE = re.compile(r"([a-z0-9][a-z0-9.-]*\.[a-z]{2,})")
 
 STRONG_CODES = {"name_domain_mismatch", "lookalike_domain", "hidden_link"}
 
+# Legitimate email-service-provider click-tracking / redirect domains. A link
+# whose visible text shows "brand.com" but resolves to one of these is normal
+# marketing click-tracking, NOT a hidden phishing link — so it must not trip
+# the hidden-link check (this caused false positives on real newsletters).
+ESP_TRACKING_DOMAINS = (
+    "sendibt2.com", "sendibt3.com", "sendibm1.com", "sendibm2.com", "sendibm3.com",  # Brevo / Sendinblue
+    "sendgrid.net", "sendgrid.com",
+    "list-manage.com", "mailchimpapp.net", "mcsv.net", "mailchi.mp",                  # Mailchimp
+    "hubspotlinks.com", "hs-sites.com", "hubspotemail.net",                           # HubSpot
+    "rs6.net",                                                                        # Constant Contact
+    "klclick.com", "klclick2.com", "klaviyomail.com",                                 # Klaviyo
+    "awstrack.me",                                                                    # Amazon SES
+    "sparkpostmail.com", "mailgun.org", "mandrillapp.com", "pstmrk.it",
+    "cmail19.com", "cmail20.com", "createsend.com",                                   # Campaign Monitor
+    "mktoresp.com", "exct.net", "exacttarget.com",                                    # Marketo / SFMC
+)
+
+
+def _is_esp_tracking_host(host: str) -> bool:
+    return any(host == d or host.endswith("." + d) for d in ESP_TRACKING_DOMAINS)
+
 
 # ------------------------------------------------------------------
 # Small helpers
@@ -219,6 +240,10 @@ def _check_hidden_links(html_body: str) -> dict | None:
             actual_host = actual_host[4:]
         if shown_host.startswith("www."):
             shown_host = shown_host[4:]
+        # A legit ESP click-tracker as the destination is normal marketing,
+        # not a hidden phishing redirect — don't flag it.
+        if _is_esp_tracking_host(actual_host):
+            continue
         if actual_host and not _same_site(shown_host, actual_host):
             return {"code": "hidden_link", "params": {"shown": shown_host, "actual": actual_host}}
     return None

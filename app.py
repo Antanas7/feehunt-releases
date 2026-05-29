@@ -2724,8 +2724,10 @@ def build_action_first_guidance(
         signal_count = len(matched_keywords)
 
     if card_type == "phishing_risk":
+        from phishing_detector import STRONG_CODES
+        reasons = item.get("phishing_reasons") or []
         reason_texts = []
-        for reason in item.get("phishing_reasons") or []:
+        for reason in reasons:
             code = reason.get("code")
             params = reason.get("params") or {}
             if not code:
@@ -2735,12 +2737,24 @@ def build_action_first_guidance(
             except (KeyError, IndexError):
                 reason_texts.append(t(f"phishing.reason.{code}", lang))
         explain = " ".join(reason_texts) or t("action_first.phishing.explain_generic", lang)
+        has_strong = any(r.get("code") in STRONG_CODES for r in reasons)
+        if has_strong:
+            # A concrete, high-confidence signal — warn clearly but factually.
+            return {
+                "tone": "risk",
+                "kicker": t("action_first.phishing.kicker", lang),
+                "danger": t("action_first.phishing.danger", lang),
+                "explain": explain,
+                "next": t("action_first.phishing.next", lang),
+                "control": t("action_first.phishing.control", lang),
+            }
+        # Weak / uncertain — don't cry "scam". Ask the user to review and decide.
         return {
-            "tone": "risk",
-            "kicker": t("action_first.phishing.kicker", lang),
-            "danger": t("action_first.phishing.danger", lang),
+            "tone": "info",
+            "kicker": t("action_first.review.kicker", lang),
+            "danger": t("action_first.review.headline", lang),
             "explain": explain,
-            "next": t("action_first.phishing.next", lang),
+            "next": t("action_first.review.next", lang),
             "control": t("action_first.phishing.control", lang),
         }
 

@@ -125,8 +125,8 @@ TRANSLATIONS = {
         "subscriptions.found": "Found **{count}** subscription-related emails.",
         "subscriptions.none": "✅ No subscription alerts found.",
         "financial_risks.heading": "💳 Payment Control",
-        "phishing_risks.heading": "⚠️ Possible scam (phishing)",
-        "phishing_risks.intro": "FeeHunt found emails that may be trying to trick you. Here is exactly why each one looks dangerous.",
+        "phishing_risks.heading": "📋 Worth reviewing",
+        "phishing_risks.intro": "FeeHunt wasn't sure about these emails. Take a look and decide for yourself — keep them, or mark them unwanted or spam. FeeHunt changes nothing without your confirmation.",
         "financial_risks.warning": (
             "Found **{count}** emails worth reviewing first. "
             "Nothing changes without your approval."
@@ -468,8 +468,8 @@ TRANSLATIONS = {
         "subscriptions.found": "Rasta **{count}** prenumeratų susijusių laiškų.",
         "subscriptions.none": "✅ Prenumeratų įspėjimų nerasta.",
         "financial_risks.heading": "💳 Mokėjimų kontrolė",
-        "phishing_risks.heading": "⚠️ Galimas sukčiavimas (phishing)",
-        "phishing_risks.intro": "FeeHunt rado laiškų, kurie gali bandyti jus apgauti. Štai tiksliai kodėl kiekvienas atrodo pavojingas.",
+        "phishing_risks.heading": "📋 Verta peržiūrėti",
+        "phishing_risks.intro": "FeeHunt nebuvo tikras dėl šių laiškų. Peržiūrėk ir nuspręsk pats — palik arba pažymėk nepageidaujamu ar šlamštu. FeeHunt nieko nekeičia be tavo patvirtinimo.",
         "financial_risks.warning": (
             "Rasta **{count}** laiškų, kuriuos verta peržiūrėti pirmiausia. "
             "Nieko nekeičiama be jūsų patvirtinimo."
@@ -1199,6 +1199,9 @@ ACTION_FIRST_TRANSLATIONS = {
         "action_first.phishing.explain_generic": "Several signs suggest this sender may be impersonating a real company.",
         "action_first.phishing.next": "Safest next step: do not click any links and do not enter any details. If unsure, open the official website yourself by typing its address.",
         "action_first.phishing.control": "FeeHunt only warns you; it never changes Gmail without your confirmation.",
+        "action_first.review.kicker": "FeeHunt — worth a look",
+        "action_first.review.headline": "FeeHunt wasn't sure about this email.",
+        "action_first.review.next": "If you don't recognise the sender or didn't expect it, mark it unwanted or spam. If it's fine, just leave it.",
         "phishing.reason.name_domain_mismatch": "The sender's name says \"{brand}\", but the email was sent from {domain} — the name does not match the address.",
         "phishing.reason.lookalike_domain": "The address {domain} imitates {legit} — it looks like a fake lookalike domain.",
         "phishing.reason.hidden_link": "A link shows \"{shown}\" but actually leads to {actual}.",
@@ -1257,6 +1260,9 @@ ACTION_FIRST_TRANSLATIONS = {
         "action_first.phishing.explain_generic": "Keli požymiai rodo, kad siuntėjas gali apsimetinėti tikra įmone.",
         "action_first.phishing.next": "Saugiausias žingsnis: neatidarykite jokių nuorodų ir neįveskite jokių duomenų. Jei abejojate, atidarykite oficialią svetainę patys įvesdami jos adresą.",
         "action_first.phishing.control": "FeeHunt tik įspėja; Gmail niekada nekeičiamas be jūsų patvirtinimo.",
+        "action_first.review.kicker": "FeeHunt — verta peržiūrėti",
+        "action_first.review.headline": "FeeHunt nebuvo tikras dėl šio laiško.",
+        "action_first.review.next": "Jei nepažįsti siuntėjo ar nesitikėjai laiško — pažymėk nepageidaujamu arba šlamštu. Jei viskas gerai — tiesiog palik.",
         "phishing.reason.name_domain_mismatch": "Siuntėjo vardas sako „{brand}“, bet laiškas atsiųstas iš {domain} — vardas neatitinka adreso.",
         "phishing.reason.lookalike_domain": "Adresas {domain} imituoja {legit} — atrodo kaip suklastotas panašus domenas.",
         "phishing.reason.hidden_link": "Nuoroda rodo „{shown}“, bet iš tikrųjų veda į {actual}.",
