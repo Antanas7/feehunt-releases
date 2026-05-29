@@ -70,6 +70,16 @@ def sender_website_url(sender):
     return f"https://{domain}" if domain else None
 
 
+def known_billing_url(sender):
+    """The known billing/cancel page for this sender (Netflix, Spotify, ...),
+    or None if the sender is not in the curated list."""
+    service_key = _normalize_service_name(sender)
+    for known_service, billing_url in SERVICE_CANCEL_URLS.items():
+        if known_service in service_key:
+            return billing_url
+    return None
+
+
 def cancel_subscription(sender, email_id):
     """Lead the user toward cancelling: a known billing page, else the sender's
     own website, else (last resort) a search. FeeHunt never cancels for them."""

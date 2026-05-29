@@ -26,7 +26,7 @@ from gmail_actions import (
     unmark_spam,
     get_unsubscribe_link,
 )
-from subscription_actions import cancel_subscription, sender_website_url
+from subscription_actions import known_billing_url, sender_website_url
 from licensing import (
     TRIAL_SCAN_LIMIT,
     activate_license,
@@ -2881,7 +2881,8 @@ def render_sender_info(item: dict, lang: str, ui_key: str) -> None:
 CANCEL_WIZARD_STEPS = 4
 
 
-def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str, lang: str) -> None:
+def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str,
+                         lang: str, unsubscribe_url: str | None = None) -> None:
     """A small step-by-step guide, shown inside a subscription email card, that
     leads the user to the exact cancellation page and back. FeeHunt only guides;
     every page-open and the final delete is an explicit user click."""
@@ -2912,16 +2913,26 @@ def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str
         st.write(t("wizard.s1.body", lang).format(service=service))
     elif step == 2:
         st.write(t("wizard.s2.body", lang).format(service=service))
-        if direct_url:
-            st.link_button(t("safe_action.open_direct_cancel", lang), direct_url,
-                           use_container_width=True)
-            st.caption(f"→ {urlparse(direct_url).netloc}")
-        elif site_url:
-            st.link_button(t("wizard.open_site", lang).format(domain=urlparse(site_url).netloc),
-                           site_url, use_container_width=True)
+        # Best cancellation target first: the link found in the email, then the
+        # service's known billing page, then the sender's own site.
+        primary_url = direct_url or known_billing_url(sender) or site_url
+        if primary_url:
+            label = (
+                t("safe_action.open_direct_cancel", lang)
+                if direct_url
+                else t("wizard.open_site", lang).format(domain=urlparse(primary_url).netloc)
+            )
+            st.link_button(label, primary_url, use_container_width=True)
+            st.caption(f"→ {urlparse(primary_url).netloc}")
         else:
             search_url = "https://www.google.com/search?q=" + quote_plus(f"{service} cancel subscription")
             st.link_button(t("wizard.open_search", lang), search_url, use_container_width=True)
+        # A List-Unsubscribe link, when present, is offered as a secondary way
+        # to at least stop the emails (folded in here so the wizard is the one path).
+        if unsubscribe_url:
+            st.caption(t("wizard.s2.or_unsubscribe", lang))
+            st.link_button(t("safe_action.open_unsubscribe", lang), unsubscribe_url,
+                           use_container_width=True)
     elif step == 3:
         st.write(t("wizard.s3.body", lang).format(service=service))
     elif step == 4:
@@ -2997,7 +3008,7 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
         render_sender_info(item, lang, safe_key)
 
         if card_type in ("financial_risk", "subscriptions") and message_id and not is_preview_mode():
-            render_cancel_wizard(item, sender, message_id, safe_key, lang)
+            render_cancel_wizard(item, sender, message_id, safe_key, lang, unsubscribe_url)
 
         if is_preview_mode():
             render_calm_note(t("preview.action_disabled", lang))
@@ -3007,117 +3018,72 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
             st.warning(t("email.missing_message_id", lang))
             return
 
-        if gmail_url:
-            st.link_button(t("actions.open_gmail", lang), gmail_url)
-
-        related_url = gmail_related_search_url(readable_service_name(item))
-        st.link_button(
-            t("action_first.find_related", lang),
-            related_url,
-            help=t("action_first.find_related_help", lang),
-            use_container_width=True,
-        )
-
-        st.write(t("email.actions_label", lang))
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
-            show_safe_email_action(
-                "archive",
-                t("actions.archive", lang),
-                message_id,
-                archive_email,
-                "safe_action.done_archive",
-                unarchive_email,
-                ui_key=safe_key,
-            )
-
-        with col2:
-            show_safe_email_action(
-                "delete",
-                t("actions.delete", lang),
-                message_id,
-                delete_email,
-                "safe_action.done_delete",
-                restore_trashed_email,
-                ui_key=safe_key,
-            )
-
-        with col3:
-            show_safe_email_action(
-                "spam",
-                t("actions.spam", lang),
-                message_id,
-                mark_as_spam,
-                "safe_action.done_spam",
-                unmark_spam,
-                ui_key=safe_key,
-            )
-
-        with col4:
-            if st.button(t("actions.important", lang), key=f"important_{safe_key}"):
-                try:
-                    mark_as_important(message_id)
-                    st.success(t("actions.important_marked", lang))
-                    refresh_scan_data()
-                    safe_rerun()
-                except Exception as e:
-                    st.error(friendly_error_message(e))
-
-        direct_cancel_url = item.get("direct_cancel_url")
-        if direct_cancel_url and card_type in ("financial_risk", "subscriptions"):
-            render_calm_note(t("safe_action.explain.direct_cancel", lang))
-            st.link_button(
-                t("safe_action.open_direct_cancel", lang),
-                direct_cancel_url,
-                help=help_text("direct_cancel", lang),
-                use_container_width=True,
-            )
-            st.caption(f"→ {urlparse(direct_cancel_url).netloc}")
-
-        if unsubscribe_url:
-            render_calm_note(t("safe_action.explain.unsubscribe", lang))
-            st.link_button(
-                t("safe_action.open_unsubscribe", lang),
-                unsubscribe_url,
-                help=help_text("unsubscribe", lang),
-                use_container_width=True,
-            )
-            st.caption(t("safe_action.done_unsubscribe", lang))
-        elif card_type in ("financial_risk", "subscriptions") and not direct_cancel_url:
-            st.info(t("actions.no_unsubscribe", lang))
-
-        if card_type in ("financial_risk", "subscriptions"):
-            if st.button(t("actions.cancel_subscription", lang), key=f"cancel_subscription_{safe_key}"):
-                try:
-                    result_message = cancel_subscription(sender, message_id)
-                    st.info(result_message)
-                    st.info(t("actions.cancel_aftercare", lang))
-                except Exception as e:
-                    st.error(friendly_error_message(e))
-
-        # Whitelist / Blacklist mygtukai
-        st.divider()
-        col_w, col_b = st.columns(2)
+        # Actions are scoped to the category so each card shows one clear set,
+        # with the rare ones tucked under a "More" toggle (Streamlit does not
+        # allow a nested expander, so a toggle is the in-place reveal).
         rules = st.session_state.get("rules", load_rules())
 
-        with col_w:
+        def _act_delete():
+            show_safe_email_action("delete", t("actions.delete", lang), message_id,
+                                   delete_email, "safe_action.done_delete",
+                                   restore_trashed_email, ui_key=safe_key)
+
+        def _act_archive():
+            show_safe_email_action("archive", t("actions.archive", lang), message_id,
+                                   archive_email, "safe_action.done_archive",
+                                   unarchive_email, ui_key=safe_key)
+
+        def _act_spam():
+            show_safe_email_action("spam", t("actions.spam", lang), message_id,
+                                   mark_as_spam, "safe_action.done_spam",
+                                   unmark_spam, ui_key=safe_key)
+
+        def _act_open_gmail():
+            if gmail_url:
+                st.link_button(t("actions.open_gmail", lang), gmail_url, use_container_width=True)
+
+        def _act_unsubscribe():
+            st.link_button(t("safe_action.open_unsubscribe", lang), unsubscribe_url,
+                           help=help_text("unsubscribe", lang), use_container_width=True)
+
+        def _act_whitelist():
             if st.button(t("actions.whitelist", lang), key=f"whitelist_{safe_key}",
-                         help=t("actions.whitelist_help", lang)):
+                         help=t("actions.whitelist_help", lang), use_container_width=True):
                 if sender not in rules["whitelist"]:
                     rules["whitelist"].append(sender)
                     save_rules(rules)
                     st.session_state.rules = rules
                     st.success(t("actions.added_whitelist", lang).format(sender=sender))
 
-        with col_b:
+        def _act_blacklist():
             if st.button(t("actions.blacklist", lang), key=f"blacklist_{safe_key}",
-                         help=t("actions.blacklist_help", lang)):
+                         help=t("actions.blacklist_help", lang), use_container_width=True):
                 if sender not in rules["blacklist"]:
                     rules["blacklist"].append(sender)
                     save_rules(rules)
                     st.session_state.rules = rules
                     st.success(t("actions.added_blacklist", lang).format(sender=sender))
+
+        def _more(secondary):
+            if st.toggle(t("actions.more", lang), key=f"more_{safe_key}"):
+                for render in secondary:
+                    render()
+
+        if card_type in ("financial_risk", "subscriptions"):
+            # The wizard above is the one clear path; everything else is secondary.
+            _more([_act_delete, _act_archive, _act_open_gmail, _act_whitelist, _act_blacklist])
+        elif card_type == "phishing_risk":
+            # A possible threat: keep the safe moves visible, not buried.
+            _act_delete()
+            _act_spam()
+            _act_blacklist()
+            _more([_act_open_gmail, _act_whitelist])
+        else:
+            # Promotions / unwanted / generic: clean up, or unsubscribe when possible.
+            _act_delete()
+            if unsubscribe_url:
+                _act_unsubscribe()
+            _more([_act_archive, _act_open_gmail, _act_whitelist, _act_blacklist])
 
 
 # ============================================================
