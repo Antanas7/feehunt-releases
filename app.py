@@ -5004,51 +5004,11 @@ if page == "Dashboard":
                 last_scan_at=format_local_datetime(last_scan_at, current_timezone())
             ))
 
-        max_items = int(st.session_state.settings.get("max_dashboard_items", 3) or 3)
-        if user_profile.state in ("calm", "returning", "steady"):
-            max_items = min(max_items, 2)
-        elif user_profile.state == "overwhelmed":
-            max_items = min(max_items, 3)
-        phishing_risks = scan_data.get("phishing_risks", []) or []
-        financial_risks = scan_data.get("financial_risks", []) or []
-        subscriptions = scan_data.get("subscriptions", []) or []
-        promotional_items = []
-        seen_promotional_ids = set()
-        for section in ("promotional_emails", "shop_emails", "newsletter_emails"):
-            for item in scan_data.get(section, []) or []:
-                item_id = item.get("message_id") or get_email_identity(item, section)
-                if item_id not in seen_promotional_ids:
-                    promotional_items.append(item)
-                    seen_promotional_ids.add(item_id)
-
-        if phishing_risks:
-            st.subheader(t("phishing_risks.heading", lang))
-            render_calm_note(t("phishing_risks.intro", lang))
-            for item in phishing_risks[:max_items]:
-                show_email_card(item, "⚠️", "phishing_risk")
-
-        if financial_risks:
-            st.subheader(t("financial_risks.heading", lang), help=help_text("financial_risks", lang))
-            for item in financial_risks[:max_items]:
-                show_email_card(item, "💳", "financial_risk")
-        else:
-            st.success(t("financial_risks.none", lang))
-
-        if subscriptions:
-            st.subheader(t("subscriptions.heading", lang))
-            for item in subscriptions[:max_items]:
-                show_email_card(item, "🔄", "subscriptions")
-
-        if promotional_items:
-            st.subheader(t("promotions.heading", lang), help=help_text("promotions", lang))
-            for item in promotional_items[:max_items]:
-                show_email_card(item, "📢", "promotions")
-
-        # Action CTAs at the bottom: primary review CTA, then category shortcuts.
+        # Scan results now live on their dedicated category pages so the
+        # overview stays clean: status + numbers only, no per-email actions.
+        # These shortcuts route the user to the right category page.
         show_dashboard_review_actions(license_gate)
         show_dashboard_result_shortcuts(scan_data)
-        st.divider()
-        show_dashboard_blacklist_manager()
 
     else:
         st.divider()
@@ -5059,8 +5019,6 @@ if page == "Dashboard":
             st.info(t("dashboard.privacy", lang))
         with col_b:
             st.info(t("dashboard.fast", lang))
-        st.divider()
-        show_dashboard_blacklist_manager()
 
     st.divider()
     st.caption(t("dashboard.footer", lang))
@@ -5143,6 +5101,19 @@ elif page == "Promotions":
 elif page == "Check a Message":
     st.title(t("check.title", lang))
     st.write(t("check.intro", lang))
+
+    # Risky emails detected during the scan live here (the safety hub), kept
+    # apart from promotional clutter so they are never bulk-cleaned by mistake.
+    scan_data = st.session_state.last_scan
+    phishing_risks = (scan_data or {}).get("phishing_risks", []) or []
+    if phishing_risks:
+        render_recent_trash_undo("safety")
+        st.subheader(t("phishing_risks.heading", lang))
+        render_calm_note(t("phishing_risks.intro", lang))
+        for item in phishing_risks:
+            show_email_card(item, "⚠️", "phishing_risk")
+        st.divider()
+        st.subheader(t("check.manual_heading", lang))
 
     sender_in = st.text_input(
         t("check.sender_label", lang),
