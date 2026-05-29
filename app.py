@@ -9,7 +9,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 import streamlit as st
 
@@ -2985,6 +2985,17 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
                 except Exception as e:
                     st.error(friendly_error_message(e))
 
+        direct_cancel_url = item.get("direct_cancel_url")
+        if direct_cancel_url and card_type in ("financial_risk", "subscriptions"):
+            render_calm_note(t("safe_action.explain.direct_cancel", lang))
+            st.link_button(
+                t("safe_action.open_direct_cancel", lang),
+                direct_cancel_url,
+                help=help_text("direct_cancel", lang),
+                use_container_width=True,
+            )
+            st.caption(f"→ {urlparse(direct_cancel_url).netloc}")
+
         if unsubscribe_url:
             render_calm_note(t("safe_action.explain.unsubscribe", lang))
             st.link_button(
@@ -2994,7 +3005,7 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
                 use_container_width=True,
             )
             st.caption(t("safe_action.done_unsubscribe", lang))
-        elif card_type in ("financial_risk", "subscriptions"):
+        elif card_type in ("financial_risk", "subscriptions") and not direct_cancel_url:
             st.info(t("actions.no_unsubscribe", lang))
 
         if card_type in ("financial_risk", "subscriptions"):

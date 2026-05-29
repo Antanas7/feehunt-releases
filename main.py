@@ -19,6 +19,7 @@ from config import (
 
 from feehunt_analyzer import analyze_email
 from phishing_detector import analyze_phishing
+from subscription_actions import extract_direct_cancel_url
 from gmail_auth import get_gmail_service as get_authorized_gmail_service
 from licensing import register_gmail_account
 
@@ -229,6 +230,13 @@ def scan_gmail() -> dict[str, Any]:
             analysis = analyze_email(content)
             phishing = analyze_phishing(sender, subject, f"{snippet}\n{body}", html_body)
 
+            # For subscription / payment emails, look for a link in the body
+            # that goes straight to the cancellation page, so FeeHunt can lead
+            # the user there directly instead of to a generic help search.
+            direct_cancel_url = None
+            if analysis["is_subscription"] or analysis["is_financial_risk"]:
+                direct_cancel_url = extract_direct_cancel_url(html_body)
+
             email_data = {
                 "message_id": msg["id"],
                 "subject": subject,
@@ -237,6 +245,7 @@ def scan_gmail() -> dict[str, Any]:
                 "snippet": snippet,
                 "categories": analysis["categories"],
                 "matched_keywords": analysis["matched_keywords"],
+                "direct_cancel_url": direct_cancel_url,
             }
 
             # A phishing email is the most important thing to surface, so it
