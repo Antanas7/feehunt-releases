@@ -22,21 +22,70 @@ def _normalize_service_name(service_name):
     return " ".join((service_name or "").lower().replace("-", " ").split())
 
 
-def cancel_subscription(service_name, email_id):
-    service_key = _normalize_service_name(service_name)
+def _display_name(sender):
+    """Human-friendly service name from a 'Name <a@b.com>' sender string."""
+    name = (sender or "").split("<", 1)[0].strip()
+    return name or (sender or "").strip()
+
+
+# Generic mailbox providers — their root domain is not a place to cancel anything.
+GENERIC_EMAIL_DOMAINS = {
+    "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com",
+    "yahoo.com", "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com",
+    "gmx.com", "mail.com", "yandex.com", "zoho.com",
+}
+
+# Second-level labels that mean the public suffix is two parts (e.g. example.co.uk).
+_COMPOUND_SLDS = {"co", "com", "org", "net", "ac", "gov", "edu"}
+
+_EMAIL_RE = re.compile(r"[\w.+-]+@([\w.-]+\.[a-z]{2,})", re.IGNORECASE)
+
+
+def _registrable_domain(host):
+    """Strip mail/marketing subdomains down to the registrable root, e.g.
+    'support.porkbun.com' -> 'porkbun.com', 'email.netflix.com' -> 'netflix.com'."""
+    labels = [part for part in host.lower().strip().strip(".").split(".") if part]
+    if len(labels) <= 2:
+        return ".".join(labels)
+    if len(labels[-1]) == 2 and labels[-2] in _COMPOUND_SLDS:
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
+
+
+def _sender_website(sender):
+    """The sender's own root website, or None for generic mailbox providers."""
+    match = _EMAIL_RE.search(sender or "")
+    if not match:
+        return None
+    domain = _registrable_domain(match.group(1))
+    if not domain or domain in GENERIC_EMAIL_DOMAINS:
+        return None
+    return domain
+
+
+def cancel_subscription(sender, email_id):
+    """Lead the user toward cancelling: a known billing page, else the sender's
+    own website, else (last resort) a search. FeeHunt never cancels for them."""
+    service_key = _normalize_service_name(sender)
+    display = _display_name(sender)
 
     for known_service, billing_url in SERVICE_CANCEL_URLS.items():
         if known_service in service_key:
             webbrowser.open(billing_url)
-            return t("subscription.opened_billing").format(service_name=service_name)
+            return t("subscription.opened_billing").format(service_name=display)
+
+    domain = _sender_website(sender)
+    if domain:
+        webbrowser.open(f"https://{domain}")
+        return t("subscription.opened_website").format(service_name=domain)
 
     search_url = (
         "https://www.google.com/search?q="
-        + quote_plus(f"{service_name} billing subscription cancel account")
+        + quote_plus(f"{display} billing subscription cancel account")
     )
     webbrowser.open(search_url)
 
-    return t("subscription.opened_search").format(service_name=service_name)
+    return t("subscription.opened_search").format(service_name=display)
 
 
 # ============================================================

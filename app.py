@@ -3009,10 +3009,9 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
             st.info(t("actions.no_unsubscribe", lang))
 
         if card_type in ("financial_risk", "subscriptions"):
-            service_name = sender.split("<", 1)[0].strip() or sender
             if st.button(t("actions.cancel_subscription", lang), key=f"cancel_subscription_{safe_key}"):
                 try:
-                    result_message = cancel_subscription(service_name, message_id)
+                    result_message = cancel_subscription(sender, message_id)
                     st.info(result_message)
                     st.info(t("actions.cancel_aftercare", lang))
                 except Exception as e:
