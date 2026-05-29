@@ -2881,7 +2881,14 @@ def build_sender_info(item: dict, lang: str) -> dict:
 
 
 def render_sender_info(item: dict, lang: str, ui_key: str) -> None:
-    if not st.toggle(t("sender_info.title", lang), key=f"sender_info_{ui_key}"):
+    # Button rather than a toggle, for the same visibility reason as "More".
+    open_key = f"sender_info_open_{ui_key}"
+    is_open = st.session_state.get(open_key, False)
+    if st.button(t("sender_info.title", lang), key=f"sender_info_btn_{ui_key}",
+                 use_container_width=True):
+        is_open = not is_open
+        st.session_state[open_key] = is_open
+    if not is_open:
         return
     sinfo = build_sender_info(item, lang)
     st.markdown(f"**{sinfo['icon']} {sinfo['verdict_text']}**")
@@ -3079,7 +3086,15 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
                     st.success(t("actions.added_blacklist", lang).format(sender=sender))
 
         def _more(secondary):
-            if st.toggle(t("actions.more", lang), key=f"more_{safe_key}"):
+            # A button (not a toggle) so it stays clearly visible against the
+            # light card background; it remembers open/closed in session state.
+            more_key = f"more_open_{safe_key}"
+            is_open = st.session_state.get(more_key, False)
+            if st.button(t("actions.more", lang), key=f"more_btn_{safe_key}",
+                         use_container_width=True):
+                is_open = not is_open
+                st.session_state[more_key] = is_open
+            if is_open:
                 for render in secondary:
                     render()
 
