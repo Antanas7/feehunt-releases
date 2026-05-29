@@ -3253,10 +3253,15 @@ def show_selectable_email_review(
             selected_items.append(item)
 
     st.caption(t("bulk.selected_count", lang).format(count=len(selected_items), total=len(emails)))
-    show_bulk_actions(selected_items, location_key)
+    if selected_items:
+        show_bulk_actions(selected_items, location_key)
+    else:
+        st.caption(t("bulk.select_hint", lang))
 
+    # Every email is shown as a full card with its own actions, so the user can
+    # manage each one right here without selecting first or hunting elsewhere.
     st.divider()
-    for item in selected_items:
+    for item in emails:
         show_email_card(item, icon, card_type)
 
 
