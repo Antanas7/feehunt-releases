@@ -10,6 +10,7 @@ from config import (
     APP_NAME,
     APP_VERSION,
     LAST_SCAN_RESULTS_FILE,
+    RULES_FILE,
     USER_DATA_DIR,
     MAX_EMAILS_TO_SCAN,
     MAX_EMAILS_PER_TARGETED_QUERY,
@@ -17,9 +18,14 @@ from config import (
     DEFAULT_ESTIMATED_SAVINGS_PER_SUBSCRIPTION,
 )
 
-from feehunt_analyzer import analyze_email
+from feehunt_analyzer import (
+    analyze_email,
+    is_account_notice,
+    is_security_advisory,
+    is_known_subscription_sender,
+)
 from phishing_detector import analyze_phishing
-from subscription_actions import extract_direct_cancel_url
+from subscription_actions import classify_cancel_links, billing_intermediary
 from gmail_auth import get_gmail_service as get_authorized_gmail_service
 from licensing import register_gmail_account
 
@@ -195,9 +201,35 @@ def get_gmail_service():
 # Skenavimas
 # ============================================================
 
+def load_blacklist_rules() -> list[str]:
+    """The user's 'unwanted senders' list (lowercased), so the scan can respect
+    the user's own marking instead of silently ignoring those emails."""
+    try:
+        with open(RULES_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        return [str(b).strip().lower() for b in (data.get("blacklist") or []) if str(b).strip()]
+    except Exception:
+        return []
+
+
+def sender_is_blacklisted(sender: str, blacklist: list[str]) -> bool:
+    """Same substring match the cleanup engine uses, so a sender the user
+    marked unwanted is recognized during the scan too."""
+    sender_lc = (sender or "").lower()
+    return any(rule in sender_lc for rule in blacklist)
+
+
+def has_unsubscribe_header(headers: list[dict]) -> bool:
+    """A List-Unsubscribe header means the email is bulk mail (newsletters and
+    marketing must carry it by law). A language-independent 'this is promotional
+    clutter' signal that needs no keyword translations."""
+    return bool(get_header(headers, "List-Unsubscribe"))
+
+
 def scan_gmail() -> dict[str, Any]:
     service = get_gmail_service()
 
+    blacklist = load_blacklist_rules()
     messages = collect_scan_messages(service)
     total = len(messages)
 
@@ -230,12 +262,56 @@ def scan_gmail() -> dict[str, Any]:
             analysis = analyze_email(content)
             phishing = analyze_phishing(sender, subject, f"{snippet}\n{body}", html_body)
 
-            # For subscription / payment emails, look for a link in the body
-            # that goes straight to the cancellation page, so FeeHunt can lead
-            # the user there directly instead of to a generic help search.
+            # Turbo coverage for what plain keyword matching misses, so the scan
+            # does its job reliably even across languages. Runs only when keywords
+            # didn't already place the email and it isn't phishing:
+            #   (a) a sender the user ALREADY marked unwanted -> always show as
+            #       unwanted (their explicit choice wins, even for notices);
+            #   (b) bulk mail (List-Unsubscribe header, required by law on
+            #       marketing) -> promotional in ANY language, no translations;
+            #   (c) a known paid-service sender with no unsubscribe header (i.e.
+            #       a transactional billing email) -> a subscription to surface,
+            #       so the cancellation wizard still reaches it.
+            # (b)/(c) skip account/security notices so those are never mislabelled.
+            if (
+                not phishing["is_phishing_risk"]
+                and not analysis["is_financial_risk"]
+                and not analysis["is_subscription"]
+                and not analysis["is_promotional"]
+                and not analysis["is_shop"]
+                and not analysis["is_newsletter"]
+            ):
+                content_lc = content.lower()
+                if sender_is_blacklisted(sender, blacklist):
+                    analysis["is_promotional"] = True
+                    analysis["categories"] = analysis["categories"] + ["promotions"]
+                    matched = dict(analysis.get("matched_keywords") or {})
+                    matched["promotional"] = (matched.get("promotional") or []) + ["unwanted sender"]
+                    analysis["matched_keywords"] = matched
+                elif not (is_account_notice(content_lc) or is_security_advisory(content_lc)):
+                    if has_unsubscribe_header(headers):
+                        analysis["is_promotional"] = True
+                        analysis["categories"] = analysis["categories"] + ["promotions"]
+                        matched = dict(analysis.get("matched_keywords") or {})
+                        matched["promotional"] = (matched.get("promotional") or []) + ["bulk email"]
+                        analysis["matched_keywords"] = matched
+                    elif is_known_subscription_sender(sender):
+                        analysis["is_subscription"] = True
+                        analysis["categories"] = analysis["categories"] + ["subscriptions"]
+                        matched = dict(analysis.get("matched_keywords") or {})
+                        matched["subscription"] = (matched.get("subscription") or []) + ["known service"]
+                        analysis["matched_keywords"] = matched
+
+            # Compute cancellation links from the FINAL categorization (so a
+            # known-service subscription detected above still gets wizard data).
             direct_cancel_url = None
+            body_unsubscribe_url = None
+            cancel_hub = None
             if analysis["is_subscription"] or analysis["is_financial_risk"]:
-                direct_cancel_url = extract_direct_cancel_url(html_body)
+                links = classify_cancel_links(html_body)
+                direct_cancel_url = links["cancel_url"]
+                body_unsubscribe_url = links["unsubscribe_url"]
+                cancel_hub = billing_intermediary(sender)
 
             email_data = {
                 "message_id": msg["id"],
@@ -246,6 +322,8 @@ def scan_gmail() -> dict[str, Any]:
                 "categories": analysis["categories"],
                 "matched_keywords": analysis["matched_keywords"],
                 "direct_cancel_url": direct_cancel_url,
+                "unsubscribe_url": body_unsubscribe_url,
+                "cancel_hub": cancel_hub,
             }
 
             # A phishing email is the most important thing to surface, so it

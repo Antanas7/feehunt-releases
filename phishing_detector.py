@@ -303,6 +303,21 @@ def analyze_phishing(
 _SECOND_LEVEL_LABELS = {"co", "com", "org", "net", "gov", "ac", "edu"}
 
 
+_COMPOUND_SLDS = {"co", "com", "org", "net", "gov", "ac", "edu"}
+
+
+def registrable_domain(host: str) -> str:
+    """The registrable root of a host: 'mailno.cmcmarkets.com' -> 'cmcmarkets.com',
+    'news.brand.co.uk' -> 'brand.co.uk'. Strips mail/marketing subdomains so the
+    user sees who actually sent the email."""
+    labels = [p for p in (host or "").lower().strip().strip(".").split(".") if p]
+    if len(labels) <= 2:
+        return ".".join(labels)
+    if len(labels[-1]) == 2 and labels[-2] in _COMPOUND_SLDS:
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
+
+
 def derive_sender_label(host: str) -> str:
     """Best-effort friendly name from a domain: 'inspire.pinterest.com' -> 'Pinterest'."""
     if not host:
@@ -365,6 +380,7 @@ def analyze_sender(sender_raw: str) -> dict:
         "name": name,
         "email": email,
         "domain": host,
+        "root_domain": registrable_domain(host),
         "brand": legit_brand,
         "display_name": display_name,
         "verdict": verdict,

@@ -176,6 +176,7 @@ ACCOUNT_NOTICE_KEYWORDS = [
     "new login", "was this you", "password reset", "reset your password",
     "verification code", "security code", "one-time code",
     "two-factor", "2fa",
+    "log in to", "sign in to", "secure link to log in", "magic link", "login link",
     # Lithuanian
     "patvirtinkite el. paštą", "patvirtinkite el. pasta",
     "el. pašto patvirtinimas", "naujas prisijungimas",
@@ -207,6 +208,58 @@ def is_account_notice(content: str) -> bool:
     return contains_any_keyword(content, ACCOUNT_NOTICE_KEYWORDS) and not contains_any_keyword(
         content, HARD_FINANCIAL_THREAT_KEYWORDS
     )
+
+
+# Developer / product security advisories: "security vulnerabilities detected
+# in your projects" (Supabase), Dependabot alerts, exposed-secret warnings,
+# code-scanning findings. These are operational notices about the user's own
+# code/infrastructure — NOT a payment problem and NOT a subscription to cancel.
+# They were landing in Payment Control because they carry generic financial
+# signals like "action required" or "unauthorized access" (here meaning a code
+# vulnerability could allow it, not that money/an account was compromised).
+SECURITY_ADVISORY_KEYWORDS = [
+    "security vulnerabilit", "vulnerabilities detected", "vulnerability detected",
+    "security advisory", "security advisories", "security finding",
+    "dependabot", "vulnerable dependenc", "outdated dependenc",
+    "exposed secret", "leaked secret", "secret detected", "secret scanning",
+    "code scanning", "security patch available", "patch available",
+    # Lithuanian
+    "saugumo pažeidžiamum", "saugumo pazeidziamum", "pažeidžiamumai", "pazeidziamumai",
+    "saugumo spraga", "saugumo spragos",
+]
+
+
+def is_security_advisory(content: str) -> bool:
+    """A developer/product security advisory about the user's own code or
+    projects (vulnerabilities, exposed secrets, dependency alerts). Not a
+    financial risk or a subscription, unless a real money/access threat is
+    also present (then HARD_FINANCIAL_THREAT keeps it in Payment Control)."""
+    return contains_any_keyword(content, SECURITY_ADVISORY_KEYWORDS) and not contains_any_keyword(
+        content, HARD_FINANCIAL_THREAT_KEYWORDS
+    )
+
+
+# Curated "known paid-subscription services": when an email from one of these
+# slips past keyword detection (e.g. an oddly-worded or non-English billing
+# email with no List-Unsubscribe header), recognize it as a subscription so the
+# cancellation wizard still reaches it. Kept to consumer subscription brands —
+# NOT dev tools or login-heavy senders — to avoid mislabelling notifications.
+KNOWN_SUBSCRIPTION_SENDERS = [
+    # Streaming / media
+    "netflix.com", "spotify.com", "disneyplus.com", "hulu.com", "max.com",
+    "paramountplus.com", "audible.com", "patreon.com",
+    # Consumer software / creative
+    "adobe.com", "dropbox.com", "canva.com", "grammarly.com", "duolingo.com",
+    # VPN
+    "nordvpn.com", "expressvpn.com",
+]
+
+
+def is_known_subscription_sender(sender: str) -> bool:
+    """True if the sender belongs to a known paid-subscription service. Matched
+    on the raw From string (which carries the domain), like the other checks."""
+    sender_lc = (sender or "").lower()
+    return any(domain in sender_lc for domain in KNOWN_SUBSCRIPTION_SENDERS)
 
 
 # ============================================================
@@ -266,6 +319,12 @@ def get_subscription_confidence(content: str) -> float:
     if is_account_notice(content):
         return 0.0
 
+    # A developer security advisory (vulnerabilities in your projects, exposed
+    # secrets, ...) is not a subscription either, even with a "subscription"
+    # footer or an "action required" subject.
+    if is_security_advisory(content):
+        return 0.0
+
     if contains_any_keyword(content, FINANCIAL_RISK_SIGNAL_KEYWORDS):
         return 1.0
 
@@ -322,6 +381,11 @@ def get_financial_confidence(content: str) -> float:
         return 1.0
     # A routine verify-email / login notice is not a financial risk on its own.
     if is_account_notice(content):
+        return 0.0
+    # A developer security advisory (code vulnerabilities, exposed secrets) is
+    # not a payment problem, even though it may say "action required" or
+    # "unauthorized access" (about the code, not your money).
+    if is_security_advisory(content):
         return 0.0
     if contains_any_keyword(content, FINANCIAL_RISK_SIGNAL_KEYWORDS):
         return 1.0

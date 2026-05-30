@@ -233,6 +233,21 @@ def inject_calm_styles() -> None:
         div[data-testid="stTooltipIcon"] svg {
             opacity: 0.85;
         }
+        /* The tooltip bubble itself: Streamlit's default is near-black, which
+           shows up as a dark blob on hover. Repaint it to the calm light theme. */
+        div[data-testid="stTooltipContent"],
+        div[data-baseweb="tooltip"],
+        div[data-baseweb="popover"] div[data-baseweb="tooltip"] {
+            background: #ffffff !important;
+            color: var(--fh-text) !important;
+            border: 1px solid var(--fh-border) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 6px 18px rgba(15, 77, 59, 0.12) !important;
+        }
+        div[data-testid="stTooltipContent"] *,
+        div[data-baseweb="tooltip"] * {
+            color: var(--fh-text) !important;
+        }
         div[data-testid="stAlert"] {
             color: var(--fh-text) !important;
         }
@@ -1529,6 +1544,33 @@ def safe_rerun() -> None:
         st.rerun()
     except Exception:
         st.experimental_rerun()
+
+
+def confirm_success(message: str) -> None:
+    """A brief green-check confirmation that an action succeeded. Uses a toast
+    because it survives the safe_rerun() that usually follows (an inline
+    st.success would be wiped by that rerun before the user sees it)."""
+    try:
+        st.toast(message, icon="✅")
+    except Exception:
+        st.success("✅ " + message)
+
+
+def render_missed_sender_hint(key_suffix: str) -> None:
+    """A calm, respectful reminder that the user is in control: anything that
+    slipped past detection can be added to their unwanted list, and FeeHunt
+    will handle it next time. Framed as empowerment, not as FeeHunt having
+    missed something — so a gap never reads as 'FeeHunt is dumb'."""
+    lang = current_language()
+    st.divider()
+    st.caption(t("promotions.missed_hint", lang))
+    if st.button(
+        t("check.open_sender_mgmt", lang),
+        key=f"goto_senders_hint_{key_suffix}",
+        use_container_width=True,
+    ):
+        st.session_state.ftue_target_page = "Cleanup Rules"
+        safe_rerun()
 
 
 def load_json_file(path: Path, default: Any = None) -> Any:
@@ -2977,28 +3019,38 @@ def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str
         st.write(t("wizard.s1.body", lang).format(service=service))
     elif step == 2:
         st.write(t("wizard.s2.body", lang).format(service=service))
-        # Best cancellation target first: the link found in the email, then the
-        # service's known billing page, then the sender's own site.
-        primary_url = direct_url or known_billing_url(sender) or site_url
+        # Best cancellation target first, most precise to least:
+        #   1. the exact cancel link found inside the email itself,
+        #   2. the platform hub when it's billed via App Store / Google Play / PayPal,
+        #   3. the service's known billing page,
+        #   4. the sender's own site.
+        hub = item.get("cancel_hub")
+        hub_url = hub.get("url") if hub else None
+        primary_url = direct_url or hub_url or known_billing_url(sender) or site_url
         if primary_url:
-            label = (
-                t("safe_action.open_direct_cancel", lang)
-                if direct_url
-                else t("wizard.open_site", lang).format(domain=urlparse(primary_url).netloc)
-            )
+            if direct_url:
+                label = t("safe_action.open_direct_cancel", lang)
+            elif hub_url and primary_url == hub_url:
+                label = t("wizard.open_hub", lang).format(service=hub.get("name"))
+            else:
+                label = t("wizard.open_site", lang).format(domain=urlparse(primary_url).netloc)
             st.link_button(label, primary_url, type="primary", use_container_width=True)
             st.caption(f"→ {urlparse(primary_url).netloc}")
         else:
             search_url = "https://www.google.com/search?q=" + quote_plus(f"{service} cancel subscription")
             st.link_button(t("wizard.open_search", lang), search_url, type="primary", use_container_width=True)
-        # A List-Unsubscribe link, when present, is offered as a secondary way
-        # to at least stop the emails (folded in here so the wizard is the one path).
-        if unsubscribe_url:
-            st.caption(t("wizard.s2.or_unsubscribe", lang))
-            st.link_button(t("safe_action.open_unsubscribe", lang), unsubscribe_url,
+        # An unsubscribe link is offered SEPARATELY and HONESTLY: it only stops
+        # the emails, it does NOT cancel a paid plan. We never let it pose as the
+        # cancellation — that is the exact deception FeeHunt exists to stop.
+        if unsubscribe_url and unsubscribe_url != primary_url:
+            st.caption(t("wizard.s2.unsubscribe_note", lang))
+            st.link_button(t("wizard.stop_emails", lang), unsubscribe_url,
                            use_container_width=True)
     elif step == 3:
         st.write(t("wizard.s3.body", lang).format(service=service))
+        # Some services are prepaid/credit-based and have nothing to cancel —
+        # "nothing to cancel" is a valid, reassuring outcome, not a dead end.
+        st.caption(t("wizard.s3.prepaid_note", lang))
     elif step == 4:
         st.write(t("wizard.s4.body", lang))
         # Reuse the standard safe delete flow, but with a wizard-scoped widget key
@@ -3045,6 +3097,10 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
             unsubscribe_url = get_unsubscribe_link(message_id)
         except Exception:
             unsubscribe_url = None
+    # Fall back to an unsubscribe link found in the email body (List-Unsubscribe
+    # header first, then the body link the scanner classified as unsubscribe).
+    if not unsubscribe_url:
+        unsubscribe_url = item.get("unsubscribe_url")
 
     all_keywords = []
     if isinstance(keywords, dict):
@@ -3117,7 +3173,7 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
                     rules["whitelist"].append(sender)
                     save_rules(rules)
                     st.session_state.rules = rules
-                    st.success(t("actions.added_whitelist", lang).format(sender=sender))
+                    confirm_success(t("actions.added_whitelist", lang).format(sender=sender))
 
         def _act_blacklist():
             if st.button(t("actions.blacklist", lang), key=f"blacklist_{safe_key}",
@@ -3126,7 +3182,7 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
                     rules["blacklist"].append(sender)
                     save_rules(rules)
                     st.session_state.rules = rules
-                    st.success(t("actions.added_blacklist", lang).format(sender=sender))
+                    confirm_success(t("actions.added_blacklist", lang).format(sender=sender))
 
         def _more(secondary):
             # A button (not a toggle) so it stays clearly visible against the
@@ -5063,6 +5119,10 @@ if page == "Dashboard":
         # adaptive review CTA was removed to avoid duplicate routing buttons.
         show_dashboard_result_shortcuts(scan_data)
 
+        # Right where the user lands after a scan: a calm reminder that they're
+        # in control of anything detection didn't surface.
+        render_missed_sender_hint("dashboard")
+
     else:
         st.divider()
         st.markdown(t("dashboard.get_started", lang))
@@ -5146,6 +5206,10 @@ elif page == "Promotions":
         else:
             st.success(t("promotions.none", lang))
 
+        # Respectful reminder that the user is in control of anything that
+        # slipped past detection (same calm hint shown after a scan).
+        render_missed_sender_hint("promotions")
+
 
 # ============================================================
 # Check a Message ("Is this real?")
@@ -5182,30 +5246,91 @@ elif page == "Check a Message":
 
     if st.button(t("check.button", lang), type="primary", use_container_width=True):
         if not (sender_in.strip() or text_in.strip()):
+            st.session_state.pop("check_snapshot", None)
             st.warning(t("check.empty", lang))
         else:
-            from phishing_detector import analyze_pasted_message
-            result = analyze_pasted_message(sender_in, text_in)
-            verdict = result["verdict"]
+            # Snapshot the inputs so the result (and its navigation button) keep
+            # rendering on later reruns — a button nested inside the "Patikrinti"
+            # click block would not survive its own rerun.
+            st.session_state.check_snapshot = {"sender": sender_in, "text": text_in}
 
-            if verdict == "danger":
-                st.error("⚠️ " + t("check.verdict.danger", lang))
-            elif verdict == "caution":
-                st.warning("⚠️ " + t("check.verdict.caution", lang))
-            else:
-                st.success("✅ " + t("check.verdict.likely_safe", lang))
+    snapshot = st.session_state.get("check_snapshot")
+    if snapshot:
+        from phishing_detector import analyze_pasted_message, analyze_sender
+        from feehunt_analyzer import analyze_email
 
-            if result["reasons"]:
-                st.markdown("**" + t("check.why", lang) + "**")
-                for reason in result["reasons"]:
-                    code = reason.get("code")
-                    params = reason.get("params") or {}
-                    try:
-                        st.markdown("- " + t(f"phishing.reason.{code}", lang).format(**params))
-                    except (KeyError, IndexError):
-                        st.markdown("- " + t(f"phishing.reason.{code}", lang))
+        sender_s = snapshot.get("sender", "")
+        text_s = snapshot.get("text", "")
+        result = analyze_pasted_message(sender_s, text_s)
+        verdict = result["verdict"]
 
-            st.info(t("check.disclaimer", lang))
+        if verdict == "danger":
+            st.error("⚠️ " + t("check.verdict.danger", lang))
+        elif verdict == "caution":
+            st.warning("⚠️ " + t("check.verdict.caution", lang))
+        else:
+            st.success("✅ " + t("check.verdict.likely_safe", lang))
+
+        if result["reasons"]:
+            st.markdown("**" + t("check.why", lang) + "**")
+            for reason in result["reasons"]:
+                code = reason.get("code")
+                params = reason.get("params") or {}
+                try:
+                    st.markdown("- " + t(f"phishing.reason.{code}", lang).format(**params))
+                except (KeyError, IndexError):
+                    st.markdown("- " + t(f"phishing.reason.{code}", lang))
+
+        # Always explain the SENDER itself, even when no danger fired — the user
+        # asked "is this real?" about who sent it, so tell them what the address
+        # actually is instead of only "no danger signs found".
+        if sender_s.strip():
+            prof = analyze_sender(sender_s)
+            lines = []
+            if prof["root_domain"]:
+                lines.append(t("check.sender_domain", lang).format(domain=prof["root_domain"]))
+            sv = prof["verdict"]
+            if sv == "legit" and prof["brand"]:
+                lines.append(t("check.sender_legit", lang).format(brand=prof["display_name"]))
+            elif sv == "personal":
+                lines.append(t("check.sender_personal", lang).format(domain=prof["root_domain"]))
+            elif sv == "caution":
+                lines.append(t("check.sender_caution", lang))
+            else:  # unknown — not a known brand, but no red flags
+                lines.append(
+                    t("check.sender_unknown", lang).format(
+                        name=prof["name"] or prof["display_name"] or prof["root_domain"]
+                    )
+                )
+            if lines:
+                st.markdown("**" + t("check.sender_about", lang) + "**")
+                for line in lines:
+                    st.markdown("- " + line)
+
+        # FeeHunt "thinks for you": based on what it recognized, suggest what the
+        # user can do and offer a one-click route to where they act. Advice only,
+        # the user decides — nothing happens automatically.
+        analysis = analyze_email(f"{sender_s}\n{text_s}")
+        advice = goto_page = goto_label = None
+        if verdict in ("danger", "caution"):
+            advice = t("check.advice_caution", lang)
+            goto_page, goto_label = "Cleanup Rules", "check.open_sender_mgmt"
+        elif analysis["is_subscription"]:
+            advice = t("check.advice_subscription", lang)
+            goto_page, goto_label = "Subscriptions", "check.open_subscriptions"
+        elif analysis["is_promotional"] or analysis["is_newsletter"]:
+            advice = t("check.advice_promotional", lang)
+            goto_page, goto_label = "Cleanup Rules", "check.open_sender_mgmt"
+
+        if advice:
+            st.markdown("**" + t("check.advice_heading", lang) + "**")
+            st.markdown(advice)
+            if goto_page and st.button(t(goto_label, lang), key="check_goto_action",
+                                       use_container_width=True):
+                st.session_state.ftue_target_page = goto_page
+                safe_rerun()
+
+        st.info(t("check.disclaimer", lang))
 
 
 # ============================================================
@@ -5269,7 +5394,7 @@ elif page == "Cleanup Rules":
             save_rules(rules)
             st.session_state.rules = rules
             st.session_state.clear_senders_whitelist_entry = True
-            st.success(t("senders.protected_added", lang).format(sender=value))
+            confirm_success(t("senders.protected_added", lang).format(sender=value))
             safe_rerun()
 
     if whitelist:
@@ -5291,6 +5416,7 @@ elif page == "Cleanup Rules":
                     rules["whitelist"] = whitelist
                     save_rules(rules)
                     st.session_state.rules = rules
+                    confirm_success(t("senders.removed", lang))
                     safe_rerun()
     else:
         st.caption(t("senders.protected_empty", lang))
@@ -5336,7 +5462,7 @@ elif page == "Cleanup Rules":
             save_rules(rules)
             st.session_state.rules = rules
             st.session_state.clear_senders_blacklist_entry = True
-            st.success(t("senders.blocked_added", lang).format(sender=value))
+            confirm_success(t("senders.blocked_added", lang).format(sender=value))
             safe_rerun()
 
     if blacklist:
@@ -5358,6 +5484,7 @@ elif page == "Cleanup Rules":
                     rules["blacklist"] = blacklist
                     save_rules(rules)
                     st.session_state.rules = rules
+                    confirm_success(t("senders.removed", lang))
                     safe_rerun()
     else:
         st.caption(t("senders.blocked_empty", lang))
@@ -5366,7 +5493,7 @@ elif page == "Cleanup Rules":
     # ⚙️ Auto-action setting + Apply now button
     # ───────────────────────────────────────────────────────────
     st.markdown(f"#### {t('senders.action_title', lang)}")
-    current_auto = bool(settings.get("auto_apply_blacklist_after_scan", True))
+    current_auto = bool(settings.get("auto_apply_blacklist_after_scan", False))
     new_auto = st.checkbox(
         t("senders.action_auto_label", lang),
         value=current_auto,
