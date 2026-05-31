@@ -209,19 +209,31 @@ def get_gmail_service():
 # Skenavimas
 # ============================================================
 
-def load_blacklist_rules() -> list[str]:
-    """Block-senders feature has been removed — FeeHunt no longer treats any
-    sender as 'blocked' during a scan (Gmail already offers blocking; FeeHunt's
-    value is recurring detect → show → assisted cleanup). Always returns an
-    empty list so existing saved blocklists no longer influence scanning."""
-    return []
+def load_unwanted_senders() -> list[str]:
+    """The user's own unwanted-sender list. During a scan, mail from these senders
+    is RECOGNISED as promotional (categorised as junk) so the user can clean it the
+    normal way. This is NOT blocking and NOT auto-deletion — FeeHunt never blocks
+    delivery and never trashes by sender on its own; it only teaches FeeHunt's
+    detection where its keywords miss (e.g. shops it doesn't know, in any language).
+    Read fresh from the rules file because the scan runs as a separate process."""
+    try:
+        with open(RULES_FILE, "r", encoding="utf-8") as file:
+            rules = json.load(file)
+    except Exception:
+        return []
+    if not isinstance(rules, dict):
+        return []
+    values = rules.get("unwanted_senders", [])
+    if not isinstance(values, list):
+        return []
+    return [str(v).strip().lower() for v in values if str(v).strip()]
 
 
-def sender_is_blacklisted(sender: str, blacklist: list[str]) -> bool:
-    """Same substring match the cleanup engine uses, so a sender the user
-    marked unwanted is recognized during the scan too."""
+def sender_is_unwanted(sender: str, unwanted: list[str]) -> bool:
+    """True when the sender matches one of the user's unwanted-sender entries
+    (substring match on the lowercased From, so '@hjemsol.no' or 'zoo.no' work)."""
     sender_lc = (sender or "").lower()
-    return any(rule in sender_lc for rule in blacklist)
+    return any(rule in sender_lc for rule in unwanted)
 
 
 def has_unsubscribe_header(headers: list[dict]) -> bool:
@@ -234,7 +246,7 @@ def has_unsubscribe_header(headers: list[dict]) -> bool:
 def scan_gmail() -> dict[str, Any]:
     service = get_gmail_service()
 
-    blacklist = load_blacklist_rules()
+    unwanted_senders = load_unwanted_senders()
     messages = collect_scan_messages(service)
     total = len(messages)
 
@@ -271,19 +283,37 @@ def scan_gmail() -> dict[str, Any]:
             content = f"{subject}\n{sender}\n{snippet}\n{body}"
 
             analysis = analyze_email(content)
-            phishing = analyze_phishing(sender, subject, f"{snippet}\n{body}", html_body)
+            # Bulk marketing mail (List-Unsubscribe header) legitimately uses
+            # click-tracking redirects, so its "hidden link" signal is unreliable;
+            # tell the phishing check to skip that one signal for it.
+            is_bulk_mail = has_unsubscribe_header(headers)
+            phishing = analyze_phishing(
+                sender, subject, f"{snippet}\n{body}", html_body, is_bulk=is_bulk_mail
+            )
+
+            # The user's explicit "unwanted sender" choice wins over the phishing
+            # guess: they've told us this sender is just junk they don't want, so
+            # show it as promotional clutter to clean — never as a scary
+            # "is this real?" alert, and never hidden behind the phishing bucket.
+            if sender_is_unwanted(sender, unwanted_senders):
+                phishing = {"is_phishing_risk": False, "reasons": []}
+                analysis["is_promotional"] = True
+                if "promotions" not in analysis["categories"]:
+                    analysis["categories"] = list(analysis["categories"]) + ["promotions"]
+                matched = dict(analysis.get("matched_keywords") or {})
+                matched["promotional"] = (matched.get("promotional") or []) + ["unwanted sender"]
+                analysis["matched_keywords"] = matched
 
             # Turbo coverage for what plain keyword matching misses, so the scan
             # does its job reliably even across languages. Runs only when keywords
-            # didn't already place the email and it isn't phishing:
-            #   (a) a sender the user ALREADY marked unwanted -> always show as
-            #       unwanted (their explicit choice wins, even for notices);
+            # didn't already place the email and it isn't phishing (unwanted
+            # senders are already forced to promotional above):
             #   (b) bulk mail (List-Unsubscribe header, required by law on
             #       marketing) -> promotional in ANY language, no translations;
             #   (c) a known paid-service sender with no unsubscribe header (i.e.
             #       a transactional billing email) -> a subscription to surface,
             #       so the cancellation wizard still reaches it.
-            # (b)/(c) skip account/security notices so those are never mislabelled.
+            # Both skip account/security notices so those are never mislabelled.
             if (
                 not phishing["is_phishing_risk"]
                 and not analysis["is_financial_risk"]
@@ -293,13 +323,7 @@ def scan_gmail() -> dict[str, Any]:
                 and not analysis["is_newsletter"]
             ):
                 content_lc = content.lower()
-                if sender_is_blacklisted(sender, blacklist):
-                    analysis["is_promotional"] = True
-                    analysis["categories"] = analysis["categories"] + ["promotions"]
-                    matched = dict(analysis.get("matched_keywords") or {})
-                    matched["promotional"] = (matched.get("promotional") or []) + ["unwanted sender"]
-                    analysis["matched_keywords"] = matched
-                elif not (is_account_notice(content_lc) or is_security_advisory(content_lc)):
+                if not (is_account_notice(content_lc) or is_security_advisory(content_lc)):
                     if has_unsubscribe_header(headers):
                         analysis["is_promotional"] = True
                         analysis["categories"] = analysis["categories"] + ["promotions"]

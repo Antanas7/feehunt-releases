@@ -8,7 +8,7 @@ from pathlib import Path
 # ============================================================
 
 APP_NAME = "FeeHunt"
-APP_VERSION = "1.10.0"
+APP_VERSION = "1.11.0"
 APP_STAGE = "Smart Cleanup MVP"
 APP_TAGLINE = "Nebereikia bėgti nuo savo el. pašto. FeeHunt padeda susigrąžinti kontrolę."
 
@@ -219,6 +219,11 @@ DEFAULT_RULES = {
         "financial_risks": "notify",
     },
     "whitelist": [],
+    # Senders the user marks as unwanted: the scan RECOGNISES their mail as
+    # promotional (categorises it as junk) so the user can clean it normally.
+    # Never blocks delivery, never auto-deletes by sender. (The old "blacklist"
+    # key is kept dead for back-compat and is no longer read by the scanner.)
+    "unwanted_senders": [],
     "blacklist": [],
     "custom_categories": [],
 }

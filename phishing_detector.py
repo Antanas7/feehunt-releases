@@ -118,6 +118,11 @@ ESP_TRACKING_DOMAINS = (
     "sparkpostmail.com", "mailgun.org", "mandrillapp.com", "pstmrk.it",
     "cmail19.com", "cmail20.com", "createsend.com",                                   # Campaign Monitor
     "mktoresp.com", "exct.net", "exacttarget.com",                                    # Marketo / SFMC
+    "soundestlink.com", "omnisend.com",                                               # Omnisend / Soundest
+    "voyado.com",                                                                     # Voyado
+    "eclub.se",                                                                       # eClub
+    "mailmailmail.net",                                                               # MailMailMail
+    "agcocorp.com",                                                                   # AGCO (Valtra) marketing
 )
 
 
@@ -267,11 +272,20 @@ def analyze_phishing(
     subject: str = "",
     body_text: str = "",
     html_body: str = "",
+    is_bulk: bool = False,
 ) -> dict:
     """Return {"is_phishing_risk": bool, "reasons": [{"code", "params"}, ...]}.
 
     Risk is flagged when at least one STRONG signal fires, or at least two
     independent WEAK signals do. Reasons are deduplicated by code.
+
+    `is_bulk` should be True for bulk marketing mail (a List-Unsubscribe header,
+    which marketing is legally required to carry). Such mail routinely routes its
+    links through click-tracking redirects and uses decorative link text, so the
+    hidden-link signal is unreliable there and floods the phishing bucket with
+    newsletters. We skip ONLY that signal for bulk mail; every other signal
+    (lookalike domain, name/domain mismatch, urgency+credentials) still fires, so
+    a genuine phish that happens to be bulk is still caught.
     """
     name, _email, host = extract_sender_parts(sender_raw)
     text = f"{subject}\n{body_text}".lower()
@@ -279,7 +293,7 @@ def analyze_phishing(
     candidates = [
         _check_name_domain_mismatch(name, host),
         _check_lookalike_domain(host),
-        _check_hidden_links(html_body),
+        None if is_bulk else _check_hidden_links(html_body),
         _check_brand_in_domain(host),
         _check_urgency_credentials(text),
     ]

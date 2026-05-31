@@ -1,5 +1,5 @@
 #define MyAppName "FeeHunt"
-#define MyAppVersion "1.10"
+#define MyAppVersion "1.11"
 #define MyAppPublisher "FeeHunt"
 #define MyAppURL "https://feehunt.pro"
 #define MyAppExeName "FeeHunt.exe"
@@ -16,7 +16,7 @@ DefaultDirName={autopf}\FeeHunt
 DefaultGroupName=FeeHunt
 DisableProgramGroupPage=yes
 OutputDir=dist_installer
-OutputBaseFilename=FeeHunt-Setup-v1.10
+OutputBaseFilename=FeeHunt-Setup-v1.11
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -31,11 +31,11 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 CloseApplications=yes
 CloseApplicationsFilter=*.exe,*.dll
 RestartApplications=yes
-VersionInfoVersion=1.10.0.0
+VersionInfoVersion=1.11.0.0
 VersionInfoCompany=FeeHunt
 VersionInfoDescription=FeeHunt Setup Installer
 VersionInfoProductName=FeeHunt
-VersionInfoProductVersion=1.10
+VersionInfoProductVersion=1.11
 #ifexist "icon.ico"
 SetupIconFile=icon.ico
 #endif

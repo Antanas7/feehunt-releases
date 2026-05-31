@@ -110,6 +110,83 @@ trash_undo / restore_trashed_email) — atskira, NELIEČIAM be atskiro sprendimo
 PADARYTA 2026-05-31: render_recent_trash_undo (app.py) — mygtukas pašalintas,
 pridėtas safe_action.trash_reassurance sakinys EN+LT.
 
+### I. Masinio veiksmo mygtukas neatsistato po veiksmo — PATAISYTA 2026-05-31
+🐞 — safe_bulk_action (app.py:3592) po sėkmingo veiksmo nustatydavo done_key=True ir
+įstrigdavo „Atlikta" būsenoje (success+undo, return) → mygtukas negrįždavo,
+reikėjo perkrauti puslapį, kad trintum kitą partiją. Antanas: „atrodo kaip
+nebaigta funkcija, visi mygtukai po veiksmo turi grįžti į pradinę padėtį."
+TAISYMAS: pašalinta sticky done-būsena; po veiksmo reset (confirm_key=False),
+patvirtinimas confirm_success toast'u, ištrintiems — recent-trash „Gmail
+šiukšlinėje" pranešimas. Mygtukas iškart vėl naudojamas. Vieno-laiško
+show_safe_email_action paliktas (inline undo, C punktas; ne blokeris — laiškas
+po trynimo dingsta). Pasiūlyta Antanui suvienodinti, jei norės.
+
+### H. „Ar tai tikra?" skaičiaus nebuvo rezultatų santraukoje — PATAISYTA 2026-05-31
+🧭 — Antanas: rezultatų santrauka rodė tik 3 metrikas (prenumeratos/rizikos,
+reklaminiai, sutaupymas), be phishing/safety. Kai 29 laiškai nukrito į phishing,
+santrauka rodė 0/0/$0 → painiava (laiškai pasislėpę kategorijoje, kuri neatsispindi
+skaičiuose). TAISYMAS: dashboard rezultatų metrikos 3→4 stulpeliai, pridėta „Ar tai
+tikra?" (safety_count = len phishing_risks) su help tekstu. dashboard.metric_safety
+(+_help) EN+LT. app.py ~5528.
+PATVIRTINTA realiu re-scan: prieš (18:17) reklaminiai 0 / phishing 29; po taisymų
+(18:40) reklaminiai 37 / „Ar tai tikra?" 4. Marketingas grįžo į reklamas, phishing
+liko tik tikri. G+H veikia.
+
+### G. PHISHING false-positives ant marketingo (root cause!) — PATAISYTA 2026-05-31
+🐞 svarbus — Žmonos dėžutės testas atskleidė: 8 nepageidaujami siuntėjai pateko į
+skeną, BET phishing detektorius juos pažymėjo (29 phishing_risks, 0 promotional!),
+todėl (1) nepateko į reklamas, (2) nepageidaujamų patikra praleidžiama (turbo
+blokas reikalauja not phishing). Priežastis: `hidden_link` signalas (rodomas
+domenas ≠ href domenas) ant marketingo klikų-sekimo (soundestlink, voyado,
+agcocorp, mailmailmail, eclub...) — net bonprix vedė į PATĮ bonprix domeną.
+TAISYMAS: (1) analyze_phishing(is_bulk) — masiniam paštui (List-Unsubscribe)
+hidden_link signalas PRALEIDŽIAMAS (kiti signalai lieka — patikrinta, vardo/domeno
+neatitikimas vis tiek pagaunamas); (2) +ESP domenai į baltą sąrašą; (3) main.py
+sender_is_unwanted nugali phishing (vartotojo pasirinkimas → promotional, ne
+phishing). Failai: phishing_detector.py, main.py. Laukia Antano re-scan patvirtinimo.
+
+### E. Nepageidaujami siuntėjai (user-valdoma) — PADARYTA 2026-05-31
+PADARYTA: vartotojo „Nepageidaujami siuntėjai" sąrašas (rules["unwanted_senders"]).
+main.py load_unwanted_senders() skaito jį; skeneris ATPAŽĮSTA tų siuntėjų laiškus
+kaip reklamą (sender_is_unwanted → is_promotional), NE blokuoja/NE trina (cleanup
+blacklist lieka tuščias). UI: naujas laukas Cleanup Rules puslapyje (po whitelist),
+naudoja esamus senders.blocked_* raktus. Perrašyti pasenę tekstai (page_lead,
+protected_caption, blocked_caption) — iš „blokuoti/auto-trash" į „atpažinti kaip
+šlamštas". config DEFAULT_RULES + unwanted_senders. Patikrinta: compile + match +
+round-trip. Laukia Antano gyvo testo su žmonos dėžute (zoo.no, hjemsol, europris...).
+
+### E0 (orig). Siuntėjų valdyme nebėra kur pridėti NEPAGEIDAUJAMŲ siuntėjų (svarbu)
+🧭/💡 — Antanas: „valdymo centre nebeliko kur pridėti nepageidaujamų sąrašo, o tai
+svarbi funkcija." Patvirtinta kode: `promo_senders` backend veikia
+(email_matches_user_unwanted_rule, app.py:2666), naudojamas valyme, BET nebėra UI
+lauko jį pildyti — Siuntėjų valdyme liko tik whitelist + advanced (kategorijos,
+rezultatai). PLUS puslapio tekstas (senders.page_lead) pasenęs — žada „kuriuos
+blokuoti, ir kas turi atsitikti su blokuojamais laiškais", bet blokavimo skyriaus
+nėra. Tai = [[feehunt-teach-unwanted-loop]] iš kitos pusės.
+ANTANO PATIKSLINIMAS (svarbu, mes buvom sumaišę): BLOKUOJAMI = blokuoti siuntėją
+pašto dėžutėje (Gmail darbas, sąmoningai pašalinta). NEPAGEIDAUJAMI = siuntėjai,
+kurių FeeHunt neaptinka; vartotojas įdeda, kad KITĄ SKENĄ būtų ATPAŽINTI kaip
+reklamos/šlamštas (kategorizavimo pagalba) — vartotojas paskui valo įprastai.
+Tai NE blokavimas ir NE prieštarauja [[feehunt-no-block-senders]].
+ĮGYVENDINIMAS (A, teisingai): (1) UI laukas „Nepageidaujami siuntėjai" Siuntėjų
+valdyme; (2) pajungti į SKENAVIMO atpažinimą (feehunt_analyzer/main.py), kad tų
+siuntėjų laiškai patektų į Reklaminius — NE auto-trinti (dabartinis promo_senders
+kelias TRINA → pajungti prie kategorizavimo / naujas raktas); (3) sutvarkyti
+pasenusį senders.page_lead tekstą. Sprendimas: laukiama Antano „darom A".
+REALUS PAVYZDYS (žmonos dėžutė, kpj.): užsilikęs šlamštas, kurio detekcija
+nepagavo — norvegiškos parduotuvės ZOO.no, HJEMSOL, Sunkost, Europris,
+Møbelringen, bonprix, Valtra (rabatt/-50%/tilbud), kai kurie kartojasi. Idealus
+„nepageidaujami siuntėjai" use-case: raktažodžiais visų parduotuvių/kalbų
+nepagausi, vartotojas pažįsta savo šlamštą.
+
+### F. Detekcijos precizijos pavyzdžiai iš tos pačios kpj. (atskira nuo E)
+🎯 — Tame pačiame žmonos inbox screenshot'e: (1) Emigrantas.tv „priminimas apie
+netrukus nustosiantį galioti transliacijų paketą" → tikėtina PRENUMERATA (mokamas
+TV paketas), ne tik šlamštas — FeeHunt turėtų matyti kaip prenumeratą.
+(2) Ferratum Norge „betaling av fakturan din er fortsatt ikke mottatt" (sąskaita
+neapmokėta) → MOKĖJIMŲ/finansų signalas, galbūt „Mokėjimų kontrolė". Kandidatai
+detekcijos pagerinimui (LT/NO frazės).
+
 ### D. Du „Skenuoti dar kartą" mygtukai švarioje dėžutėje — PADARYTA
 🐞 — Kai nėra radinių (švari dėžutė), rodėsi DU rescan mygtukai: siauras viršutinis
 (stulpelis [3,2] → tuščia kairė + siauras radaras) IR platus apatinis. Antanas

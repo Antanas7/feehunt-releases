@@ -3599,29 +3599,6 @@ def safe_bulk_action(
 ) -> None:
     lang = current_language()
     confirm_key = f"confirm_bulk_{action_id}_{location_key}"
-    done_key = f"done_bulk_{action_id}_{location_key}"
-    ids_key = f"ids_bulk_{action_id}_{location_key}"
-
-    if st.session_state.get(done_key):
-        ids = st.session_state.get(ids_key, [])
-        st.success(t(f"safe_action.done_{action_id}", lang))
-        if undo_fn and ids and st.button(t("safe_action.undo", lang), key=f"undo_bulk_{action_id}_{location_key}"):
-            restored = 0
-            for message_id in ids:
-                try:
-                    undo_fn(message_id)
-                    restored += 1
-                except Exception:
-                    continue
-            st.session_state[done_key] = False
-            st.session_state[ids_key] = []
-            if restored:
-                st.success(t("safe_action.undo_done", lang))
-                refresh_scan_data()
-                safe_rerun()
-            else:
-                st.info(t("safe_action.failed", lang))
-        return
 
     if st.session_state.get(confirm_key):
         render_calm_note(t(f"safe_action.explain.{action_id}", lang))
@@ -3640,14 +3617,18 @@ def safe_bulk_action(
                         changed_ids.append(message_id)
                     except Exception as error:
                         errors.append({"message_id": message_id, "error": str(error)})
+            # Reset straight back to the initial state so the buttons are usable
+            # again right after the action — no sticky "done" screen to reload
+            # past. The outcome is confirmed by a toast that survives the rerun,
+            # and deleted items still get the recoverable "in Gmail trash" note via
+            # the recent-trash banner (same as single-email actions).
             st.session_state[confirm_key] = False
-            st.session_state[done_key] = bool(changed_ids)
-            st.session_state[ids_key] = changed_ids
             if changed_ids:
                 if action_id == "delete":
                     remember_recent_trashed_items(remove_messages_from_scan(changed_ids))
                 else:
                     refresh_scan_data()
+                confirm_success(t(f"safe_action.done_{action_id}", lang))
                 if errors:
                     st.warning(t("bulk.errors", lang).format(count=len(errors)))
                 safe_rerun()
@@ -4713,6 +4694,7 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
     summary = get_scan_summary(scan_data)
     subscription_items = get_subscription_item_count(scan_data)
     financial_risks = len((scan_data or {}).get("financial_risks", []) or [])
+    safety_items = len((scan_data or {}).get("phishing_risks", []) or [])
     connected = gmail_is_connected()
     has_findings = bool(
         scan_data
@@ -4775,6 +4757,7 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
     payment_item_class = "is-attention" if financial_risks else "is-low"
     subscription_item_class = "is-medium" if subscription_items else "is-low"
     promotion_item_class = "is-low"
+    safety_item_class = "is-attention" if safety_items else "is-low"
 
     hero_html = "".join(
         [
@@ -4805,6 +4788,7 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
             f'<div class="fh-dashboard-result-item {payment_item_class}"><span>{html_text(copy["payments"])}</span><strong>{financial_risks}</strong></div>',
             f'<div class="fh-dashboard-result-item {subscription_item_class}"><span>{html_text(copy["subscriptions"])}</span><strong>{subscription_items}</strong></div>',
             f'<div class="fh-dashboard-result-item {promotion_item_class}"><span>{html_text(copy["promotions"])}</span><strong>{summary["promotions"]}</strong></div>',
+            f'<div class="fh-dashboard-result-item {safety_item_class}"><span>{html_text(t("dashboard.metric_safety", lang))}</span><strong>{safety_items}</strong></div>',
             "</div>",
             "</div>",
             "</div>",
@@ -5525,7 +5509,12 @@ if page == "Dashboard":
     st.subheader(t("dashboard.results_heading", lang))
     if scan_data:
         render_calm_note(t("trust.results_note", lang))
-    col1, col2, col3 = st.columns(3)
+    # Four metrics so EVERY category that can hold results is reflected in the
+    # top-line numbers — including "Is it real?" (safety). Without it, emails that
+    # land in the safety bucket are invisible here and the summary looks empty
+    # even when there's something to review, which is confusing.
+    safety_count = len(scan_data.get("phishing_risks", []) or []) if scan_data else 0
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric(
             t("dashboard.metric_subscriptions", lang),
@@ -5541,6 +5530,13 @@ if page == "Dashboard":
             border=True,
         )
     with col3:
+        st.metric(
+            t("dashboard.metric_safety", lang),
+            safety_count,
+            help=t("dashboard.metric_safety_help", lang),
+            border=True,
+        )
+    with col4:
         st.metric(
             t("dashboard.metric_savings", lang),
             scan_data.get("estimated_savings", "$0") if scan_data else "$0",
@@ -5865,6 +5861,80 @@ elif page == "Cleanup Rules":
                     safe_rerun()
     else:
         st.caption(t("senders.protected_empty", lang))
+
+    st.divider()
+
+    # ───────────────────────────────────────────────────────────
+    # 🗑️ Unwanted senders — the user teaches FeeHunt's detection
+    # ───────────────────────────────────────────────────────────
+    # Senders FeeHunt's keyword detection misses (e.g. shops it doesn't know, in
+    # any language). Adding one here makes the NEXT scan recognise its mail as
+    # promotional so it lands with the rest of the junk — the scanner reads this
+    # list (main.py load_unwanted_senders). It never blocks delivery and never
+    # auto-deletes by sender; the cleanup engine ignores it (apply_rules_to_scan
+    # keeps its blacklist empty), so the user always does the cleanup themselves.
+    st.subheader(t("senders.blocked_title", lang))
+    st.caption(t("senders.blocked_caption", lang))
+
+    unwanted = rules.get("unwanted_senders", []) or []
+
+    if st.session_state.pop("clear_senders_unwanted_entry", False):
+        st.session_state["senders_unwanted_entry"] = ""
+
+    uw_input_col, uw_button_col = st.columns([3, 1])
+    with uw_input_col:
+        new_uw = st.text_input(
+            t("senders.blocked_input_label", lang),
+            placeholder=t("senders.blocked_input_placeholder", lang),
+            key="senders_unwanted_entry",
+            label_visibility="collapsed",
+        )
+    with uw_button_col:
+        uw_add = st.button(
+            t("senders.blocked_add", lang),
+            type="primary",
+            use_container_width=True,
+            key="senders_unwanted_add",
+        )
+
+    if uw_add:
+        value = str(new_uw or "").strip()
+        if not value:
+            st.warning(t("senders.empty_value", lang))
+        elif value.lower() in {u.lower() for u in unwanted}:
+            st.info(t("senders.blocked_exists", lang).format(sender=value))
+        else:
+            unwanted.append(value)
+            rules["unwanted_senders"] = unwanted
+            save_rules(rules)
+            st.session_state.rules = rules
+            st.session_state.clear_senders_unwanted_entry = True
+            confirm_success(t("senders.blocked_added", lang).format(sender=value))
+            safe_rerun()
+
+    if unwanted:
+        st.caption(t("senders.blocked_count", lang).format(count=len(unwanted)))
+        for index, entry in enumerate(unwanted):
+            row_l, row_r = st.columns([5, 1])
+            with row_l:
+                st.markdown(
+                    f"<div class='fh-sender-entry'>🗑️ <span>{escape(str(entry), quote=False)}</span></div>",
+                    unsafe_allow_html=True,
+                )
+            with row_r:
+                if st.button(
+                    t("senders.remove", lang),
+                    key=f"senders_uw_rm_{index}",
+                    use_container_width=True,
+                ):
+                    unwanted.pop(index)
+                    rules["unwanted_senders"] = unwanted
+                    save_rules(rules)
+                    st.session_state.rules = rules
+                    confirm_success(t("senders.removed", lang))
+                    safe_rerun()
+    else:
+        st.caption(t("senders.blocked_empty", lang))
 
     st.divider()
 
