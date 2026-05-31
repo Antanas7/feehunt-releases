@@ -60,8 +60,19 @@ TRANSLATIONS = {
         "sidebar.navigation": "Navigation",
         "sidebar.footer": "Privacy-first • Local data",
         "sidebar.license": "License",
+        "sidebar.connected_gmail": "Gmail being processed",
+        "account.switch_hint": "Pick which Gmail FeeHunt works on.",
+        "account.switch_help": "Switch FeeHunt to this Gmail account",
+        "account.switched": "Now processing {email}",
+        "account.add": "Add another Gmail",
+        "account.add_help": "Sign in to connect another Gmail account to FeeHunt",
+        "account.limit_note": "Your plan uses {used} of {allowed} Gmail accounts.",
         "sidebar.refresh_license": "Refresh license",
         "sidebar.deactivate_license": "Deactivate license",
+        "sidebar.caption_multi": "Plan: up to {count} email accounts",
+        "sidebar.deactivate_warn": "This signs FeeHunt out of your license on this computer. You'll need to enter your key again to use FeeHunt.",
+        "sidebar.deactivate_confirm": "Yes, deactivate",
+        "common.cancel": "Cancel",
         "page.dashboard": "Dashboard",
         "page.subscriptions": "Subscriptions",
         "page.promotions": "Promotional emails",
@@ -406,8 +417,19 @@ TRANSLATIONS = {
         "sidebar.navigation": "Navigacija",
         "sidebar.footer": "Privatumas pirmiausia • Vietiniai duomenys",
         "sidebar.license": "Licencija",
-        "sidebar.refresh_license": "Atnaujinti licenciją",
+        "sidebar.connected_gmail": "Apdorojamas Gmail",
+        "account.switch_hint": "Pasirinkite, kurį Gmail apdoroti.",
+        "account.switch_help": "Perjungti FeeHunt į šią Gmail paskyrą",
+        "account.switched": "Dabar apdorojamas {email}",
+        "account.add": "Pridėti kitą Gmail",
+        "account.add_help": "Prisijunkite, kad pridėtumėte dar vieną Gmail paskyrą",
+        "account.limit_note": "Jūsų planas naudoja {used} iš {allowed} Gmail paskyrų.",
+        "sidebar.refresh_license": "Patikrinti licenciją",
         "sidebar.deactivate_license": "Išjungti licenciją",
+        "sidebar.caption_multi": "Planas: iki {count} el. pašto paskyrų",
+        "sidebar.deactivate_warn": "Tai atjungs FeeHunt licenciją šiame kompiuteryje. Norėdami vėl naudotis, turėsite iš naujo įvesti raktą.",
+        "sidebar.deactivate_confirm": "Taip, išjungti",
+        "common.cancel": "Atšaukti",
         "page.dashboard": "Apžvalga",
         "page.subscriptions": "Prenumeratos",
         "page.promotions": "Reklaminiai laiškai",
@@ -752,6 +774,24 @@ LICENSE_TRANSLATIONS = {
         "license.gate.upgrade_for_more_accounts": "Upgrade your FeeHunt plan to connect more Gmail accounts.",
         "license.gate.generic_inactive": "FeeHunt license could not be verified.",
         "license.gate.generic_active": "FeeHunt license is active.",
+        "license.gate.device_limit": "This license is already in use on another computer. FeeHunt plans cover one computer at a time. Use the computer where you first activated, or contact support to move your license.",
+        "license.gate.payment_failed": "Your last payment did not go through. Update your payment method on feehunt.pro to keep using FeeHunt.",
+        "err.incomplete": "FeeHunt could not finish that step yet.\n\nPlease check your internet connection and try again. If it still happens, close FeeHunt and open it again.",
+        "err.network": "FeeHunt could not reach the service right now.\n\nPlease check your internet connection, Windows Firewall, or antivirus network permissions, then try again.",
+        "err.plan_limit": "This FeeHunt plan has reached its Gmail account limit.\n\nYour emails are safe and nothing was changed. Disconnect another account or upgrade your plan before connecting this Gmail account.",
+        "err.token_lost": "FeeHunt lost connection to Gmail.\n\nYour emails are safe and nothing was changed. Reconnect Gmail to continue reviewing your inbox.",
+        "err.gmail_api_disabled": "FeeHunt could not reach the Gmail API for this Google sign-in app.\n\nEnable Gmail API in Google Cloud Console for the OAuth project, then reconnect Gmail.",
+        "err.gmail_approval": "FeeHunt needs a fresh Gmail approval.\n\nYour emails are safe. Reconnect Gmail and approve the requested access to continue.",
+        "err.gmail_permission": "FeeHunt does not have permission to finish this Gmail step.\n\nYour emails are safe. Reconnect Gmail and approve access to continue.",
+        "err.oauth_open": "FeeHunt could not open Gmail sign-in.\n\nPlease make sure FeeHunt was extracted from the ZIP and try connecting Gmail again.",
+        "err.oauth_timeout": "Gmail sign-in was not completed.\n\nThe Google window was closed or timed out. Click Connect Gmail again and finish signing in to your account.",
+        "err.generic": "FeeHunt could not finish that step.\n\nNothing was changed unless FeeHunt clearly says it was. Please try again, or reopen FeeHunt if the problem continues.",
+        "lic_err.network": "FeeHunt could not contact the license server.\n\nWindows Firewall, antivirus, VPN, or network settings may be blocking FeeHunt. Allow FeeHunt.exe to access https://feehunt.pro and try the license key again.",
+        "lic_err.invalid_key": "FeeHunt could not verify this license key.\n\nPlease check the key from your email and try again. If it was just created, use Log in / Resend key on the website.",
+        "lic_err.device_limit": "This license has reached its device limit.\n\nUse the same computer where you activated FeeHunt, or contact support to reset devices.",
+        "lic_err.generic": "FeeHunt could not verify this license key.\n\nDetails: {details}",
+        "lic_err.generic_no_details": "FeeHunt could not verify this license key.\n\nThe license server did not return a usable response.",
+        "scan.capped_note": "FeeHunt reviewed your {count} most recent emails. Scan again later to cover newer ones.",
         "trial.intro_title": "Your free trial",
         "trial.intro_body": "You have {remaining} free full scans. Each one shows everything FeeHunt finds. After they are used, an active plan is needed to scan again — your previous results stay visible. Scan when you have time to review what comes up.",
         "trial.intro_body_one": "You have 1 free full scan. It shows everything FeeHunt finds. After it's used, an active plan is needed to scan again — your previous results stay visible. Scan when you have time to review what comes up.",
@@ -877,6 +917,24 @@ LICENSE_TRANSLATIONS = {
         "license.gate.upgrade_for_more_accounts": "Atnaujinkite FeeHunt planą, kad galėtumėte prijungti daugiau Gmail paskyrų.",
         "license.gate.generic_inactive": "FeeHunt licencijos patikrinti nepavyko.",
         "license.gate.generic_active": "FeeHunt licencija aktyvi.",
+        "license.gate.device_limit": "Ši licencija jau naudojama kitame kompiuteryje. FeeHunt planas skirtas vienam kompiuteriui. Naudokite tą kompiuterį, kuriame pirmą kartą aktyvavote, arba kreipkitės į pagalbą, kad perkeltume licenciją.",
+        "license.gate.payment_failed": "Paskutinis mokėjimas neįvyko. Atnaujinkite mokėjimo būdą feehunt.pro, kad galėtumėte toliau naudotis FeeHunt.",
+        "err.incomplete": "FeeHunt dar nebaigė šio žingsnio.\n\nPatikrinkite interneto ryšį ir bandykite vėl. Jei kartojasi — uždarykite FeeHunt ir atidarykite iš naujo.",
+        "err.network": "FeeHunt šiuo metu nepasiekė paslaugos.\n\nPatikrinkite interneto ryšį, Windows ugniasienę ar antivirusinės tinklo leidimus ir bandykite vėl.",
+        "err.plan_limit": "Šis FeeHunt planas pasiekė Gmail paskyrų limitą.\n\nJūsų laiškai saugūs, niekas nepakeista. Atjunkite kitą paskyrą arba atnaujinkite planą prieš jungdami šią Gmail paskyrą.",
+        "err.token_lost": "FeeHunt prarado ryšį su Gmail.\n\nJūsų laiškai saugūs, niekas nepakeista. Prijunkite Gmail iš naujo, kad galėtumėte tęsti.",
+        "err.gmail_api_disabled": "FeeHunt nepasiekė Gmail API šiai Google prisijungimo programai.\n\nĮjunkite Gmail API Google Cloud Console šiame OAuth projekte ir prijunkite Gmail iš naujo.",
+        "err.gmail_approval": "FeeHunt reikia naujo Gmail patvirtinimo.\n\nJūsų laiškai saugūs. Prijunkite Gmail iš naujo ir patvirtinkite prašomą prieigą.",
+        "err.gmail_permission": "FeeHunt neturi leidimo užbaigti šį Gmail veiksmą.\n\nJūsų laiškai saugūs. Prijunkite Gmail iš naujo ir patvirtinkite prieigą.",
+        "err.oauth_open": "FeeHunt nepavyko atidaryti Gmail prisijungimo.\n\nĮsitikinkite, kad FeeHunt išskleistas iš ZIP, ir bandykite jungti Gmail dar kartą.",
+        "err.oauth_timeout": "Gmail prisijungimas nebaigtas.\n\nGoogle langas buvo uždarytas arba baigėsi laikas. Paspauskite „Prijungti Gmail“ dar kartą ir užbaikite prisijungimą prie savo paskyros.",
+        "err.generic": "FeeHunt nepavyko užbaigti šio žingsnio.\n\nNiekas nepakeista, nebent FeeHunt aiškiai tai nurodo. Bandykite vėl arba atidarykite FeeHunt iš naujo, jei problema kartojasi.",
+        "lic_err.network": "FeeHunt nepavyko susisiekti su licencijų serveriu.\n\nWindows ugniasienė, antivirusinė, VPN ar tinklo nustatymai gali blokuoti FeeHunt. Leiskite FeeHunt.exe pasiekti https://feehunt.pro ir bandykite raktą vėl.",
+        "lic_err.invalid_key": "FeeHunt nepavyko patikrinti šio licencijos rakto.\n\nPatikrinkite raktą iš el. pašto ir bandykite vėl. Jei jis ką tik sukurtas — svetainėje naudokite „Prisijungti / Atsiųsti raktą iš naujo“.",
+        "lic_err.device_limit": "Ši licencija pasiekė įrenginių limitą.\n\nNaudokite tą patį kompiuterį, kuriame aktyvavote FeeHunt, arba kreipkitės į pagalbą dėl įrenginių atstatymo.",
+        "lic_err.generic": "FeeHunt nepavyko patikrinti šio licencijos rakto.\n\nDetalės: {details}",
+        "lic_err.generic_no_details": "FeeHunt nepavyko patikrinti šio licencijos rakto.\n\nLicencijų serveris negrąžino tinkamo atsakymo.",
+        "scan.capped_note": "FeeHunt peržiūrėjo {count} naujausių jūsų laiškų. Skenuokite vėliau dar kartą, kad apimtų naujesnius.",
         "trial.intro_title": "Jūsų nemokamas bandymas",
         "trial.intro_body": "Turite {remaining} nemokamus pilnus skenavimus. Kiekvienas parodo viską, ką FeeHunt randa. Po jų — norėdami skenuoti iš naujo, reikės aktyvaus plano. Senesni rezultatai liks matomi. Skenuokite, kai turite laiko peržiūrėti rastus laiškus.",
         "trial.intro_body_one": "Turite 1 nemokamą pilną skenavimą. Jis parodo viską, ką FeeHunt randa. Po jo — norėdami skenuoti iš naujo, reikės aktyvaus plano. Senesni rezultatai liks matomi. Skenuokite, kai turite laiko peržiūrėti rastus laiškus.",
@@ -1086,6 +1144,7 @@ AI_GUIDANCE_TRANSLATIONS = {
         "safe_action.done_spam": "Done - marked this email as spam. Your other emails were not touched.",
         "safe_action.done_unsubscribe": "Opened unsubscribe page. You stay in control.",
         "safe_action.recent_trash": "{count} email(s) were moved to Gmail trash.",
+        "safe_action.trash_reassurance": "FeeHunt never deletes permanently — your emails wait safely in Gmail trash, and you can check or restore them there anytime.",
         "safe_action.undo": "Undo",
         "safe_action.undo_done": "Undone. The email was restored.",
         "safe_action.failed": "FeeHunt could not finish that action. Please check Gmail or try again in a moment.",
@@ -1163,6 +1222,7 @@ AI_GUIDANCE_TRANSLATIONS = {
         "safe_action.done_spam": "Atlikta - laiškas pažymėtas kaip spam. Kiti laiškai nebuvo paliesti.",
         "safe_action.done_unsubscribe": "Atsisakymo puslapis atidarytas. Jūs liekate valdyti.",
         "safe_action.recent_trash": "Į Gmail šiukšlinę perkelta laiškų: {count}.",
+        "safe_action.trash_reassurance": "FeeHunt niekada netrina visam — laiškai saugiai laukia Gmail šiukšlinėje, ir gali bet kada pasitikrinti ar susigrąžinti juos ten.",
         "safe_action.undo": "Atšaukti veiksmą",
         "safe_action.undo_done": "Atšaukta. Laiškas atkurtas.",
         "safe_action.failed": "FeeHunt nepavyko atlikti veiksmo. Patikrinkite Gmail arba pabandykite dar kartą.",
@@ -1375,6 +1435,89 @@ PROGRESS_TRANSLATIONS = {
 }
 
 for language, values in PROGRESS_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(language, {}).update(values)
+
+
+CONTROL_CENTER_TRANSLATIONS = {
+    "en": {
+        "control_center.title": "Stop your subscriptions",
+        "control_center.count": "We found {count} paid subscriptions.",
+        "control_center.progress_summary": "✅ {done} handled · ⏳ {remaining} left",
+        "control_center.consent": (
+            "FeeHunt will walk you to each service's exact cancellation page, one "
+            "by one. You press the final button. FeeHunt changes nothing and "
+            "cancels nothing for you."
+        ),
+        "control_center.start": "Start",
+        "control_center.resume": "Continue where you left off",
+        "control_center.decided_title": "Already decided",
+        "control_center.progress": "{n} of {total}",
+        "control_center.current_status": "Current status: {status}",
+        "control_center.confidence_exact": "Exact cancellation page",
+        "control_center.confidence_area": "Account area (not the exact button)",
+        "control_center.confidence_search": "You'll need to find it",
+        "control_center.did_it_work": "Did it work?",
+        "control_center.mark_cancelled": "✅ Cancelled",
+        "control_center.mark_needs_you": "👤 Need to return",
+        "control_center.mark_keeping": "🔒 Keeping",
+        "control_center.skip": "⏭ Skip",
+        "control_center.back": "← Back",
+        "control_center.pause": "Pause",
+        "control_center.finish": "Done",
+        "control_center.summary": (
+            "Handled: {cancelled} cancelled ✅ · {needs_you} need you 👤 · "
+            "{keeping} kept 🔒"
+        ),
+        "control_center.reappeared_warning": (
+            "⚠️ You marked this as cancelled, but a new billing email just arrived "
+            "— please double-check the charge really stopped."
+        ),
+        "control_center.badge_cancelled": "Cancelled",
+        "control_center.badge_needs_you": "Needs you",
+        "control_center.badge_keeping": "Keeping",
+        "dashboard.stop_subscriptions_cta": "🚦 Stop {count} subscriptions",
+    },
+    "lt": {
+        "control_center.title": "Sustabdykite prenumeratas",
+        "control_center.count": "Radome {count} mokamų prenumeratų.",
+        "control_center.progress_summary": "✅ {done} sutvarkyta · ⏳ {remaining} liko",
+        "control_center.consent": (
+            "FeeHunt nuves jus į kiekvieno serviso tikslų atšaukimo puslapį, vieną "
+            "po kito. Paskutinį mygtuką paspaudžiate jūs. FeeHunt nieko nekeičia ir "
+            "nieko neatšaukia už jus."
+        ),
+        "control_center.start": "Pradėti",
+        "control_center.resume": "Tęsti nuo ten, kur baigėte",
+        "control_center.decided_title": "Jau apsispręsta",
+        "control_center.progress": "{n} iš {total}",
+        "control_center.current_status": "Dabartinis statusas: {status}",
+        "control_center.confidence_exact": "Tikslus atšaukimo puslapis",
+        "control_center.confidence_area": "Paskyros sritis (ne tikslus mygtukas)",
+        "control_center.confidence_search": "Reikės susirasti",
+        "control_center.did_it_work": "Ar pavyko?",
+        "control_center.mark_cancelled": "✅ Atšaukiau",
+        "control_center.mark_needs_you": "👤 Reikia grįžti",
+        "control_center.mark_keeping": "🔒 Lieku",
+        "control_center.skip": "⏭ Praleisti",
+        "control_center.back": "← Atgal",
+        "control_center.pause": "Pristabdyti",
+        "control_center.finish": "Baigti",
+        "control_center.summary": (
+            "Sutvarkyta: {cancelled} atšaukta ✅ · {needs_you} reikia tavęs 👤 · "
+            "{keeping} lieka 🔒"
+        ),
+        "control_center.reappeared_warning": (
+            "⚠️ Pažymėjai kaip atšauktą, bet ką tik atėjo naujas mokėjimo laiškas "
+            "— patikrink, ar mokestis tikrai sustojo."
+        ),
+        "control_center.badge_cancelled": "Atšaukta",
+        "control_center.badge_needs_you": "Reikia tavęs",
+        "control_center.badge_keeping": "Lieka",
+        "dashboard.stop_subscriptions_cta": "🚦 Sustabdyti {count} prenumeratų",
+    },
+}
+
+for language, values in CONTROL_CENTER_TRANSLATIONS.items():
     TRANSLATIONS.setdefault(language, {}).update(values)
 
 
@@ -1620,6 +1763,8 @@ READINESS_TRANSLATIONS = {
         "license.banner_active": "{plan} plan active. {days} day(s) remaining.",
         "license.banner_inactive": "Your FeeHunt trial has expired or could not be verified.",
         "license.upgrade_now": "Upgrade FeeHunt",
+        "license.recheck_cta": "I already paid — check now",
+        "license.recheck_pending": "Not active yet. Payment can take a few seconds to register — try again shortly.",
         "license.account_heading": "FeeHunt Account",
         "license.plan.trial": "Trial",
         "license.plan.preview": "Preview",
@@ -1648,7 +1793,9 @@ READINESS_TRANSLATIONS = {
         "gmail.connected_success": "Gmail prijungtas. Jūsų duomenys lieka šiame kompiuteryje.",
         "license.banner_active": "{plan} planas aktyvus. Liko {days} d.",
         "license.banner_inactive": "FeeHunt bandomasis laikotarpis pasibaigė arba licencijos nepavyko patikrinti.",
-        "license.upgrade_now": "Atnaujinti FeeHunt",
+        "license.upgrade_now": "Įsigyti planą",
+        "license.recheck_cta": "Jau sumokėjau — patikrinti dabar",
+        "license.recheck_pending": "Dar neaktyvu. Apmokėjimas gali užtrukti kelias sekundes — pabandykite vėl po akimirkos.",
         "license.account_heading": "FeeHunt paskyra",
         "license.plan.trial": "Bandomasis",
         "license.plan.preview": "Peržiūros",
@@ -1675,7 +1822,7 @@ for language, values in READINESS_TRANSLATIONS.items():
 
 CONTEXTUAL_HELP = {
     "en": {
-        "connect_gmail": "Connect once so FeeHunt can read your Gmail safely on this computer.",
+        "connect_gmail": "Connect once so FeeHunt can read your Gmail safely on this computer. If Google shows a 'not verified' notice, that's expected — choose Continue (or Advanced) to finish. FeeHunt runs only on your computer.",
         "scan_gmail": "Look through recent Gmail messages and show what may need attention.",
         "estimated_savings": "A simple monthly estimate from subscriptions FeeHunt found.",
         "financial_risks": "Payment or account emails worth checking soon.",
@@ -1686,7 +1833,7 @@ CONTEXTUAL_HELP = {
         "trial_status": "See how many trial days are left.",
     },
     "lt": {
-        "connect_gmail": "Prisijunkite vieną kartą, kad FeeHunt galėtų saugiai peržiūrėti Gmail šiame kompiuteryje.",
+        "connect_gmail": "Prisijunkite vieną kartą, kad FeeHunt galėtų saugiai peržiūrėti Gmail šiame kompiuteryje. Jei Google parodys „neverifikuota“ įspėjimą — tai normalu; pasirinkite Tęsti (arba Išplėstiniai), kad užbaigtumėte. FeeHunt veikia tik jūsų kompiuteryje.",
         "scan_gmail": "Peržiūrėti naujausius Gmail laiškus ir parodyti, kam verta skirti dėmesį.",
         "estimated_savings": "Paprastas mėnesio įvertis pagal rastas prenumeratas.",
         "financial_risks": "Mokėjimų ar paskyrų laiškai, kuriuos verta greitai patikrinti.",

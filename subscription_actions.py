@@ -139,6 +139,19 @@ def sender_website_url(sender):
     return f"https://{domain}" if domain else None
 
 
+def subscription_identity(sender):
+    """A stable key identifying the SERVICE behind a sender, used to remember the
+    user's cancellation decision across months and app restarts. Prefers the
+    sender's registrable domain (e.g. 'netflix.com'); falls back to the normalized
+    display name when the sender is a generic mailbox provider with no own domain.
+    Two billing emails from the same service map to the same key."""
+    domain = _sender_website(sender)
+    if domain:
+        return domain
+    name = _normalize_service_name(_display_name(sender))
+    return name or _normalize_service_name(sender) or "unknown-service"
+
+
 def known_billing_url(sender):
     """The known billing/cancel page for this sender (Netflix, Spotify, ...),
     or None if the sender is not in the curated list."""

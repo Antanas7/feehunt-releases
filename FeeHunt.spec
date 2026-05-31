@@ -29,6 +29,8 @@ required_datas = [
     ("user_state.py", "."),
     ("requirements.txt", "."),
     ("credentials.json", "."),
+    ("loading.html", "."),
+    ("scan-earth.jpg", "."),
     (".streamlit/config.toml", ".streamlit"),
 ]
 

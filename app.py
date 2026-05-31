@@ -1,3 +1,4 @@
+import base64
 import hashlib
 from html import escape
 import json
@@ -18,7 +19,6 @@ from gmail_actions import (
     archive_email,
     unarchive_email,
     mark_as_important,
-    apply_blacklist_to_gmail_directly,
     delete_email,
     delete_emails,
     restore_trashed_email,
@@ -26,7 +26,11 @@ from gmail_actions import (
     unmark_spam,
     get_unsubscribe_link,
 )
-from subscription_actions import known_billing_url, sender_website_url
+from subscription_actions import (
+    known_billing_url,
+    sender_website_url,
+    subscription_identity,
+)
 from licensing import (
     TRIAL_SCAN_LIMIT,
     activate_license,
@@ -34,16 +38,25 @@ from licensing import (
     clear_license,
     effective_can_modify,
     effective_can_scan,
+    apply_dev_unlock,
     get_license_overview,
     get_trial_status,
+    is_tester,
     load_license,
     mark_trial_scan_used,
+    promote_if_tester,
     trial_lock_reason,
     trial_scans_remaining,
     trial_scans_used,
 )
 
-from gmail_auth import has_saved_gmail_connection
+from gmail_auth import (
+    ensure_connected_email,
+    has_saved_gmail_connection,
+    get_connected_email,
+    list_saved_accounts,
+    switch_account,
+)
 from config import (
     APP_NAME,
     APP_VERSION,
@@ -60,7 +73,16 @@ from config import (
     CATEGORY_ACTIONS,
     PROTECTED_CATEGORY_ALLOWED_ACTIONS,
 )
-from local_memory import clear_memory, load_memory, remember_archived_promotions, remember_scan, remember_visit
+from local_memory import (
+    clear_memory,
+    clear_subscription_status,
+    get_subscription_status,
+    load_memory,
+    remember_archived_promotions,
+    remember_scan,
+    remember_visit,
+    set_subscription_status,
+)
 from translations import help_text, normalize_auto_scan, normalize_language, t
 from time_utils import (
     format_local_datetime,
@@ -1662,7 +1684,19 @@ def save_rules(rules: dict) -> bool:
 
 def load_last_scan_results() -> dict | None:
     data = load_json_file(RESULTS_FILE, None)
-    return data if isinstance(data, dict) else None
+    if not isinstance(data, dict):
+        return None
+    # Saved results are stamped with the account they came from. If a different
+    # account is now active, the stored findings belong to someone else's inbox,
+    # so we treat it as "no scan yet" instead of showing the wrong account's data.
+    # (Legacy results saved before stamping have no account_email — keep showing
+    # them so existing users don't lose their last scan.)
+    stamped = str(data.get("account_email") or "").strip().lower()
+    if stamped:
+        active = get_connected_email().strip().lower()
+        if active and stamped != active:
+            return None
+    return data
 
 
 def normalize_savings(value: Any, currency: str = "USD") -> str:
@@ -1838,6 +1872,13 @@ def restore_messages_to_scan(items: list[dict]) -> None:
 
 
 def render_recent_trash_undo(location_key: str) -> None:
+    # After a deletion FeeHunt only MOVES emails to Gmail trash — never a
+    # permanent delete. So instead of an in-app "Undo" button (which lingered,
+    # sowed doubt, and undercut the finished/safe feeling), we simply state where
+    # the emails went and that the user can recover them themselves. Recovery
+    # already lives in the user's own Gmail trash, so the button was redundant;
+    # this also makes FeeHunt's boundary visible ("we don't overstep"). The
+    # immediate per-email undo (show_safe_email_action) is separate and untouched.
     lang = current_language()
     trashed_items = st.session_state.get("recent_trashed_items") or []
     if not trashed_items:
@@ -1845,24 +1886,7 @@ def render_recent_trash_undo(location_key: str) -> None:
 
     count = len(trashed_items)
     st.info(t("safe_action.recent_trash", lang).format(count=count))
-    if st.button(t("safe_action.undo", lang), key=f"undo_recent_trash_{location_key}", use_container_width=True):
-        restored_items = []
-        for item in trashed_items:
-            message_id = get_message_id(item)
-            if not message_id:
-                continue
-            try:
-                restore_trashed_email(message_id)
-                restored_items.append(item)
-            except Exception:
-                continue
-        st.session_state.recent_trashed_items = []
-        if restored_items:
-            restore_messages_to_scan(restored_items)
-            st.success(t("safe_action.undo_done", lang))
-            safe_rerun()
-        else:
-            st.info(t("safe_action.failed", lang))
+    st.caption(t("safe_action.trash_reassurance", lang))
 
 
 def refresh_scan_data() -> None:
@@ -1914,16 +1938,17 @@ def render_adaptive_context(profile: UserStateProfile) -> None:
     render_calm_note(t(f"adaptive.{profile.state}", lang))
 
 
-def friendly_error_message(error: Any) -> str:
+def friendly_error_message(error: Any, lang: str | None = None) -> str:
+    if lang is None:
+        lang = current_language()
     text = str(error or "").strip()
     if not text:
-        return (
-            "FeeHunt could not finish that step yet.\n\n"
-            "Please check your internet connection and try again. If it still happens, close FeeHunt and open it again."
-        )
+        return t("err.incomplete", lang)
     if "What is wrong:" in text and "How to fix it:" in text:
         return text
     lower_text = text.lower()
+    if "oauth_not_completed" in lower_text or "sign-in was not completed" in lower_text:
+        return t("err.oauth_timeout", lang)
     if (
         "winerror 10013" in lower_text
         or "urlopen error" in lower_text
@@ -1934,30 +1959,15 @@ def friendly_error_message(error: Any) -> str:
         or "unable to connect" in lower_text
         or "could not connect" in lower_text
     ):
-        return (
-            "FeeHunt could not reach the service right now.\n\n"
-            "Please check your internet connection, Windows Firewall, or antivirus network permissions, then try again."
-        )
+        return t("err.network", lang)
     if "plan limit" in lower_text or ("allows" in lower_text and "gmail account" in lower_text):
-        return (
-            "This FeeHunt plan has reached its Gmail account limit.\n\n"
-            "Your emails are safe and nothing was changed. Disconnect another account or upgrade your plan before connecting this Gmail account."
-        )
+        return t("err.plan_limit", lang)
     if any(token_text in lower_text for token_text in ("invalid token", "invalid_grant", "token has been expired", "token expired", "revoked", "unauthorized_client")):
-        return (
-            "FeeHunt lost connection to Gmail.\n\n"
-            "Your emails are safe and nothing was changed. Reconnect Gmail to continue reviewing your inbox."
-        )
+        return t("err.token_lost", lang)
     if "gmail api is not enabled" in lower_text:
-        return (
-            "FeeHunt could not reach the Gmail API for this Google sign-in app.\n\n"
-            "Enable Gmail API in Google Cloud Console for the OAuth project, then reconnect Gmail."
-        )
+        return t("err.gmail_api_disabled", lang)
     if "saved gmail connection" in lower_text or "requested access" in lower_text:
-        return (
-            "FeeHunt needs a fresh Gmail approval.\n\n"
-            "Your emails are safe. Reconnect Gmail and approve the requested access to continue."
-        )
+        return t("err.gmail_approval", lang)
     if (
         "gmail" in lower_text
         and (
@@ -1968,22 +1978,15 @@ def friendly_error_message(error: Any) -> str:
             or "permission" in lower_text
         )
     ):
-        return (
-            "FeeHunt does not have permission to finish this Gmail step.\n\n"
-            "Your emails are safe. Reconnect Gmail and approve access to continue."
-        )
+        return t("err.gmail_permission", lang)
     if "credentials" in lower_text or "oauth" in lower_text:
-        return (
-            "FeeHunt could not open Gmail sign-in.\n\n"
-            "Please make sure FeeHunt was extracted from the ZIP and try connecting Gmail again."
-        )
-    return (
-        "FeeHunt could not finish that step.\n\n"
-        "Nothing was changed unless FeeHunt clearly says it was. Please try again, or reopen FeeHunt if the problem continues."
-    )
+        return t("err.oauth_open", lang)
+    return t("err.generic", lang)
 
 
-def friendly_license_error(error: Any) -> str:
+def friendly_license_error(error: Any, lang: str | None = None) -> str:
+    if lang is None:
+        lang = current_language()
     text = str(error or "").strip()
     lower_text = text.lower()
     if (
@@ -1995,25 +1998,14 @@ def friendly_license_error(error: Any) -> str:
         or "could not connect" in lower_text
         or "timed out" in lower_text
     ):
-        return (
-            "FeeHunt could not contact the license server.\n\n"
-            "Windows Firewall, antivirus, VPN, or network settings may be blocking FeeHunt. "
-            "Allow FeeHunt.exe to access https://feehunt.pro and try the license key again."
-        )
+        return t("lic_err.network", lang)
     if "missing or invalid license key" in lower_text or "license key not found" in lower_text:
-        return (
-            "FeeHunt could not verify this license key.\n\n"
-            "Please check the key from your email and try again. If it was just created, use Log in / Resend key on the website."
-        )
+        return t("lic_err.invalid_key", lang)
     if "device limit" in lower_text:
-        return (
-            "This license has reached its device limit.\n\n"
-            "Use the same computer where you activated FeeHunt, or contact support to reset devices."
-        )
-    return (
-        "FeeHunt could not verify this license key.\n\n"
-        f"Details: {text or 'The license server did not return a usable response.'}"
-    )
+        return t("lic_err.device_limit", lang)
+    if text:
+        return t("lic_err.generic", lang).format(details=text)
+    return t("lic_err.generic_no_details", lang)
 
 
 FH_ICONS = {
@@ -2390,6 +2382,145 @@ def render_scan_living_feedback(placeholder: Any, message: str, reassurance: str
     )
 
 
+# ── "Waau vision" scan animation ────────────────────────────────────────────
+# A self-contained globe + radar scene shown ONLY while scanning. The Earth
+# rotates slowly, coloured envelopes fly inward from around the world (green =
+# promotions, amber = subscriptions, pink = risks), and a radar beam sweeps and
+# "catches" them. Rendered once (so the CSS keyframes never restart); the live
+# category counts are drawn in a separate placeholder that updates each tick.
+_SCAN_ENVELOPE_SVG = (
+    '<svg viewBox="0 0 26 18" class="fh-env-svg">'
+    '<rect x="1.2" y="1.2" width="23.6" height="15.6" rx="2.6"/>'
+    '<path d="M2.2 3.4 L13 11 L23.8 3.4"/></svg>'
+)
+
+# The scan globe reuses the SAME night-Earth artwork as the website hero, so the
+# desktop animation matches the landing page exactly. A small optimised copy is
+# embedded as a data URI (no file-serving needed inside the packaged exe).
+_SCAN_EARTH_DATA_URI: str | None = None
+
+
+def _scan_earth_data_uri() -> str:
+    global _SCAN_EARTH_DATA_URI
+    if _SCAN_EARTH_DATA_URI is None:
+        _SCAN_EARTH_DATA_URI = ""
+        for base in (APP_DIR, Path(__file__).resolve().parent, Path.cwd()):
+            try:
+                candidate = Path(base) / "scan-earth.jpg"
+                if candidate.exists():
+                    encoded = base64.b64encode(candidate.read_bytes()).decode("ascii")
+                    _SCAN_EARTH_DATA_URI = f"data:image/jpeg;base64,{encoded}"
+                    break
+            except Exception:
+                continue
+    return _SCAN_EARTH_DATA_URI
+
+# (angle from top, animation-delay, category class)
+_SCAN_ENVELOPES = [
+    (25, "-0.4s", "promo"),
+    (70, "-3.2s", "subs"),
+    (120, "-6.1s", "risk"),
+    (158, "-1.7s", "promo"),
+    (205, "-4.6s", "promo"),
+    (262, "-2.5s", "subs"),
+    (312, "-7.4s", "risk"),
+]
+
+
+def _scan_scene_html() -> str:
+    earth = _scan_earth_data_uri()
+    globe = (
+        f'<div class="fh-globe"><div class="fh-globe-tex" style="background-image:url(\'{earth}\')"></div></div>'
+        if earth
+        else '<div class="fh-globe"></div>'
+    )
+    spokes = "".join(
+        f'<div class="fh-spoke" style="transform:rotate({angle}deg)">'
+        f'<div class="fh-flyer" style="animation-delay:{delay}">'
+        f'<div class="fh-env fh-env--{cat}" style="transform:rotate(-{angle}deg)">{_SCAN_ENVELOPE_SVG}</div>'
+        f"</div></div>"
+        for angle, delay, cat in _SCAN_ENVELOPES
+    )
+    return (
+        "<style>"
+        ".fh-scan-stage{position:relative;height:330px;width:100%;overflow:hidden;"
+        "border-radius:16px;background:radial-gradient(circle at 50% 46%,#06241a 0%,#041710 55%,#020a07 100%);"
+        "margin:2px 0 10px}"
+        ".fh-globe{position:absolute;left:50%;top:48%;width:266px;height:266px;transform:translate(-50%,-50%);"
+        "border-radius:50%;overflow:hidden;background:#02100a;"
+        "box-shadow:inset -30px -26px 60px rgba(0,0,0,.9),inset 16px 10px 34px rgba(20,120,80,.12),"
+        "0 0 2px rgba(140,255,205,.5),0 0 34px rgba(26,150,100,.22)}"
+        ".fh-globe-tex{position:absolute;top:50%;left:50%;width:142%;height:142%;"
+        "background:center/cover no-repeat;opacity:.95;"
+        "animation:fhGlobeSpin 90s linear infinite}"
+        ".fh-globe::after{content:'';position:absolute;inset:0;border-radius:50%;pointer-events:none;"
+        "background:radial-gradient(circle at 34% 27%,rgba(150,255,210,.16),transparent 26%),"
+        "radial-gradient(circle at 50% 50%,transparent 0 45%,rgba(0,0,0,.68) 84%),"
+        "linear-gradient(100deg,rgba(0,0,0,.2),transparent 34%,rgba(0,0,0,.44));"
+        "mix-blend-mode:multiply;opacity:.82}"
+        ".fh-radar{position:absolute;left:50%;top:48%;width:300px;height:300px;transform:translate(-50%,-50%);"
+        "border-radius:50%;pointer-events:none}"
+        ".fh-radar::before{content:'';position:absolute;inset:0;border-radius:50%;border:1px solid rgba(72,226,158,.22);"
+        "background:repeating-radial-gradient(circle at center,rgba(72,226,158,.13) 0 1px,transparent 1px 50px)}"
+        ".fh-radar::after{content:'';position:absolute;left:50%;top:0;width:1px;height:100%;"
+        "background:rgba(72,226,158,.16);transform:translateX(-.5px)}"
+        ".fh-cross{position:absolute;left:0;top:50%;width:100%;height:1px;background:rgba(72,226,158,.16)}"
+        ".fh-sweep{position:absolute;inset:0;border-radius:50%;"
+        "background:conic-gradient(rgba(72,230,160,.42),rgba(72,230,160,.04) 60deg,transparent 110deg,transparent 360deg);"
+        "animation:fhSweep 7s linear infinite}"
+        ".fh-core{position:absolute;left:50%;top:50%;width:9px;height:9px;transform:translate(-50%,-50%);border-radius:50%;"
+        "background:#5cf0a8;box-shadow:0 0 14px 3px rgba(92,240,168,.8)}"
+        ".fh-spoke{position:absolute;left:50%;top:48%;width:0;height:0}"
+        ".fh-flyer{position:absolute;left:0;top:0;animation:fhFly 10.5s ease-in infinite}"
+        ".fh-env{position:absolute;left:0;top:0;width:26px;height:18px;margin:-9px 0 0 -13px}"
+        ".fh-env-svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;"
+        "filter:drop-shadow(0 0 5px currentColor)}"
+        ".fh-env--promo{color:#3ad492}.fh-env--subs{color:#e9b949}.fh-env--risk{color:#ef5d7a}"
+        "@keyframes fhGlobeSpin{from{transform:translate(-50%,-50%) rotate(0)}"
+        "to{transform:translate(-50%,-50%) rotate(360deg)}}"
+        "@keyframes fhSweep{from{transform:rotate(0)}to{transform:rotate(360deg)}}"
+        "@keyframes fhFly{0%{transform:translateY(-178px) scale(.22);opacity:0}"
+        "14%{opacity:1}72%{transform:translateY(-54px) scale(1);opacity:1}"
+        "88%{transform:translateY(-44px) scale(1.14);opacity:0}100%{transform:translateY(-44px) scale(1.14);opacity:0}}"
+        ".fh-scan-counts{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin:-2px 0 4px}"
+        ".fh-scan-scanned{font-variant-numeric:tabular-nums;font-weight:700;font-size:15px;color:#cfeede;"
+        "letter-spacing:.3px}"
+        ".fh-chip{display:inline-flex;align-items:center;gap:7px;font-variant-numeric:tabular-nums;font-weight:700;"
+        "font-size:15px}"
+        ".fh-chip .fh-dot{width:11px;height:11px;border-radius:3px;box-shadow:0 0 8px currentColor}"
+        ".fh-chip--promo{color:#3ad492}.fh-chip--subs{color:#e9b949}.fh-chip--risk{color:#ef5d7a}"
+        "@media (prefers-reduced-motion: reduce){.fh-globe::before,.fh-sweep,.fh-flyer{animation:none}}"
+        "</style>"
+        '<div class="fh-scan-stage" role="img" aria-label="FeeHunt scanning radar">'
+        f"{globe}"
+        '<div class="fh-radar"><div class="fh-cross"></div><div class="fh-sweep"></div></div>'
+        f"{spokes}"
+        '<div class="fh-core"></div>'
+        "</div>"
+    )
+
+
+def render_scan_radar_scene(placeholder: Any) -> None:
+    """Draw the globe + radar scene once (never updated, so CSS keeps animating)."""
+    placeholder.markdown(_scan_scene_html(), unsafe_allow_html=True)
+
+
+def render_scan_counts(placeholder: Any, scanned: int, total: int, counts: dict) -> None:
+    """Live numbers under the radar: scanned X/Y plus per-category tallies. The
+    colours match the flying envelopes, so the count reads as the radar's own
+    classification — real data, no marketing captions."""
+    scanned_txt = f"{scanned} / {total}" if total else f"{scanned}"
+    placeholder.markdown(
+        f'<div class="fh-scan-counts">'
+        f'<span class="fh-scan-scanned">{scanned_txt}</span>'
+        f'<span class="fh-chip fh-chip--promo"><span class="fh-dot" style="background:#3ad492"></span>{counts.get("promos", 0)}</span>'
+        f'<span class="fh-chip fh-chip--subs"><span class="fh-dot" style="background:#e9b949"></span>{counts.get("subs", 0)}</span>'
+        f'<span class="fh-chip fh-chip--risk"><span class="fh-dot" style="background:#ef5d7a"></span>{counts.get("risks", 0)}</span>'
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def run_gmail_scan_with_progress() -> tuple[bool, str, str]:
     if not MAIN_FILE.exists():
         return False, "", t("scan.main_missing", current_language()).format(path=MAIN_FILE)
@@ -2416,14 +2547,17 @@ def run_gmail_scan_with_progress() -> tuple[bool, str, str]:
             env=env,
         )
 
-        living_feedback = st.empty()
+        # "Waau vision": the globe+radar scene is drawn ONCE (so its CSS
+        # animation runs uninterrupted); the live counts + progress update
+        # beneath it as the scan streams results.
+        scan_scene = st.empty()
+        render_scan_radar_scene(scan_scene)
+        counts_box = st.empty()
+        counts = {"promos": 0, "subs": 0, "risks": 0}
+        render_scan_counts(counts_box, 0, 0, counts)
         progress_bar = st.progress(0, text=scan_copy["starting"])
-        render_scan_living_feedback(
-            living_feedback,
-            scan_copy["starting"],
-            scan_copy["reassurance"][0],
-            scan_copy["reassurance"][2],
-        )
+        scanned_now = 0
+        scanned_total = 0
         stdout_lines = []
 
         while True:
@@ -2439,25 +2573,22 @@ def run_gmail_scan_with_progress() -> tuple[bool, str, str]:
                 try:
                     parts = line.split(":", 2)
                     current, total = map(int, parts[1].split("/"))
+                    scanned_now, scanned_total = current, total
                     pct = current / total if total > 0 else 0
                     message_index = min(
                         len(scan_copy["messages"]) - 1,
                         int(pct * len(scan_copy["messages"])),
                     )
-                    reassurance_index = current % len(scan_copy["reassurance"])
                     message = scan_copy["messages"][message_index]
-                    detail = (
-                        t("scan.loading.progress_detail", current_language()).format(current=current, total=total)
-                        if total
-                        else message
-                    )
                     progress_bar.progress(pct, text=message)
-                    render_scan_living_feedback(
-                        living_feedback,
-                        message,
-                        scan_copy["reassurance"][reassurance_index],
-                        detail,
-                    )
+                    render_scan_counts(counts_box, scanned_now, scanned_total, counts)
+                except Exception:
+                    pass
+            elif line.startswith("STATS:"):
+                try:
+                    promos, subs, risks = map(int, line.split(":", 1)[1].split("/"))
+                    counts = {"promos": promos, "subs": subs, "risks": risks}
+                    render_scan_counts(counts_box, scanned_now, scanned_total, counts)
                 except Exception:
                     pass
 
@@ -2465,19 +2596,12 @@ def run_gmail_scan_with_progress() -> tuple[bool, str, str]:
         success = process.poll() == 0
         if success:
             progress_bar.progress(1.0, text=scan_copy["complete"])
-            render_scan_living_feedback(
-                living_feedback,
-                scan_copy["complete"],
-                scan_copy["reassurance"][0],
-                scan_copy["reassurance"][0],
-            )
-        else:
-            render_scan_living_feedback(
-                living_feedback,
-                scan_copy["not_complete"],
-                "Nothing was changed without your approval.",
-                "You can try again when you are ready.",
-            )
+        # The radar is a scan-ONLY moment: clear it the instant scanning ends
+        # (success or failure) so it never lingers on the results view. This is
+        # deliberate — the animation only appears while FeeHunt is actually
+        # working, which is what makes it feel like a real system at work.
+        scan_scene.empty()
+        counts_box.empty()
         return success, "\n".join(stdout_lines), stderr_output
 
     except Exception as error:
@@ -2596,7 +2720,10 @@ def apply_rules_to_scan(
     lang = current_language()
     category_actions = rules.get("category_actions", {}).copy()
     whitelist = [w.lower() for w in rules.get("whitelist", [])]
-    blacklist = [b.lower() for b in rules.get("blacklist", [])]
+    # Block-senders feature removed: ignore any saved sender blocklist so it no
+    # longer auto-trashes by sender. Whitelist, category actions, and keyword
+    # "unwanted" rules below are unaffected.
+    blacklist = []
 
     results = {
         "auto_deleted": [],
@@ -2987,6 +3114,52 @@ def render_sender_info(item: dict, lang: str, ui_key: str) -> None:
 CANCEL_WIZARD_STEPS = 4
 
 
+def resolve_cancel_target(item: dict, sender: str, lang: str) -> dict:
+    """Pick the single best place to send the user to cancel THIS subscription,
+    most precise to least, and describe it. Shared by the per-email wizard and the
+    control center so both always agree. Returns:
+        {"url", "tier", "label", "confidence", "netloc"}
+    tier:        direct (link in the email) > hub (App Store/Play/PayPal/MS) >
+                 known (curated billing page) > site (sender's own site) > search.
+    confidence:  exact (lands on the real cancel control / account) | area (right
+                 site, not the exact button) | search (we couldn't pinpoint it).
+    """
+    direct_url = item.get("direct_cancel_url")
+    hub = item.get("cancel_hub")
+    hub_url = hub.get("url") if hub else None
+    try:
+        site_url = sender_website_url(sender)
+    except Exception:
+        site_url = None
+    service = readable_service_name(item)
+
+    if direct_url:
+        url, tier = direct_url, "direct"
+        label = t("safe_action.open_direct_cancel", lang)
+    elif hub_url:
+        url, tier = hub_url, "hub"
+        label = t("wizard.open_hub", lang).format(service=hub.get("name"))
+    elif known_billing_url(sender):
+        url, tier = known_billing_url(sender), "known"
+        label = t("wizard.open_site", lang).format(domain=urlparse(url).netloc)
+    elif site_url:
+        url, tier = site_url, "site"
+        label = t("wizard.open_site", lang).format(domain=urlparse(url).netloc)
+    else:
+        url, tier = (
+            "https://www.google.com/search?q="
+            + quote_plus(f"{service} cancel subscription"),
+            "search",
+        )
+        label = t("wizard.open_search", lang)
+
+    confidence = {"direct": "exact", "hub": "exact", "known": "exact",
+                  "site": "area", "search": "search"}[tier]
+    netloc = urlparse(url).netloc if url else ""
+    return {"url": url, "tier": tier, "label": label,
+            "confidence": confidence, "netloc": netloc}
+
+
 def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str,
                          lang: str, unsubscribe_url: str | None = None) -> None:
     """A small step-by-step guide, shown inside a subscription email card, that
@@ -2995,11 +3168,6 @@ def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str
     state_key = f"cwiz_{safe_key}"
     step = st.session_state.get(state_key, 0)
     service = readable_service_name(item)
-    direct_url = item.get("direct_cancel_url")
-    try:
-        site_url = sender_website_url(sender)
-    except Exception:
-        site_url = None
 
     st.divider()
 
@@ -3019,26 +3187,13 @@ def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str
         st.write(t("wizard.s1.body", lang).format(service=service))
     elif step == 2:
         st.write(t("wizard.s2.body", lang).format(service=service))
-        # Best cancellation target first, most precise to least:
-        #   1. the exact cancel link found inside the email itself,
-        #   2. the platform hub when it's billed via App Store / Google Play / PayPal,
-        #   3. the service's known billing page,
-        #   4. the sender's own site.
-        hub = item.get("cancel_hub")
-        hub_url = hub.get("url") if hub else None
-        primary_url = direct_url or hub_url or known_billing_url(sender) or site_url
-        if primary_url:
-            if direct_url:
-                label = t("safe_action.open_direct_cancel", lang)
-            elif hub_url and primary_url == hub_url:
-                label = t("wizard.open_hub", lang).format(service=hub.get("name"))
-            else:
-                label = t("wizard.open_site", lang).format(domain=urlparse(primary_url).netloc)
-            st.link_button(label, primary_url, type="primary", use_container_width=True)
-            st.caption(f"→ {urlparse(primary_url).netloc}")
-        else:
-            search_url = "https://www.google.com/search?q=" + quote_plus(f"{service} cancel subscription")
-            st.link_button(t("wizard.open_search", lang), search_url, type="primary", use_container_width=True)
+        # Best cancellation target (most precise to least) and its confidence,
+        # resolved by the shared helper the control center also uses.
+        target = resolve_cancel_target(item, sender, lang)
+        primary_url = target["url"]
+        st.link_button(target["label"], primary_url, type="primary", use_container_width=True)
+        if target["netloc"]:
+            st.caption(f"→ {target['netloc']}")
         # An unsubscribe link is offered SEPARATELY and HONESTLY: it only stops
         # the emails, it does NOT cancel a paid plan. We never let it pose as the
         # cancellation — that is the exact deception FeeHunt exists to stop.
@@ -3081,6 +3236,209 @@ def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str
             safe_rerun()
 
 
+# ============================================================
+# Subscription control center — the "do them all" conductor
+# ============================================================
+#
+# The per-email wizard above guides ONE subscription. The control center sits on
+# top: one consent, then a single queue that walks the user through EVERY detected
+# paid subscription, opening each one's exact cancel page and recording what the
+# user tells it. FeeHunt still never cancels for them — every open and every status
+# is the user's own click. Status is persisted by stable service identity so it
+# survives next month's billing email and app restarts.
+
+# status -> (emoji, translation key)
+SCC_BADGES = {
+    "cancelled": ("✅", "control_center.badge_cancelled"),
+    "needs_you": ("👤", "control_center.badge_needs_you"),
+    "keeping": ("🔒", "control_center.badge_keeping"),
+}
+# confidence -> (emoji, translation key)
+SCC_CONFIDENCE = {
+    "exact": ("🟢", "control_center.confidence_exact"),
+    "area": ("🟡", "control_center.confidence_area"),
+    "search": ("🟠", "control_center.confidence_search"),
+}
+
+
+def subscription_status_badge(service_key: str, lang: str) -> str | None:
+    """A short '✅ Cancelled' style badge for a service's recorded status, or None
+    when it's still pending. Reused by the control center and the email cards so
+    both always show the same mark."""
+    entry = get_subscription_status(service_key)
+    if not entry:
+        return None
+    icon, key = SCC_BADGES.get(entry.get("status"), (None, None))
+    return f"{icon} {t(key, lang)}" if icon else None
+
+
+def _control_center_items(scan_data: dict) -> list[dict]:
+    """Every paid thing worth stopping — financial risks first, then subscriptions
+    — deduped by stable service identity so one service shows up once."""
+    raw = list(scan_data.get("financial_risks", []) or []) + \
+        list(scan_data.get("subscriptions", []) or [])
+    deduped: dict[str, dict] = {}
+    for item in raw:
+        key = subscription_identity(item.get("sender") or "")
+        deduped.setdefault(key, item)
+    return list(deduped.values())
+
+
+def _scc_reappeared_after_cancel(service_key: str, item: dict) -> bool:
+    """True when the user marked this service cancelled, but a NEWER billing email
+    has since arrived — a sign the cancellation may not have stuck. Surfacing this
+    is the whole point: FeeHunt must never let a charge slip by silently."""
+    entry = get_subscription_status(service_key)
+    if not entry or entry.get("status") != "cancelled":
+        return False
+    marked = entry.get("marked_message_id")
+    current = item.get("message_id")
+    return bool(marked and current and marked != current)
+
+
+def render_subscription_control_center(scan_data: dict, lang: str) -> None:
+    """One consent, one queue, all paid subscriptions. Shown at the top of the
+    Subscriptions page (and reachable from the dashboard CTA)."""
+    if is_preview_mode():
+        return
+    items = _control_center_items(scan_data)
+    if not items:
+        return
+
+    total = len(items)
+    keys = [subscription_identity(it.get("sender") or "") for it in items]
+    done = sum(1 for k in keys if (get_subscription_status(k) or {}).get("status") in SCC_BADGES)
+    remaining = total - done
+
+    st.markdown(f"### 🚦 {t('control_center.title', lang)}")
+
+    active = st.session_state.get("scc_active", False)
+
+    # ---- State 0: overview + consent --------------------------------------
+    if not active:
+        st.write(t("control_center.count", lang).format(count=total))
+        if done:
+            st.caption(t("control_center.progress_summary", lang).format(done=done, remaining=remaining))
+        render_calm_note(t("control_center.consent", lang))
+        start_label = (t("control_center.resume", lang) if done
+                       else t("control_center.start", lang))
+        if st.button(f"🚦 {start_label}", key="scc_start", type="primary",
+                     use_container_width=True):
+            st.session_state["scc_active"] = True
+            # Resume at the first item the user hasn't decided on yet.
+            first_pending = next(
+                (i for i, k in enumerate(keys)
+                 if (get_subscription_status(k) or {}).get("status") not in SCC_BADGES),
+                0,
+            )
+            st.session_state["scc_index"] = first_pending
+            safe_rerun()
+        # A compact at-a-glance list of anything already decided.
+        if done:
+            with st.expander(t("control_center.decided_title", lang)):
+                for it, key in zip(items, keys):
+                    badge = subscription_status_badge(key, lang)
+                    if badge:
+                        st.write(f"{badge} — {readable_service_name(it)}")
+        st.divider()
+        return
+
+    # ---- State 1: the guided queue ----------------------------------------
+    index = st.session_state.get("scc_index", 0)
+
+    # Past the end -> the closing summary.
+    if index >= total:
+        counts = {"cancelled": 0, "needs_you": 0, "keeping": 0}
+        for k in keys:
+            status = (get_subscription_status(k) or {}).get("status")
+            if status in counts:
+                counts[status] += 1
+        st.success(t("control_center.summary", lang).format(
+            cancelled=counts["cancelled"],
+            needs_you=counts["needs_you"],
+            keeping=counts["keeping"],
+        ))
+        if st.button(t("control_center.finish", lang), key="scc_finish",
+                     type="primary", use_container_width=True):
+            st.session_state["scc_active"] = False
+            st.session_state["scc_index"] = 0
+            safe_rerun()
+        st.divider()
+        return
+
+    item = items[index]
+    service_key = keys[index]
+    sender = item.get("sender") or ""
+    service = readable_service_name(item)
+
+    st.caption(t("control_center.progress", lang).format(n=index + 1, total=total))
+    st.markdown(f"**{service}**")
+
+    existing = subscription_status_badge(service_key, lang)
+    if existing:
+        st.caption(t("control_center.current_status", lang).format(status=existing))
+
+    # New charge after a "cancelled" mark — flag it loudly, never hide it.
+    if _scc_reappeared_after_cancel(service_key, item):
+        st.warning(t("control_center.reappeared_warning", lang))
+
+    target = resolve_cancel_target(item, sender, lang)
+    conf_icon, conf_key = SCC_CONFIDENCE[target["confidence"]]
+    st.caption(f"{conf_icon} {t(conf_key, lang)}")
+    st.link_button(target["label"], target["url"], type="primary", use_container_width=True)
+    if target["netloc"]:
+        st.caption(f"→ {target['netloc']}")
+
+    # Unsubscribe is offered separately and honestly: it stops the emails, NOT the
+    # charge. Never let it pose as the cancellation.
+    unsubscribe_url = item.get("unsubscribe_url")
+    if unsubscribe_url and unsubscribe_url != target["url"]:
+        st.caption(t("wizard.s2.unsubscribe_note", lang))
+        st.link_button(t("wizard.stop_emails", lang), unsubscribe_url,
+                       use_container_width=True)
+
+    st.write(t("control_center.did_it_work", lang))
+    c1, c2, c3, c4 = st.columns(4)
+
+    def _advance():
+        st.session_state["scc_index"] = index + 1
+        safe_rerun()
+
+    def _mark(status: str):
+        set_subscription_status(service_key, status, service, item.get("message_id"))
+        _advance()
+
+    with c1:
+        if st.button(t("control_center.mark_cancelled", lang), key=f"scc_cancel_{index}",
+                     type="primary", use_container_width=True):
+            _mark("cancelled")
+    with c2:
+        if st.button(t("control_center.mark_needs_you", lang), key=f"scc_needs_{index}",
+                     use_container_width=True):
+            _mark("needs_you")
+    with c3:
+        if st.button(t("control_center.mark_keeping", lang), key=f"scc_keep_{index}",
+                     use_container_width=True):
+            _mark("keeping")
+    with c4:
+        if st.button(t("control_center.skip", lang), key=f"scc_skip_{index}",
+                     use_container_width=True):
+            _advance()
+
+    nav_back, nav_exit = st.columns(2)
+    with nav_back:
+        if index > 0 and st.button(t("control_center.back", lang), key=f"scc_back_{index}",
+                                   use_container_width=True):
+            st.session_state["scc_index"] = index - 1
+            safe_rerun()
+    with nav_exit:
+        if st.button(t("control_center.pause", lang), key=f"scc_pause_{index}",
+                     use_container_width=True):
+            st.session_state["scc_active"] = False
+            safe_rerun()
+    st.divider()
+
+
 def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
     lang = current_language()
     subject = item.get("subject") or t("email.no_subject", lang)
@@ -3110,6 +3468,13 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
         all_keywords = keywords
 
     with st.expander(f"{icon} {subject}"):
+        # Mirror the control center's decision so a card and the conductor never
+        # disagree about whether this subscription is handled.
+        if card_type in ("financial_risk", "subscriptions"):
+            badge = subscription_status_badge(subscription_identity(sender), lang)
+            if badge:
+                st.caption(badge)
+
         col_a, col_b = st.columns(2)
         with col_a:
             st.write(f"**{t('email.sender_label', lang)}:** {sender}")
@@ -3175,15 +3540,6 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
                     st.session_state.rules = rules
                     confirm_success(t("actions.added_whitelist", lang).format(sender=sender))
 
-        def _act_blacklist():
-            if st.button(t("actions.blacklist", lang), key=f"blacklist_{safe_key}",
-                         help=t("actions.blacklist_help", lang), use_container_width=True):
-                if sender not in rules["blacklist"]:
-                    rules["blacklist"].append(sender)
-                    save_rules(rules)
-                    st.session_state.rules = rules
-                    confirm_success(t("actions.added_blacklist", lang).format(sender=sender))
-
         def _more(secondary):
             # A button (not a toggle) so it stays clearly visible against the
             # light card background; it remembers open/closed in session state.
@@ -3199,19 +3555,18 @@ def show_email_card(item: dict, icon: str, card_type: str = "generic") -> None:
 
         if card_type in ("financial_risk", "subscriptions"):
             # The wizard above is the one clear path; everything else is secondary.
-            _more([_act_delete, _act_archive, _act_open_gmail, _act_whitelist, _act_blacklist])
+            _more([_act_delete, _act_archive, _act_open_gmail, _act_whitelist])
         elif card_type == "phishing_risk":
             # A possible threat: keep the safe moves visible, not buried.
             _act_delete()
             _act_spam()
-            _act_blacklist()
             _more([_act_open_gmail, _act_whitelist])
         else:
             # Promotions / unwanted / generic: clean up, or unsubscribe when possible.
             _act_delete()
             if unsubscribe_url:
                 _act_unsubscribe()
-            _more([_act_archive, _act_open_gmail, _act_whitelist, _act_blacklist])
+            _more([_act_archive, _act_open_gmail, _act_whitelist])
 
 
 # ============================================================
@@ -3535,6 +3890,10 @@ def localized_gate_message(gate: dict[str, Any], lang: str) -> str:
     if status == "plan_limit_exceeded":
         accounts_value = gate.get("allowed_gmail_accounts") or gate.get("accounts") or 1
         return t("license.gate.plan_limit_exceeded", lang).format(accounts=accounts_value)
+    if status in {"device_limit", "device_limit_exceeded"}:
+        return t("license.gate.device_limit", lang)
+    if status in {"payment_required", "payment_failed", "past_due", "unpaid"}:
+        return t("license.gate.payment_failed", lang)
     if not online and allowed:
         from licensing import OFFLINE_GRACE_DAYS
         return t("license.gate.offline_grace", lang).format(days=OFFLINE_GRACE_DAYS)
@@ -3565,6 +3924,7 @@ def show_license_banner(gate: dict[str, Any]) -> None:
         st.error(t("license.banner_inactive", lang))
         st.write(localized_gate_message(gate, lang))
         st.link_button(t("license.upgrade_now", lang), PRICING_URL)
+        render_recheck_after_payment(lang, "banner")
 
 
 def save_ftue_completed() -> None:
@@ -4057,51 +4417,15 @@ def run_dashboard_scan(apply_after: bool, show_aha_after_success: bool = False) 
             st.session_state.show_ftue_aha = True
             save_ftue_completed()
 
-        if (
-            st.session_state.settings.get("auto_apply_blacklist_after_scan", False)
-            and saved
-            and effective_can_modify(gate)
-        ):
-            with st.spinner(t("dashboard.apply_blacklist_spinner", lang)):
-                # 1) Keyword path: trash blacklisted senders whose emails
-                #    fell into scan_data via subscription/promo/etc. keyword
-                #    categorization. Existing behavior — kept for the side-
-                #    effect of removing those items from scan_data so the UI
-                #    counters update.
-                blacklist_results = apply_rules_to_scan(
-                    saved,
-                    st.session_state.rules,
-                    blacklist_only=True,
-                    include_user_unwanted_rules=True,
-                )
-                # 2) Direct Gmail path: catch the rest — emails from a
-                #    blacklisted sender that have no scan-recognized keyword.
-                #    This is what fixes the "I added 11 senders but the
-                #    scan can't find them" bug.
-                direct_results = apply_blacklist_to_gmail_directly(
-                    st.session_state.rules.get("blacklist", []) or []
-                )
-                st.session_state.cleanup_results = blacklist_results
-
-            deleted = len(blacklist_results.get("auto_deleted", []))
-            direct_deleted = direct_results.get("messages_trashed", 0)
-            protected = len(blacklist_results.get("protected", []))
-            if deleted:
-                remember_recent_trashed_items(remove_messages_from_scan(result_message_ids(blacklist_results.get("auto_deleted"))))
-            total_deleted = deleted + direct_deleted
-            if total_deleted:
-                st.success(t("dashboard.auto_blacklist_done", lang).format(deleted=total_deleted))
-            if protected:
-                st.info(t("dashboard.auto_blacklist_protected", lang).format(protected=protected))
-
         if apply_after and saved and effective_can_modify(gate):
             st.session_state.cleanup_preview = apply_rules_to_scan(saved, st.session_state.rules, dry_run=True)
             st.info(t("cleanup.preview_ready", lang))
 
         # Charge the trial scan quota AFTER a successful scan (not after a
-        # failure). Refresh the in-memory gate so the next render reflects
-        # the new trial_scans_used count.
-        if not is_preview_mode():
+        # failure). Testers are never charged, so their on-disk counter stays at
+        # zero. Refresh the in-memory gate (re-promoted at the top on rerun) so the
+        # next render reflects the new trial_scans_used count.
+        if not is_preview_mode() and not gate.get("tester"):
             mark_trial_scan_used()
             st.session_state.license_gate = check_license()
 
@@ -4400,7 +4724,11 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
         gmail_caption = copy["gmail_preview_caption"]
     elif connected:
         gmail_value = copy["gmail_connected"]
-        gmail_caption = copy["gmail_connected_caption"]
+        connected_email = get_connected_email()
+        # Show the exact Gmail address so a user with several accounts always
+        # sees which inbox FeeHunt is processing. Fall back to the generic
+        # caption only if the address could not be read.
+        gmail_caption = connected_email or copy["gmail_connected_caption"]
     else:
         gmail_value = copy["gmail_not_connected"]
         gmail_caption = copy["gmail_not_connected_caption"]
@@ -4488,11 +4816,22 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
     else:
         st.markdown(hero_html, unsafe_allow_html=True)
 
+    # If the inbox was larger than the scan cap, say so plainly so the user
+    # doesn't assume FeeHunt covered every email they have.
+    if scan_data and scan_data.get("scan_capped") and not is_preview_mode():
+        st.caption(
+            t("scan.capped_note", lang).format(count=scan_data.get("emails_scanned", 0))
+        )
+
     # Compact rescan button sits directly BELOW the hero card, right-aligned,
     # on the light page background so it's clearly visible (the area ABOVE
     # the hero is dark and clipped). Only render after the first scan — before
     # that the bottom primary "Scan Gmail" button is the right entry point.
-    if connected and not is_preview_mode() and scan_data:
+    # Only when there ARE findings: with no findings the full-width primary
+    # button below is the single, wider scan CTA (and its scan scene spans the
+    # whole row), so rendering this compact one too would duplicate the button
+    # and squeeze the radar into a narrow column with empty space on the left.
+    if connected and not is_preview_mode() and scan_data and has_findings:
         _scan_allowed = effective_can_scan(license_gate)
         _scan_tooltip = (
             help_text("scan_gmail", lang)
@@ -4549,6 +4888,21 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+def render_recheck_after_payment(lang: str, key_suffix: str) -> None:
+    """A 'I already paid — check now' button next to the upgrade link. Without
+    it, a user who just paid on the website still sees the expired/locked banner
+    until they restart the app, and may think the payment didn't work. This
+    re-verifies online on the spot and unlocks immediately once the server shows
+    the plan as active."""
+    if st.button(t("license.recheck_cta", lang), key=f"fh_recheck_{key_suffix}"):
+        gate = check_license(force_online=True)
+        st.session_state.license_gate = gate
+        if gate.get("allowed"):
+            safe_rerun()
+        else:
+            st.info(t("license.recheck_pending", lang))
+
+
 def show_trial_status_banner(license_gate: dict[str, Any]) -> None:
     """Render trial-state banners on the dashboard: an intro when scans
     remain, a quota-locked banner once they're used up, an expired banner
@@ -4565,11 +4919,13 @@ def show_trial_status_banner(license_gate: dict[str, Any]) -> None:
     if reason == "expired":
         st.error(f"**{t('trial.expired_title', lang)}**  \n{t('trial.expired_body', lang)}")
         st.link_button(t("trial.upgrade_cta", lang), PRICING_URL)
+        render_recheck_after_payment(lang, "expired")
         return
 
     if reason == "scan_quota":
         st.warning(f"**{t('trial.locked_title', lang)}**  \n{t('trial.locked_body', lang)}")
         st.link_button(t("trial.upgrade_cta", lang), PRICING_URL)
+        render_recheck_after_payment(lang, "locked")
         return
 
     # Trial still has scans available — show the friendly intro so the
@@ -4621,92 +4977,50 @@ def show_dashboard_review_actions(license_gate: dict[str, Any]) -> None:
 
 
 def show_dashboard_blacklist_manager() -> None:
-    """Always-visible sender-list quick-add on the dashboard so users can
-    add senders without hunting through Sender Lists page. Two columns:
-    protected (whitelist) and blocked (blacklist). Matches the same
-    mental model as the full Sender Lists page."""
+    """Always-visible protected-sender quick-add on the dashboard so users can
+    mark senders FeeHunt should never touch without hunting through the
+    Sender Lists page."""
     lang = current_language()
     rules = st.session_state.rules
     whitelist = rules.get("whitelist", []) or []
-    blacklist = rules.get("blacklist", []) or []
 
     st.markdown(f"### 📋 {t('senders.page_title', lang).lstrip('📋 ')}")
-    st.caption(t("dashboard.blacklist_caption", lang))
+    st.caption(t("senders.protected_caption", lang))
 
     if st.session_state.pop("clear_dash_wl_entry", False):
         st.session_state["dash_wl_entry"] = ""
-    if st.session_state.pop("clear_dash_bl_entry", False):
-        st.session_state["dash_bl_entry"] = ""
 
-    wl_col, bl_col = st.columns(2)
-
-    # ─── Protected column (whitelist) ───
-    with wl_col:
-        st.markdown(f"**{t('senders.protected_title', lang)}**")
-        st.caption(t("senders.protected_caption", lang))
-        new_wl = st.text_input(
-            t("senders.protected_input_label", lang),
-            placeholder=t("senders.protected_input_placeholder", lang),
-            key="dash_wl_entry",
-            label_visibility="collapsed",
-        )
-        if st.button(
-            t("senders.protected_add", lang),
-            type="primary",
-            use_container_width=True,
-            key="dash_wl_add_btn",
-        ):
-            value = str(new_wl or "").strip()
-            if not value:
-                st.warning(t("senders.empty_value", lang))
-            elif value.lower() in {w.lower() for w in whitelist}:
-                st.info(t("senders.protected_exists", lang).format(sender=value))
-            else:
-                whitelist.append(value)
-                rules["whitelist"] = whitelist
-                save_rules(rules)
-                st.session_state.rules = rules
-                st.session_state.clear_dash_wl_entry = True
-                st.success(t("senders.protected_added", lang).format(sender=value))
-                safe_rerun()
-        if whitelist:
-            st.caption(t("senders.protected_count", lang).format(count=len(whitelist)))
+    # ─── Protected senders (whitelist) ───
+    st.markdown(f"**{t('senders.protected_title', lang)}**")
+    new_wl = st.text_input(
+        t("senders.protected_input_label", lang),
+        placeholder=t("senders.protected_input_placeholder", lang),
+        key="dash_wl_entry",
+        label_visibility="collapsed",
+    )
+    if st.button(
+        t("senders.protected_add", lang),
+        type="primary",
+        use_container_width=True,
+        key="dash_wl_add_btn",
+    ):
+        value = str(new_wl or "").strip()
+        if not value:
+            st.warning(t("senders.empty_value", lang))
+        elif value.lower() in {w.lower() for w in whitelist}:
+            st.info(t("senders.protected_exists", lang).format(sender=value))
         else:
-            st.caption(t("senders.protected_empty", lang))
-
-    # ─── Blocked column (blacklist) ───
-    with bl_col:
-        st.markdown(f"**{t('senders.blocked_title', lang)}**")
-        st.caption(t("senders.blocked_caption", lang))
-        new_bl = st.text_input(
-            t("senders.blocked_input_label", lang),
-            placeholder=t("senders.blocked_input_placeholder", lang),
-            key="dash_bl_entry",
-            label_visibility="collapsed",
-        )
-        if st.button(
-            t("senders.blocked_add", lang),
-            type="primary",
-            use_container_width=True,
-            key="dash_bl_add_btn",
-        ):
-            value = str(new_bl or "").strip()
-            if not value:
-                st.warning(t("senders.empty_value", lang))
-            elif value.lower() in {b.lower() for b in blacklist}:
-                st.info(t("senders.blocked_exists", lang).format(sender=value))
-            else:
-                blacklist.append(value)
-                rules["blacklist"] = blacklist
-                save_rules(rules)
-                st.session_state.rules = rules
-                st.session_state.clear_dash_bl_entry = True
-                st.success(t("senders.blocked_added", lang).format(sender=value))
-                safe_rerun()
-        if blacklist:
-            st.caption(t("senders.blocked_count", lang).format(count=len(blacklist)))
-        else:
-            st.caption(t("senders.blocked_empty", lang))
+            whitelist.append(value)
+            rules["whitelist"] = whitelist
+            save_rules(rules)
+            st.session_state.rules = rules
+            st.session_state.clear_dash_wl_entry = True
+            st.success(t("senders.protected_added", lang).format(sender=value))
+            safe_rerun()
+    if whitelist:
+        st.caption(t("senders.protected_count", lang).format(count=len(whitelist)))
+    else:
+        st.caption(t("senders.protected_empty", lang))
 
     # Link to full Sender Lists page
     if st.button(
@@ -4723,6 +5037,18 @@ def show_dashboard_result_shortcuts(scan_data: dict | None) -> None:
         return
 
     lang = current_language()
+
+    # The flagship call to action: jump straight into the control center queue.
+    paid_count = len(_control_center_items(scan_data))
+    if paid_count and not is_preview_mode():
+        if st.button(t("dashboard.stop_subscriptions_cta", lang).format(count=paid_count),
+                     type="primary", use_container_width=True,
+                     key="dashboard_stop_subscriptions"):
+            st.session_state.ftue_target_page = "Subscriptions"
+            st.session_state["scc_active"] = True
+            st.session_state["scc_index"] = 0
+            safe_rerun()
+
     shortcuts = [
         (
             t("dashboard.quick_review_subscriptions", lang),
@@ -4776,7 +5102,12 @@ def show_dashboard_control_panel(
         if is_preview_mode():
             render_status_line("spark", t("preview.status", lang), t("preview.status_caption", lang))
         elif connected:
-            render_status_line("check", t("control.connected", lang), t("control.scan_ready", lang))
+            connected_email = get_connected_email()
+            render_status_line(
+                "check",
+                t("control.connected", lang),
+                connected_email or t("control.scan_ready", lang),
+            )
         else:
             render_status_line("mail", t("control.not_connected", lang), t("trust.connect_note", lang))
 
@@ -4946,7 +5277,22 @@ handle_preview_query_param()
 # License and onboarding checks
 # ============================================================
 
+# Backfill the connected-account email for tokens connected by older versions, so
+# the UI can name the active inbox and tester-mode can recognise it. Once per run.
+if not is_preview_mode() and not st.session_state.get("_email_backfilled"):
+    ensure_connected_email()
+    st.session_state["_email_backfilled"] = True
+
 license_gate = st.session_state.get("license_gate") or check_license()
+# Tester inboxes get the trial quota/date limits lifted (in memory only) so the
+# maker can re-scan freely. Applied here, the single gate chokepoint, so every
+# downstream can-scan / quota check sees the promoted gate.
+if not is_preview_mode():
+    license_gate = promote_if_tester(license_gate, get_connected_email())
+    # Local-only DEV switch (FEEHUNT_DEV_UNLOCK): lets the maker into the app to
+    # test without a real key. No-op in shipped builds. See apply_dev_unlock.
+    license_gate = apply_dev_unlock(license_gate)
+    st.session_state.license_gate = license_gate
 if not license_gate.get("allowed"):
     show_auth_screen()
     st.stop()
@@ -4962,12 +5308,94 @@ lang = current_language()
 # Sidebar
 # ============================================================
 
+def current_license_overview() -> dict:
+    """License overview that honours the in-memory gate (dev unlock / tester family
+    plan), falling back to the saved license file when there's no live gate."""
+    return get_license_overview(st.session_state.get("license_gate") or None)
+
+
+def render_account_switcher(lang: str) -> None:
+    """Show the active Gmail and, for multi-account plans, let the user switch
+    between connected inboxes or add a new one — all in one place."""
+    if is_preview_mode():
+        return
+    active = get_connected_email().strip()
+    accounts = list_saved_accounts()
+    if active and active.lower() not in [a.lower() for a in accounts]:
+        accounts = [active] + accounts
+    if not active and not accounts:
+        return  # nothing connected yet; the Connect button handles this elsewhere
+
+    overview = current_license_overview()
+    allowed = int(overview.get("allowed_gmail_accounts") or 1)
+    used = int(overview.get("connected_gmail_count") or len(accounts))
+    can_add = used < allowed
+
+    # One account and no room for more: a plain caption is clearer than a menu.
+    if len(accounts) <= 1 and not can_add:
+        if active:
+            st.caption(f"📧 {t('sidebar.connected_gmail', lang)}: {active}")
+        return
+
+    header = active or t("account.add", lang)
+    with st.expander(f"📧 {header}", expanded=False):
+        st.caption(t("account.switch_hint", lang))
+        for email in accounts:
+            is_active = bool(active) and email.lower() == active.lower()
+            label = f"✓ {email}" if is_active else f"↪ {email}"
+            if st.button(
+                label,
+                key=f"fh_acct_{email}",
+                use_container_width=True,
+                disabled=is_active,
+                help=None if is_active else t("account.switch_help", lang),
+            ):
+                if switch_account(email):
+                    # Saved results belong to the previous inbox; load_last_scan_results
+                    # filters by active account, so this resets the view cleanly.
+                    st.session_state.last_scan = load_last_scan_results()
+                    safe_rerun()
+                else:
+                    # No archived token (account registered before this feature):
+                    # fall back to a fresh Google sign-in for that inbox.
+                    try:
+                        get_gmail_service(force_reauth=True)
+                        st.session_state.last_scan = load_last_scan_results()
+                        safe_rerun()
+                    except Exception as exc:
+                        st.error(friendly_error_message(exc))
+        if allowed > 1:
+            st.caption(t("account.limit_note", lang).format(used=used, allowed=allowed))
+        if can_add:
+            if st.button(
+                f"➕ {t('account.add', lang)}",
+                key="fh_acct_add",
+                type="primary",
+                use_container_width=True,
+                help=t("account.add_help", lang),
+            ):
+                try:
+                    get_gmail_service(force_reauth=True)
+                    st.session_state.last_scan = load_last_scan_results()
+                    st.success(t("gmail.connected_success", lang))
+                    safe_rerun()
+                except Exception as exc:
+                    st.error(friendly_error_message(exc))
+
+
 with st.sidebar:
     st.title(t("app.brand_title", lang))
-    st.caption(t("sidebar.caption", lang))
+    # Plan-aware caption: "1 plan = 1 account" is only true on single-account
+    # plans. Family/Pro users would be misled, so reflect their real allowance.
+    _allowed_accounts = int(current_license_overview().get("allowed_gmail_accounts") or 1)
+    if _allowed_accounts > 1:
+        st.caption(t("sidebar.caption_multi", lang).format(count=_allowed_accounts))
+    else:
+        st.caption(t("sidebar.caption", lang))
     saved_license = load_license() or {}
     if saved_license.get("license_key"):
         st.caption(f"{t('sidebar.license', lang)}: {saved_license['license_key'][:11]}...")
+    render_account_switcher(lang)
     if is_preview_mode():
         st.info(t("preview.status", lang))
         if st.button(t("preview.exit", lang), use_container_width=True):
@@ -4978,9 +5406,23 @@ with st.sidebar:
     if st.button(t("sidebar.refresh_license", lang), use_container_width=True):
         st.session_state.license_gate = check_license(force_online=True)
         safe_rerun()
-    if st.button(t("sidebar.deactivate_license", lang), use_container_width=True):
-        clear_license()
-        st.session_state.license_gate = {"allowed": False}
+    # Deactivating locks the user out until they re-enter their key, so confirm
+    # first — a single stray click should never sign them out by accident.
+    if st.session_state.get("confirm_deactivate"):
+        st.warning(t("sidebar.deactivate_warn", lang))
+        _deact_yes, _deact_no = st.columns(2)
+        with _deact_yes:
+            if st.button(t("sidebar.deactivate_confirm", lang), use_container_width=True):
+                clear_license()
+                st.session_state.license_gate = {"allowed": False}
+                st.session_state.pop("confirm_deactivate", None)
+                safe_rerun()
+        with _deact_no:
+            if st.button(t("common.cancel", lang), use_container_width=True):
+                st.session_state.pop("confirm_deactivate", None)
+                safe_rerun()
+    elif st.button(t("sidebar.deactivate_license", lang), use_container_width=True):
+        st.session_state.confirm_deactivate = True
         safe_rerun()
 
     page_options = ["Dashboard", "Check a Message", "Subscriptions", "Promotions", "How to Use FeeHunt", "Cleanup Rules", "Settings"]
@@ -5153,6 +5595,9 @@ elif page == "Subscriptions":
     else:
         financial_risks = scan_data.get("financial_risks", []) or []
         subscriptions = scan_data.get("subscriptions", []) or []
+
+        # The conductor: one consent, walk through every paid subscription.
+        render_subscription_control_center(scan_data, lang)
 
         if financial_risks:
             st.subheader(t("financial_risks.heading", lang), help=help_text("financial_risks", lang))
@@ -5424,270 +5869,10 @@ elif page == "Cleanup Rules":
     st.divider()
 
     # ───────────────────────────────────────────────────────────
-    # 🚫 Blocked senders (blacklist)
-    # ───────────────────────────────────────────────────────────
-    st.subheader(t("senders.blocked_title", lang))
-    st.caption(t("senders.blocked_caption", lang))
-
-    blacklist = rules.get("blacklist", []) or []
-
-    if st.session_state.pop("clear_senders_blacklist_entry", False):
-        st.session_state["senders_blacklist_entry"] = ""
-
-    bl_input_col, bl_button_col = st.columns([3, 1])
-    with bl_input_col:
-        new_bl = st.text_input(
-            t("senders.blocked_input_label", lang),
-            placeholder=t("senders.blocked_input_placeholder", lang),
-            key="senders_blacklist_entry",
-            label_visibility="collapsed",
-        )
-    with bl_button_col:
-        bl_add = st.button(
-            t("senders.blocked_add", lang),
-            type="primary",
-            use_container_width=True,
-            key="senders_blacklist_add",
-        )
-
-    if bl_add:
-        value = str(new_bl or "").strip()
-        if not value:
-            st.warning(t("senders.empty_value", lang))
-        elif value.lower() in {b.lower() for b in blacklist}:
-            st.info(t("senders.blocked_exists", lang).format(sender=value))
-        else:
-            blacklist.append(value)
-            rules["blacklist"] = blacklist
-            save_rules(rules)
-            st.session_state.rules = rules
-            st.session_state.clear_senders_blacklist_entry = True
-            confirm_success(t("senders.blocked_added", lang).format(sender=value))
-            safe_rerun()
-
-    if blacklist:
-        st.caption(t("senders.blocked_count", lang).format(count=len(blacklist)))
-        for index, entry in enumerate(blacklist):
-            row_l, row_r = st.columns([5, 1])
-            with row_l:
-                st.markdown(
-                    f"<div class='fh-sender-entry'>🚫 <span>{escape(str(entry), quote=False)}</span></div>",
-                    unsafe_allow_html=True,
-                )
-            with row_r:
-                if st.button(
-                    t("senders.remove", lang),
-                    key=f"senders_bl_rm_{index}",
-                    use_container_width=True,
-                ):
-                    blacklist.pop(index)
-                    rules["blacklist"] = blacklist
-                    save_rules(rules)
-                    st.session_state.rules = rules
-                    confirm_success(t("senders.removed", lang))
-                    safe_rerun()
-    else:
-        st.caption(t("senders.blocked_empty", lang))
-
-    # ───────────────────────────────────────────────────────────
-    # ⚙️ Auto-action setting + Apply now button
-    # ───────────────────────────────────────────────────────────
-    st.markdown(f"#### {t('senders.action_title', lang)}")
-    current_auto = bool(settings.get("auto_apply_blacklist_after_scan", False))
-    new_auto = st.checkbox(
-        t("senders.action_auto_label", lang),
-        value=current_auto,
-        key="senders_auto_action_checkbox",
-    )
-    if new_auto:
-        st.success(
-            f"{t('senders.auto_action_on_badge', lang)} — {t('senders.action_auto_help', lang)}"
-        )
-    else:
-        st.info(
-            f"{t('senders.auto_action_off_badge', lang)} — {t('senders.action_review_help', lang)}"
-        )
-    if new_auto != current_auto:
-        settings["auto_apply_blacklist_after_scan"] = new_auto
-        if save_settings(settings):
-            st.session_state.settings = settings
-            safe_rerun()
-
-    # ── Apply-now: trash unwanted-sender emails from the last scan ──
-    # without waiting for the next scan. Uses the existing blacklist
-    # and last_scan results; respects whitelist via apply_rules_to_scan.
-    scan_data = st.session_state.last_scan
-    if scan_data and blacklist:
-        already_blocked_lc = {b.lower() for b in blacklist}
-        matching_emails: list[dict] = []
-        seen_ids: set[str] = set()
-        for section in (
-            "subscriptions",
-            "financial_risks",
-            "promotional_emails",
-            "shop_emails",
-            "newsletter_emails",
-        ):
-            for item in scan_data.get(section, []) or []:
-                sender = str(item.get("sender", "")).lower()
-                if not any(b in sender for b in already_blocked_lc):
-                    continue
-                mid = item.get("message_id") or get_email_identity(item, section)
-                if mid in seen_ids:
-                    continue
-                seen_ids.add(mid)
-                matching_emails.append(item)
-
-        # Persistent result panel — survives the rerun after the button
-        # click so the user clearly sees what was trashed instead of a
-        # toast that flashes for half a second.
-        apply_result = st.session_state.get("apply_now_result")
-        if apply_result:
-            total = apply_result.get("total_deleted", 0)
-            by_sender = apply_result.get("by_sender", {})
-            errors = apply_result.get("errors", [])
-            if total:
-                with st.container(border=True):
-                    st.success(
-                        t("senders.apply_now_done", lang).format(count=total)
-                    )
-                    nonzero = [(s, n) for s, n in by_sender.items() if n]
-                    if nonzero:
-                        st.markdown(f"**{t('senders.apply_now_breakdown', lang)}**")
-                        for sender_label, count in sorted(nonzero, key=lambda x: -x[1]):
-                            short = sender_label if len(sender_label) <= 60 else sender_label[:57] + "…"
-                            st.markdown(f"- `{short}` — **{count}**")
-                    if errors:
-                        with st.expander(t("senders.apply_now_errors_expander", lang).format(count=len(errors)), expanded=False):
-                            for err in errors[:20]:
-                                st.caption(f"• {err.get('sender', '?')}: {err.get('error', 'unknown')}")
-                    if st.button(
-                        t("senders.apply_now_dismiss", lang),
-                        key="senders_apply_now_dismiss",
-                    ):
-                        st.session_state.pop("apply_now_result", None)
-                        safe_rerun()
-            else:
-                st.info(t("senders.apply_now_preview_none", lang))
-                if st.button(
-                    t("senders.apply_now_dismiss", lang),
-                    key="senders_apply_now_dismiss_empty",
-                ):
-                    st.session_state.pop("apply_now_result", None)
-                    safe_rerun()
-
-        # Scan-based preview count (informational). The button below now
-        # ALWAYS also does a direct Gmail search, so senders missing from
-        # the latest scan still get caught.
-        if matching_emails:
-            st.markdown(
-                f"**{t('senders.apply_now_preview_some', lang).format(count=len(matching_emails))}**"
-            )
-
-        if rules.get("blacklist"):
-            if effective_can_modify(st.session_state.get("license_gate") or {}):
-                button_label = (
-                    t("senders.apply_now_button", lang).format(count=len(matching_emails))
-                    if matching_emails
-                    else t("senders.apply_now_button", lang).format(count=0)
-                )
-                if st.button(
-                    button_label,
-                    type="primary",
-                    use_container_width=True,
-                    key="senders_apply_now_btn",
-                ):
-                    with st.spinner(t("dashboard.apply_blacklist_spinner", lang)):
-                        # 1) Keyword path against scan_data (existing behavior;
-                        #    refreshes scan counters so the UI feels coherent).
-                        results = apply_rules_to_scan(
-                            scan_data,
-                            rules,
-                            blacklist_only=True,
-                            include_user_unwanted_rules=False,
-                        )
-                        # 2) Direct Gmail search — the fix. Catches every
-                        #    blacklisted-sender email regardless of category.
-                        direct_results = apply_blacklist_to_gmail_directly(
-                            rules.get("blacklist", []) or []
-                        )
-                        st.session_state.cleanup_results = results
-                    scan_deleted = len(results.get("auto_deleted", []))
-                    if scan_deleted:
-                        remember_recent_trashed_items(
-                            remove_messages_from_scan(
-                                result_message_ids(results.get("auto_deleted"))
-                            )
-                        )
-                    direct_deleted = direct_results.get("messages_trashed", 0)
-                    total_deleted = scan_deleted + direct_deleted
-
-                    # Build a per-sender breakdown that includes BOTH the
-                    # scan-path hits and the direct-search hits. Direct
-                    # search is the dominant source now, so its by_sender
-                    # map is the spine.
-                    by_sender: dict[str, int] = {}
-                    for sender_rule, hits in (direct_results.get("by_sender") or {}).items():
-                        by_sender[sender_rule] = by_sender.get(sender_rule, 0) + len(hits)
-                    # Add scan_data hits, keyed by the rule that matched.
-                    for item in results.get("auto_deleted", []) or []:
-                        rule_hit = item.get("sender") or item.get("reason") or "scan match"
-                        by_sender[rule_hit] = by_sender.get(rule_hit, 0) + 1
-
-                    st.session_state.apply_now_result = {
-                        "total_deleted": total_deleted,
-                        "by_sender": by_sender,
-                        "errors": direct_results.get("errors", []),
-                    }
-                    safe_rerun()
-            else:
-                st.caption(t("senders.apply_now_locked", lang))
-        elif matching_emails is not None and not matching_emails:
-            st.caption(t("senders.apply_now_preview_none", lang))
-
-    st.divider()
-
-    # ───────────────────────────────────────────────────────────
     # ⚙️ Advanced controls (collapsed) — power-user options
     # ───────────────────────────────────────────────────────────
     with st.expander(t("senders.advanced_expander", lang), expanded=False):
         st.caption(t("senders.advanced_help", lang))
-
-        scan_data = st.session_state.last_scan
-
-        # Multi-select from detected senders (former Tab 0)
-        if scan_data:
-            detected_senders = collect_detected_senders(scan_data)
-            if detected_senders:
-                st.markdown("**" + t("cleanup.mark_unwanted", lang) + "**")
-                already_blocked = {b.lower() for b in blacklist}
-                detected_picker_key = "advanced_detected_picker"
-                if detected_picker_key in st.session_state:
-                    st.session_state[detected_picker_key] = [
-                        s for s in st.session_state[detected_picker_key] if s in detected_senders
-                    ]
-                selected = st.multiselect(
-                    t("cleanup.sender_selection_label", lang),
-                    options=detected_senders,
-                    key=detected_picker_key,
-                )
-                if st.button(
-                    t("senders.blocked_add", lang),
-                    key="advanced_detected_add_all",
-                ):
-                    added = 0
-                    for sender in selected:
-                        if sender.lower() not in already_blocked:
-                            blacklist.append(sender)
-                            already_blocked.add(sender.lower())
-                            added += 1
-                    if added:
-                        rules["blacklist"] = blacklist
-                        save_rules(rules)
-                        st.session_state.rules = rules
-                        st.success(t("senders.blocked_added", lang).format(sender=f"{added} senders"))
-                        safe_rerun()
-                st.divider()
 
         # Category default actions (former Tab 1)
         st.markdown("**" + t("cleanup.category_title", lang) + "**")
@@ -5893,12 +6078,6 @@ elif page == "Settings":
         t("settings.apply_rules", settings["language"]),
         value=bool(settings.get("apply_rules_after_scan", False)),
         help=t("settings.apply_rules_help", settings["language"]),
-    )
-
-    settings["auto_apply_blacklist_after_scan"] = st.checkbox(
-        t("settings.auto_apply_blacklist", settings["language"]),
-        value=bool(settings.get("auto_apply_blacklist_after_scan", False)),
-        help=t("settings.auto_apply_blacklist_help", settings["language"]),
     )
 
     settings["safe_mode"] = st.checkbox(

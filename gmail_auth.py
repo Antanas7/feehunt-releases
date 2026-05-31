@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from google.auth.exceptions import RefreshError
@@ -15,15 +16,179 @@ from config import GMAIL_CREDENTIALS_FILE, GMAIL_SCOPES, GMAIL_TOKEN_FILE, GMAIL
 
 FULL_GMAIL_SCOPE = "https://mail.google.com/"
 
+# Plain-text file holding the email address of the Gmail account the current
+# token belongs to. Cached next to the token so the UI can show which account
+# is being processed without making a network getProfile call on every render.
+GMAIL_EMAIL_FILE = GMAIL_TOKEN_FILE.parent / "connected_email.txt"
+
+# Per-account token archive. The active account always lives in GMAIL_TOKEN_FILE
+# (so the rest of the app keeps working unchanged); here we keep a copy of every
+# account that has been connected, keyed by email, so the user can switch
+# between them instantly without signing in to Google again. ACCOUNTS_INDEX_FILE
+# records the known emails (and their order) since token files don't carry one.
+ACCOUNTS_DIR = GMAIL_TOKEN_FILE.parent / "accounts"
+ACCOUNTS_INDEX_FILE = ACCOUNTS_DIR / "index.json"
+
 
 class GmailAuthError(RuntimeError):
     """Raised when Gmail OAuth cannot create a usable Gmail service."""
+
+
+def _account_filename(email: str) -> str:
+    safe = re.sub(r"[^a-z0-9]+", "_", str(email or "").strip().lower()).strip("_")
+    return f"{safe or 'account'}.json"
+
+
+def _read_accounts_index() -> list[str]:
+    try:
+        data = json.loads(ACCOUNTS_INDEX_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    if not isinstance(data, list):
+        return []
+    result: list[str] = []
+    for item in data:
+        email = str(item or "").strip().lower()
+        if email and email not in result:
+            result.append(email)
+    return result
+
+
+def _write_accounts_index(emails: list[str]) -> None:
+    cleaned: list[str] = []
+    for item in emails:
+        email = str(item or "").strip().lower()
+        if email and email not in cleaned:
+            cleaned.append(email)
+    try:
+        ACCOUNTS_DIR.mkdir(parents=True, exist_ok=True)
+        ACCOUNTS_INDEX_FILE.write_text(json.dumps(cleaned), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def save_account_token(email: str) -> None:
+    """Archive the currently active token under ``email`` so the account can be
+    switched back to later without a fresh Google sign-in. Idempotent: safe to
+    call on every Gmail service request — it simply refreshes the archived copy."""
+    address = str(email or "").strip().lower()
+    if not address or not GMAIL_TOKEN_FILE.exists():
+        return
+    try:
+        ACCOUNTS_DIR.mkdir(parents=True, exist_ok=True)
+        token_text = GMAIL_TOKEN_FILE.read_text(encoding="utf-8")
+        (ACCOUNTS_DIR / _account_filename(address)).write_text(token_text, encoding="utf-8")
+    except Exception:
+        return
+    index = _read_accounts_index()
+    if address not in index:
+        index.append(address)
+    _write_accounts_index(index)
+
+
+def list_saved_accounts() -> list[str]:
+    """Emails that have an archived token available for instant switching."""
+    return [
+        email
+        for email in _read_accounts_index()
+        if (ACCOUNTS_DIR / _account_filename(email)).exists()
+    ]
+
+
+def switch_account(email: str) -> bool:
+    """Make ``email`` the active Gmail account by restoring its archived token.
+    Returns False when no archived token exists (the caller should then fall
+    back to a fresh Google sign-in)."""
+    address = str(email or "").strip().lower()
+    if not address:
+        return False
+    token_path = ACCOUNTS_DIR / _account_filename(address)
+    if not token_path.exists():
+        return False
+    try:
+        GMAIL_TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+        GMAIL_TOKEN_FILE.write_text(token_path.read_text(encoding="utf-8"), encoding="utf-8")
+    except Exception:
+        return False
+    save_connected_email(address)
+    return True
+
+
+def remove_saved_account(email: str) -> None:
+    """Forget an archived account. If it was the active one, the active token is
+    cleared too so the app no longer treats it as connected."""
+    address = str(email or "").strip().lower()
+    if not address:
+        return
+    try:
+        (ACCOUNTS_DIR / _account_filename(address)).unlink()
+    except FileNotFoundError:
+        pass
+    except Exception:
+        pass
+    _write_accounts_index([e for e in _read_accounts_index() if e != address])
+    if get_connected_email().strip().lower() == address:
+        clear_gmail_token()
+
+
+def save_connected_email(email: str) -> None:
+    address = str(email or "").strip()
+    if not address:
+        return
+    try:
+        GMAIL_EMAIL_FILE.parent.mkdir(parents=True, exist_ok=True)
+        GMAIL_EMAIL_FILE.write_text(address, encoding="utf-8")
+    except Exception:
+        pass
+
+
+def get_connected_email() -> str:
+    if not GMAIL_TOKEN_FILE.exists():
+        return ""
+    try:
+        return GMAIL_EMAIL_FILE.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+
+
+def ensure_connected_email() -> str:
+    """If a Gmail token is connected but its email was never cached (e.g. the
+    account was connected by an older FeeHunt version, before connected_email.txt),
+    fetch it once via getProfile and cache it so the UI can name the active inbox
+    and tester-mode can recognise it. Never launches an interactive sign-in: if the
+    token can't be refreshed silently it just returns ''. Returns the email or ''."""
+    cached = get_connected_email()
+    if cached:
+        return cached
+    creds = _load_existing_credentials()
+    if not creds:
+        return ""
+    try:
+        if not creds.valid and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            _save_credentials(creds)
+        if not creds.valid:
+            return ""
+        service = build("gmail", "v1", credentials=creds, cache_discovery=False)
+        profile = service.users().getProfile(userId=GMAIL_USER_ID).execute()
+        email = str(profile.get("emailAddress") or "").strip()
+    except Exception:
+        return ""
+    if email:
+        save_connected_email(email)
+        save_account_token(email)  # also register it for the account switcher
+    return email
 
 
 def clear_gmail_token() -> None:
     try:
         if GMAIL_TOKEN_FILE.exists():
             GMAIL_TOKEN_FILE.unlink()
+    except Exception:
+        pass
+    try:
+        if GMAIL_EMAIL_FILE.exists():
+            GMAIL_EMAIL_FILE.unlink()
     except Exception:
         pass
 
@@ -101,14 +266,38 @@ def _run_oauth_flow() -> Credentials:
         raise FileNotFoundError(f"credentials.json not found at {GMAIL_CREDENTIALS_FILE}")
 
     flow = InstalledAppFlow.from_client_secrets_file(str(GMAIL_CREDENTIALS_FILE), GMAIL_SCOPES)
-    return flow.run_local_server(
-        host="localhost",
-        port=0,
-        open_browser=True,
-        authorization_prompt_message="Opening Google sign-in for FeeHunt...",
-        success_message="FeeHunt is connected to Gmail. You can close this browser tab.",
-        access_type="offline",
-    )
+    try:
+        creds = flow.run_local_server(
+            host="localhost",
+            port=0,
+            open_browser=True,
+            authorization_prompt_message="Opening Google sign-in for FeeHunt...",
+            success_message="FeeHunt is connected to Gmail. You can close this browser tab.",
+            access_type="offline",
+            # Always show the Google account chooser. Without this, if the browser
+            # is already signed in to one Google account, OAuth silently picks it —
+            # so a user trying to connect a different inbox (e.g. a spouse's) could
+            # end up connecting the wrong account without realising it.
+            prompt="select_account consent",
+            # Don't wait forever. If the user closes the Google window without
+            # finishing, this would otherwise block the whole app indefinitely.
+            timeout_seconds=300,
+        )
+    except GmailAuthError:
+        raise
+    except Exception as exc:
+        # Closed sign-in window, timeout, or the local callback port was blocked.
+        # Surface a clear, recoverable message instead of a hang or raw traceback.
+        raise GmailAuthError(
+            "oauth_not_completed: Google sign-in was not completed. "
+            "Open Connect Gmail again and finish signing in."
+        ) from exc
+    if not creds:
+        raise GmailAuthError(
+            "oauth_not_completed: Google sign-in was not completed. "
+            "Open Connect Gmail again and finish signing in."
+        )
+    return creds
 
 
 def get_gmail_credentials(*, force_reauth: bool = False) -> Credentials:

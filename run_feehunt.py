@@ -105,7 +105,16 @@ def main():
         webbrowser.open(SERVER_URL)
         return
 
-    Timer(0.5, open_browser_when_ready).start()
+    # Show a branded "loading" page immediately so the user gets feedback while
+    # the Streamlit server boots (otherwise the window stays blank for several
+    # seconds and looks frozen). The page polls the server and redirects itself
+    # once it answers. If the page is missing (e.g. dev run), fall back to
+    # opening the app URL once the server is reachable.
+    loading_page = APP_DIR / "loading.html"
+    if loading_page.exists():
+        webbrowser.open(loading_page.as_uri())
+    else:
+        Timer(0.5, open_browser_when_ready).start()
 
     sys.argv = [
         "streamlit",

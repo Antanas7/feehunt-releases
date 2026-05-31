@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import socket
 import urllib.error
@@ -11,7 +12,7 @@ import urllib.request
 from datetime import datetime
 from typing import Any
 
-from config import LICENSE_FILE, LICENSING_API_BASE_URL
+from config import LICENSE_FILE, LICENSING_API_BASE_URL, TESTER_EMAILS
 from time_utils import days_until_local, now_utc, parse_datetime_utc
 
 
@@ -35,6 +36,66 @@ def _parse_datetime(value: Any) -> datetime | None:
 
 def _days_until(value: Any) -> int:
     return days_until_local(value)
+
+
+def tester_emails() -> set[str]:
+    """All Gmail addresses treated as testers: the built-in config set plus any
+    listed in the FEEHUNT_TESTER_EMAILS env var (comma-separated)."""
+    emails = {str(e).strip().lower() for e in (TESTER_EMAILS or set()) if str(e).strip()}
+    for raw in (os.environ.get("FEEHUNT_TESTER_EMAILS") or "").split(","):
+        email = raw.strip().lower()
+        if email:
+            emails.add(email)
+    return emails
+
+
+def is_tester(email: str | None) -> bool:
+    """True when the connected Gmail belongs to a FeeHunt tester."""
+    return bool(email) and email.strip().lower() in tester_emails()
+
+
+def promote_if_tester(gate: dict[str, Any] | None, email: str | None) -> dict[str, Any]:
+    """When the connected Gmail is a tester's, lift the trial scan-quota and
+    trial-date limits by treating an already-valid gate as 'active'. This is an
+    IN-MEMORY promotion only — it is never written to the license file, and it
+    never fabricates access for a missing/expired license (those still need a real
+    activation). It only spares the maker from burning scan credits while testing."""
+    gate = dict(gate or {})
+    if not is_tester(email):
+        return gate
+    if not gate.get("allowed"):
+        return gate
+    gate.update({"status": "active", "ok": True, "tester": True})
+    return gate
+
+
+def dev_unlock_enabled() -> bool:
+    """True only when FEEHUNT_DEV_UNLOCK is explicitly set in the environment.
+    This is a LOCAL developer switch: it is never set in shipped builds, so it
+    cannot leak into a distributed .exe. Default (unset) = off."""
+    return (os.environ.get("FEEHUNT_DEV_UNLOCK") or "").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+
+
+def apply_dev_unlock(gate: dict[str, Any] | None) -> dict[str, Any]:
+    """When the local DEV switch is on, treat the gate as a full active license so
+    the maker can reach the app and test without a real key. IN-MEMORY only, never
+    written to the license file. Off (and a no-op) unless FEEHUNT_DEV_UNLOCK is set,
+    so it never affects real users. Grants a family plan so multiple test inboxes
+    (e.g. Antanas + wife) can be connected at once."""
+    gate = dict(gate or {})
+    if not dev_unlock_enabled():
+        return gate
+    gate.update({
+        "allowed": True,
+        "ok": True,
+        "status": "active",
+        "plan_type": gate.get("plan_type") or "family",
+        "dev_unlock": True,
+        "message": "Local DEV unlock active — not for distribution.",
+    })
+    return gate
 
 
 def normalize_license_key(value: str) -> str:
@@ -296,7 +357,10 @@ def register_gmail_account(gmail_address: str, license_key: str | None = None) -
     overview = get_license_overview(data)
     allowed_accounts = int(overview.get("allowed_gmail_accounts") or 1)
     if normalized_email not in accounts:
-        if len(accounts) >= allowed_accounts:
+        # In local DEV mode the plan limit is not enforced, so multiple test
+        # inboxes (e.g. Antanas + wife) can connect. The env var is inherited by
+        # the scan subprocess, so this applies there too. No-op in shipped builds.
+        if len(accounts) >= allowed_accounts and not dev_unlock_enabled():
             return {
                 "registered": False,
                 "status": "plan_limit_exceeded",
@@ -321,7 +385,7 @@ def can_add_gmail_account(license_data: dict[str, Any] | None, gmail_address: st
     accounts = overview["connected_gmail_accounts"]
     if normalized_email in accounts:
         return {"allowed": True, "status": "already_registered", "gmail_address": normalized_email}
-    allowed = overview["connected_gmail_count"] < overview["allowed_gmail_accounts"]
+    allowed = dev_unlock_enabled() or overview["connected_gmail_count"] < overview["allowed_gmail_accounts"]
     return {
         "allowed": allowed,
         "status": "allowed" if allowed else "plan_limit_exceeded",

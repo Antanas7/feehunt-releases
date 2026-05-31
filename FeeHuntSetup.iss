@@ -1,5 +1,5 @@
 #define MyAppName "FeeHunt"
-#define MyAppVersion "1.9"
+#define MyAppVersion "1.10"
 #define MyAppPublisher "FeeHunt"
 #define MyAppURL "https://feehunt.pro"
 #define MyAppExeName "FeeHunt.exe"
@@ -16,7 +16,7 @@ DefaultDirName={autopf}\FeeHunt
 DefaultGroupName=FeeHunt
 DisableProgramGroupPage=yes
 OutputDir=dist_installer
-OutputBaseFilename=FeeHunt-Setup-v1.9
+OutputBaseFilename=FeeHunt-Setup-v1.10
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -25,11 +25,17 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayName=FeeHunt
 UninstallDisplayIcon={app}\{#MyAppExeName}
-VersionInfoVersion=1.9.0.0
+; Close a running FeeHunt before replacing files, then restart it afterwards.
+; Without this, updating while FeeHunt is open fails with
+; "DeleteFile failed; code 5. Access is denied." on FeeHunt.exe.
+CloseApplications=yes
+CloseApplicationsFilter=*.exe,*.dll
+RestartApplications=yes
+VersionInfoVersion=1.10.0.0
 VersionInfoCompany=FeeHunt
 VersionInfoDescription=FeeHunt Setup Installer
 VersionInfoProductName=FeeHunt
-VersionInfoProductVersion=1.9
+VersionInfoProductVersion=1.10
 #ifexist "icon.ico"
 SetupIconFile=icon.ico
 #endif
@@ -46,4 +52,7 @@ Name: "{group}\Uninstall FeeHunt"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\FeeHunt"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch FeeHunt"; Flags: nowait postinstall skipifsilent
+; runasoriginaluser: the installer runs elevated (PrivilegesRequired=admin), but
+; FeeHunt must launch as the normal user. Launching it elevated breaks Streamlit's
+; local server handshake ("CallSpawnServer: Unexpected response") and localhost access.
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch FeeHunt"; Flags: nowait postinstall skipifsilent runasoriginaluser

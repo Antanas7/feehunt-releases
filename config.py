@@ -8,7 +8,7 @@ from pathlib import Path
 # ============================================================
 
 APP_NAME = "FeeHunt"
-APP_VERSION = "1.9.0"
+APP_VERSION = "1.10.0"
 APP_STAGE = "Smart Cleanup MVP"
 APP_TAGLINE = "Nebereikia bėgti nuo savo el. pašto. FeeHunt padeda susigrąžinti kontrolę."
 
@@ -64,6 +64,15 @@ RULES_FILE = USER_DATA_DIR / "feehunt_rules.json"
 LICENSE_FILE = USER_DATA_DIR / "feehunt_license.json"
 LICENSE_SESSION_FILE = USER_DATA_DIR / "feehunt_session.json"
 LICENSING_API_BASE_URL = os.environ.get("FEEHUNT_API_BASE_URL", "https://feehunt.pro/api")
+
+# Tester accounts: when one of these Gmail addresses is the connected inbox, the
+# trial scan-quota and trial-date limits are lifted locally (in memory only, never
+# written to disk) so the maker can test repeatedly without burning scan credits.
+# Comma-separated emails in FEEHUNT_TESTER_EMAILS are merged in at runtime.
+TESTER_EMAILS = {
+    "lofotendreamss@gmail.com",
+    "rasyte7777a@gmail.com",
+}
 
 
 # ============================================================
@@ -129,10 +138,10 @@ DEFAULT_SETTINGS = {
     "safe_mode": True,
     "max_dashboard_items": 3,
     "apply_rules_after_scan": False,
-    # Default ON: once user puts a sender on the unwanted list, the
-    # natural expectation is "FeeHunt will delete their stuff". User can
-    # switch to "ask me first" in Sender Lists if they want safer review.
-    "auto_apply_blacklist_after_scan": True,
+    # Block-senders feature removed (Gmail already blocks senders; FeeHunt's
+    # value is recurring detect → show → assisted cleanup). Kept as False so
+    # any stale reference never auto-trashes by sender.
+    "auto_apply_blacklist_after_scan": False,
     "ftue_completed": False,
     "adaptive_guidance_enabled": True,
 }

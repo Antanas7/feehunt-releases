@@ -26,7 +26,12 @@ from feehunt_analyzer import (
 )
 from phishing_detector import analyze_phishing
 from subscription_actions import classify_cancel_links, billing_intermediary
-from gmail_auth import get_gmail_service as get_authorized_gmail_service
+from gmail_auth import (
+    get_gmail_service as get_authorized_gmail_service,
+    save_connected_email,
+    save_account_token,
+    get_connected_email,
+)
 from licensing import register_gmail_account
 
 
@@ -191,7 +196,10 @@ def format_critical_error(error: Exception) -> str:
 def get_gmail_service():
     service = get_authorized_gmail_service()
     profile = service.users().getProfile(userId="me").execute()
-    registration = register_gmail_account(profile.get("emailAddress", ""))
+    email_address = profile.get("emailAddress", "")
+    save_connected_email(email_address)
+    save_account_token(email_address)
+    registration = register_gmail_account(email_address)
     if not registration.get("registered") and registration.get("status") == "plan_limit_exceeded":
         raise PermissionError(registration.get("message") or "FeeHunt plan limit reached.")
     return service
@@ -202,14 +210,11 @@ def get_gmail_service():
 # ============================================================
 
 def load_blacklist_rules() -> list[str]:
-    """The user's 'unwanted senders' list (lowercased), so the scan can respect
-    the user's own marking instead of silently ignoring those emails."""
-    try:
-        with open(RULES_FILE, "r", encoding="utf-8") as file:
-            data = json.load(file)
-        return [str(b).strip().lower() for b in (data.get("blacklist") or []) if str(b).strip()]
-    except Exception:
-        return []
+    """Block-senders feature has been removed — FeeHunt no longer treats any
+    sender as 'blocked' during a scan (Gmail already offers blocking; FeeHunt's
+    value is recurring detect → show → assisted cleanup). Always returns an
+    empty list so existing saved blocklists no longer influence scanning."""
+    return []
 
 
 def sender_is_blacklisted(sender: str, blacklist: list[str]) -> bool:
@@ -232,6 +237,12 @@ def scan_gmail() -> dict[str, Any]:
     blacklist = load_blacklist_rules()
     messages = collect_scan_messages(service)
     total = len(messages)
+
+    # Empty inbox: the loop below never runs, so no PROGRESS line would be
+    # printed and the bar would look frozen until the process exits. Emit a
+    # completed marker so the UI jumps cleanly to "done, nothing to review".
+    if total == 0:
+        safe_print("PROGRESS:1/1:", flush=True)
 
     phishing_risks = []
     financial_risks = []
@@ -347,6 +358,17 @@ def scan_gmail() -> dict[str, Any]:
                 f"PROGRESS:{index}/{total}:{subject[:60] if subject else '(be temos)'}",
                 flush=True,
             )
+            # Live category tallies for the scan animation, so the radar shows
+            # real running counts: promotions (green), subscriptions (amber),
+            # risks (pink). Promotions group bulk/shop/newsletter together;
+            # risks group phishing + payment risks.
+            promo_so_far = len(promotional_emails) + len(shop_emails) + len(newsletter_emails)
+            subs_so_far = len(subscriptions)
+            risk_so_far = len(phishing_risks) + len(financial_risks)
+            safe_print(
+                f"STATS:{promo_so_far}/{subs_so_far}/{risk_so_far}",
+                flush=True,
+            )
 
         except Exception as error:
             safe_print(f"Klaida apdorojant laišką {message.get('id', 'unknown')}: {error}")
@@ -359,8 +381,15 @@ def scan_gmail() -> dict[str, Any]:
     return {
         "app_name": APP_NAME,
         "app_version": APP_VERSION,
+        # Stamp the account these results belong to so the UI never shows one
+        # account's findings while a different account is selected.
+        "account_email": get_connected_email(),
         "last_scan_at": datetime.now().isoformat(timespec="seconds"),
         "emails_scanned": total,
+        # When the inbox is larger than the scan cap we only reviewed the most
+        # recent MAX_EMAILS_TO_SCAN messages — flag it so the UI can tell the
+        # user instead of implying the whole inbox was covered.
+        "scan_capped": total >= MAX_EMAILS_TO_SCAN,
         "subscriptions_found": subscription_and_risk_count,
         "promotions_found": promo_count,
         "phishing_found": len(phishing_risks),

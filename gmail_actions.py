@@ -1,7 +1,11 @@
 from urllib.parse import urlparse
 
 from config import GMAIL_USER_ID
-from gmail_auth import get_gmail_service as get_authorized_gmail_service
+from gmail_auth import (
+    get_gmail_service as get_authorized_gmail_service,
+    save_connected_email,
+    save_account_token,
+)
 from licensing import register_gmail_account
 
 
@@ -12,7 +16,10 @@ from licensing import register_gmail_account
 def get_gmail_service(*, force_reauth: bool = False):
     service = get_authorized_gmail_service(force_reauth=force_reauth)
     profile = service.users().getProfile(userId=GMAIL_USER_ID).execute()
-    registration = register_gmail_account(profile.get("emailAddress", ""))
+    email_address = profile.get("emailAddress", "")
+    save_connected_email(email_address)
+    save_account_token(email_address)
+    registration = register_gmail_account(email_address)
     if not registration.get("registered") and registration.get("status") == "plan_limit_exceeded":
         raise PermissionError(registration.get("message") or "FeeHunt plan limit reached.")
     return service
