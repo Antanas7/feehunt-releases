@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus, urlparse
@@ -27,8 +28,7 @@ from gmail_actions import (
     get_unsubscribe_link,
 )
 from subscription_actions import (
-    known_billing_url,
-    sender_website_url,
+    select_cancel_target,
     subscription_identity,
 )
 from licensing import (
@@ -2429,10 +2429,10 @@ _SCAN_ENVELOPES = [
 
 def _scan_scene_html() -> str:
     earth = _scan_earth_data_uri()
-    globe = (
-        f'<div class="fh-globe"><div class="fh-globe-tex" style="background-image:url(\'{earth}\')"></div></div>'
+    earth_bg = (
+        f'<div class="fh-earth" style="background-image:url(\'{earth}\')"></div>'
         if earth
-        else '<div class="fh-globe"></div>'
+        else '<div class="fh-earth fh-earth--fallback"></div>'
     )
     spokes = "".join(
         f'<div class="fh-spoke" style="transform:rotate({angle}deg)">'
@@ -2446,18 +2446,21 @@ def _scan_scene_html() -> str:
         ".fh-scan-stage{position:relative;height:330px;width:100%;overflow:hidden;"
         "border-radius:16px;background:radial-gradient(circle at 50% 46%,#06241a 0%,#041710 55%,#020a07 100%);"
         "margin:2px 0 10px}"
-        ".fh-globe{position:absolute;left:50%;top:48%;width:266px;height:266px;transform:translate(-50%,-50%);"
-        "border-radius:50%;overflow:hidden;background:#02100a;"
-        "box-shadow:inset -30px -26px 60px rgba(0,0,0,.9),inset 16px 10px 34px rgba(20,120,80,.12),"
-        "0 0 2px rgba(140,255,205,.5),0 0 34px rgba(26,150,100,.22)}"
-        ".fh-globe-tex{position:absolute;top:50%;left:50%;width:142%;height:142%;"
-        "background:center/cover no-repeat;opacity:.95;"
-        "animation:fhGlobeSpin 90s linear infinite}"
-        ".fh-globe::after{content:'';position:absolute;inset:0;border-radius:50%;pointer-events:none;"
-        "background:radial-gradient(circle at 34% 27%,rgba(150,255,210,.16),transparent 26%),"
-        "radial-gradient(circle at 50% 50%,transparent 0 45%,rgba(0,0,0,.68) 84%),"
-        "linear-gradient(100deg,rgba(0,0,0,.2),transparent 34%,rgba(0,0,0,.44));"
-        "mix-blend-mode:multiply;opacity:.82}"
+        # The night-Earth now fills the WHOLE stage as a living backdrop (slightly
+        # oversized + a gentle drift so it feels alive and never shows a hard edge),
+        # so the envelopes read as flying in from the planet, not from empty green.
+        # A large centred circle (bigger than the stage) so the slow rotation
+        # never reveals a corner — the night-Earth turns like the old globe, but
+        # now filling the whole plane behind the radar.
+        ".fh-earth{position:absolute;left:50%;top:50%;width:150%;aspect-ratio:1/1;"
+        "transform:translate(-50%,-50%);background:center/cover no-repeat;"
+        "border-radius:50%;opacity:.92;animation:fhEarthSpin 90s linear infinite}"
+        ".fh-earth--fallback{background:radial-gradient(circle at 38% 30%,#1c6b57,#0c3b30 55%,#06231d 100%)}"
+        # Vignette/depth over the Earth: darkens the edges into the green so the
+        # rectangle reads as a glowing planet view and the radar pops on top.
+        ".fh-earth-veil{position:absolute;inset:0;pointer-events:none;"
+        "background:radial-gradient(circle at 50% 47%,transparent 0 34%,rgba(2,14,9,.5) 100%),"
+        "linear-gradient(180deg,rgba(2,14,9,.42),transparent 26%,transparent 72%,rgba(2,14,9,.5))}"
         ".fh-radar{position:absolute;left:50%;top:48%;width:300px;height:300px;transform:translate(-50%,-50%);"
         "border-radius:50%;pointer-events:none}"
         ".fh-radar::before{content:'';position:absolute;inset:0;border-radius:50%;border:1px solid rgba(72,226,158,.22);"
@@ -2476,7 +2479,7 @@ def _scan_scene_html() -> str:
         ".fh-env-svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;"
         "filter:drop-shadow(0 0 5px currentColor)}"
         ".fh-env--promo{color:#3ad492}.fh-env--subs{color:#e9b949}.fh-env--risk{color:#ef5d7a}"
-        "@keyframes fhGlobeSpin{from{transform:translate(-50%,-50%) rotate(0)}"
+        "@keyframes fhEarthSpin{from{transform:translate(-50%,-50%) rotate(0)}"
         "to{transform:translate(-50%,-50%) rotate(360deg)}}"
         "@keyframes fhSweep{from{transform:rotate(0)}to{transform:rotate(360deg)}}"
         "@keyframes fhFly{0%{transform:translateY(-178px) scale(.22);opacity:0}"
@@ -2489,10 +2492,11 @@ def _scan_scene_html() -> str:
         "font-size:15px}"
         ".fh-chip .fh-dot{width:11px;height:11px;border-radius:3px;box-shadow:0 0 8px currentColor}"
         ".fh-chip--promo{color:#3ad492}.fh-chip--subs{color:#e9b949}.fh-chip--risk{color:#ef5d7a}"
-        "@media (prefers-reduced-motion: reduce){.fh-globe::before,.fh-sweep,.fh-flyer{animation:none}}"
+        "@media (prefers-reduced-motion: reduce){.fh-earth,.fh-sweep,.fh-flyer{animation:none}}"
         "</style>"
         '<div class="fh-scan-stage" role="img" aria-label="FeeHunt scanning radar">'
-        f"{globe}"
+        f"{earth_bg}"
+        '<div class="fh-earth-veil"></div>'
         '<div class="fh-radar"><div class="fh-cross"></div><div class="fh-sweep"></div></div>'
         f"{spokes}"
         '<div class="fh-core"></div>'
@@ -2949,7 +2953,10 @@ def build_action_first_guidance(
             except (KeyError, IndexError):
                 reason_texts.append(t(f"phishing.reason.{code}", lang))
         explain = " ".join(reason_texts) or t("action_first.phishing.explain_generic", lang)
-        has_strong = any(r.get("code") in STRONG_CODES for r in reasons)
+        has_strong = (
+            item.get("phishing_level") == "danger"
+            or any(r.get("code") in STRONG_CODES for r in reasons)
+        )
         if has_strong:
             # A concrete, high-confidence signal — warn clearly but factually.
             return {
@@ -3118,46 +3125,27 @@ def resolve_cancel_target(item: dict, sender: str, lang: str) -> dict:
     """Pick the single best place to send the user to cancel THIS subscription,
     most precise to least, and describe it. Shared by the per-email wizard and the
     control center so both always agree. Returns:
-        {"url", "tier", "label", "confidence", "netloc"}
-    tier:        direct (link in the email) > hub (App Store/Play/PayPal/MS) >
-                 known (curated billing page) > site (sender's own site) > search.
-    confidence:  exact (lands on the real cancel control / account) | area (right
-                 site, not the exact button) | search (we couldn't pinpoint it).
+        {"url", "tier", "label", "confidence", "netloc", "email_link_skipped"}
+    tier:        hub (App Store/Play/PayPal/MS) > known (reviewed billing page) >
+                 direct (same-site email link) > site > search.
+    confidence:  official | reviewed | email | area | search.
     """
-    direct_url = item.get("direct_cancel_url")
     hub = item.get("cancel_hub")
-    hub_url = hub.get("url") if hub else None
-    try:
-        site_url = sender_website_url(sender)
-    except Exception:
-        site_url = None
-    service = readable_service_name(item)
+    target = select_cancel_target(sender, item.get("direct_cancel_url"), hub)
+    url, tier = target["url"], target["tier"]
 
-    if direct_url:
-        url, tier = direct_url, "direct"
+    if tier == "direct":
         label = t("safe_action.open_direct_cancel", lang)
-    elif hub_url:
-        url, tier = hub_url, "hub"
+    elif tier == "hub":
         label = t("wizard.open_hub", lang).format(service=hub.get("name"))
-    elif known_billing_url(sender):
-        url, tier = known_billing_url(sender), "known"
+    elif tier == "known":
         label = t("wizard.open_site", lang).format(domain=urlparse(url).netloc)
-    elif site_url:
-        url, tier = site_url, "site"
+    elif tier == "site":
         label = t("wizard.open_site", lang).format(domain=urlparse(url).netloc)
     else:
-        url, tier = (
-            "https://www.google.com/search?q="
-            + quote_plus(f"{service} cancel subscription"),
-            "search",
-        )
         label = t("wizard.open_search", lang)
 
-    confidence = {"direct": "exact", "hub": "exact", "known": "exact",
-                  "site": "area", "search": "search"}[tier]
-    netloc = urlparse(url).netloc if url else ""
-    return {"url": url, "tier": tier, "label": label,
-            "confidence": confidence, "netloc": netloc}
+    return {**target, "label": label}
 
 
 def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str,
@@ -3191,6 +3179,8 @@ def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str
         # resolved by the shared helper the control center also uses.
         target = resolve_cancel_target(item, sender, lang)
         primary_url = target["url"]
+        if target["email_link_skipped"]:
+            st.warning(t("wizard.email_link_skipped", lang))
         st.link_button(target["label"], primary_url, type="primary", use_container_width=True)
         if target["netloc"]:
             st.caption(f"→ {target['netloc']}")
@@ -3242,27 +3232,31 @@ def render_cancel_wizard(item: dict, sender: str, message_id: str, safe_key: str
 #
 # The per-email wizard above guides ONE subscription. The control center sits on
 # top: one consent, then a single queue that walks the user through EVERY detected
-# paid subscription, opening each one's exact cancel page and recording what the
+# paid subscription, opening each one's safest available cancel path and recording what the
 # user tells it. FeeHunt still never cancels for them — every open and every status
 # is the user's own click. Status is persisted by stable service identity so it
 # survives next month's billing email and app restarts.
 
 # status -> (emoji, translation key)
 SCC_BADGES = {
-    "cancelled": ("✅", "control_center.badge_cancelled"),
-    "needs_you": ("👤", "control_center.badge_needs_you"),
+    "requested": ("📨", "control_center.badge_requested"),
+    "confirmed": ("✅", "control_center.badge_confirmed"),
+    "needs_help": ("👤", "control_center.badge_needs_help"),
     "keeping": ("🔒", "control_center.badge_keeping"),
+    "cancelled": ("✅", "control_center.badge_confirmed"),
 }
 # confidence -> (emoji, translation key)
 SCC_CONFIDENCE = {
-    "exact": ("🟢", "control_center.confidence_exact"),
+    "official": ("🟢", "control_center.confidence_official"),
+    "reviewed": ("🟢", "control_center.confidence_reviewed"),
+    "email": ("🟡", "control_center.confidence_email"),
     "area": ("🟡", "control_center.confidence_area"),
     "search": ("🟠", "control_center.confidence_search"),
 }
 
 
 def subscription_status_badge(service_key: str, lang: str) -> str | None:
-    """A short '✅ Cancelled' style badge for a service's recorded status, or None
+    """A short '✅ Confirmed' style badge for a service's recorded status, or None
     when it's still pending. Reused by the control center and the email cards so
     both always show the same mark."""
     entry = get_subscription_status(service_key)
@@ -3285,15 +3279,18 @@ def _control_center_items(scan_data: dict) -> list[dict]:
 
 
 def _scc_reappeared_after_cancel(service_key: str, item: dict) -> bool:
-    """True when the user marked this service cancelled, but a NEWER billing email
+    """True when the user confirmed cancellation, but a NEWER billing email
     has since arrived — a sign the cancellation may not have stuck. Surfacing this
     is the whole point: FeeHunt must never let a charge slip by silently."""
     entry = get_subscription_status(service_key)
-    if not entry or entry.get("status") != "cancelled":
+    if not entry or entry.get("status") not in {"confirmed", "cancelled"}:
         return False
-    marked = entry.get("marked_message_id")
-    current = item.get("message_id")
-    return bool(marked and current and marked != current)
+    try:
+        marked = parsedate_to_datetime(entry.get("marked_email_date") or "")
+        current = parsedate_to_datetime(item.get("date") or "")
+    except (TypeError, ValueError, OverflowError):
+        return False
+    return bool(marked and current and current > marked)
 
 
 def render_subscription_control_center(scan_data: dict, lang: str) -> None:
@@ -3348,14 +3345,17 @@ def render_subscription_control_center(scan_data: dict, lang: str) -> None:
 
     # Past the end -> the closing summary.
     if index >= total:
-        counts = {"cancelled": 0, "needs_you": 0, "keeping": 0}
+        counts = {"requested": 0, "confirmed": 0, "needs_help": 0, "keeping": 0}
         for k in keys:
             status = (get_subscription_status(k) or {}).get("status")
+            if status == "cancelled":
+                status = "confirmed"
             if status in counts:
                 counts[status] += 1
         st.success(t("control_center.summary", lang).format(
-            cancelled=counts["cancelled"],
-            needs_you=counts["needs_you"],
+            requested=counts["requested"],
+            confirmed=counts["confirmed"],
+            needs_help=counts["needs_help"],
             keeping=counts["keeping"],
         ))
         if st.button(t("control_center.finish", lang), key="scc_finish",
@@ -3385,6 +3385,10 @@ def render_subscription_control_center(scan_data: dict, lang: str) -> None:
     target = resolve_cancel_target(item, sender, lang)
     conf_icon, conf_key = SCC_CONFIDENCE[target["confidence"]]
     st.caption(f"{conf_icon} {t(conf_key, lang)}")
+    if target["email_link_skipped"]:
+        st.warning(t("wizard.email_link_skipped", lang))
+    if target["confidence"] in {"area", "search"}:
+        st.info(t("control_center.trapped_help", lang))
     st.link_button(target["label"], target["url"], type="primary", use_container_width=True)
     if target["netloc"]:
         st.caption(f"→ {target['netloc']}")
@@ -3398,29 +3402,35 @@ def render_subscription_control_center(scan_data: dict, lang: str) -> None:
                        use_container_width=True)
 
     st.write(t("control_center.did_it_work", lang))
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
 
     def _advance():
         st.session_state["scc_index"] = index + 1
         safe_rerun()
 
     def _mark(status: str):
-        set_subscription_status(service_key, status, service, item.get("message_id"))
+        set_subscription_status(
+            service_key, status, service, item.get("message_id"), item.get("date")
+        )
         _advance()
 
     with c1:
-        if st.button(t("control_center.mark_cancelled", lang), key=f"scc_cancel_{index}",
+        if st.button(t("control_center.mark_requested", lang), key=f"scc_requested_{index}",
                      type="primary", use_container_width=True):
-            _mark("cancelled")
+            _mark("requested")
     with c2:
-        if st.button(t("control_center.mark_needs_you", lang), key=f"scc_needs_{index}",
+        if st.button(t("control_center.mark_confirmed", lang), key=f"scc_confirmed_{index}",
                      use_container_width=True):
-            _mark("needs_you")
+            _mark("confirmed")
     with c3:
+        if st.button(t("control_center.mark_needs_help", lang), key=f"scc_help_{index}",
+                     use_container_width=True):
+            _mark("needs_help")
+    with c4:
         if st.button(t("control_center.mark_keeping", lang), key=f"scc_keep_{index}",
                      use_container_width=True):
             _mark("keeping")
-    with c4:
+    with c5:
         if st.button(t("control_center.skip", lang), key=f"scc_skip_{index}",
                      use_container_width=True):
             _advance()
@@ -3644,18 +3654,35 @@ def safe_bulk_action(
         safe_rerun()
 
 
-def show_bulk_actions(emails: list[dict], location_key: str) -> None:
+def show_bulk_actions(
+    emails: list[dict],
+    location_key: str,
+    *,
+    allowed_actions: tuple[str, ...] = ("archive", "delete", "spam"),
+) -> None:
     if not emails:
         return
     lang = current_language()
     st.caption(t("bulk.caption", lang))
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        safe_bulk_action(emails, "archive", t("actions.archive", lang), archive_email, unarchive_email, location_key)
-    with col2:
-        safe_bulk_action(emails, "delete", t("actions.delete", lang), delete_email, restore_trashed_email, location_key)
-    with col3:
-        safe_bulk_action(emails, "spam", t("actions.spam", lang), mark_as_spam, unmark_spam, location_key)
+    action_renderers = {
+        "archive": lambda: safe_bulk_action(
+            emails, "archive", t("actions.archive", lang),
+            archive_email, unarchive_email, location_key,
+        ),
+        "delete": lambda: safe_bulk_action(
+            emails, "delete", t("actions.delete", lang),
+            delete_email, restore_trashed_email, location_key,
+        ),
+        "spam": lambda: safe_bulk_action(
+            emails, "spam", t("actions.spam", lang),
+            mark_as_spam, unmark_spam, location_key,
+        ),
+    }
+    visible_actions = [action for action in allowed_actions if action in action_renderers]
+    columns = st.columns(len(visible_actions))
+    for column, action in zip(columns, visible_actions):
+        with column:
+            action_renderers[action]()
 
 
 def show_selectable_email_review(
@@ -3664,6 +3691,7 @@ def show_selectable_email_review(
     location_key: str,
     icon: str,
     card_type: str,
+    allowed_bulk_actions: tuple[str, ...] = ("archive", "delete", "spam"),
 ) -> None:
     if not emails:
         return
@@ -3704,7 +3732,11 @@ def show_selectable_email_review(
 
     st.caption(t("bulk.selected_count", lang).format(count=len(selected_items), total=len(emails)))
     if selected_items:
-        show_bulk_actions(selected_items, location_key)
+        show_bulk_actions(
+            selected_items,
+            location_key,
+            allowed_actions=allowed_bulk_actions,
+        )
     else:
         st.caption(t("bulk.select_hint", lang))
 
@@ -4824,15 +4856,19 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
         )
         _spacer, _rescan_col = st.columns([3, 2])
         with _rescan_col:
-            if st.button(
+            _do_top_rescan = st.button(
                 copy["rescan_cta"],
                 type="primary",
                 disabled=not _scan_allowed,
                 help=_scan_tooltip,
                 use_container_width=True,
                 key="fh_overview_top_rescan",
-            ):
-                run_dashboard_scan(apply_after)
+            )
+        # Run the scan OUTSIDE the narrow [3,2] column so the scan scene (globe +
+        # radar) spans the full page width, instead of being squeezed into the
+        # button's 2/5 column with empty space on the left.
+        if _do_top_rescan:
+            run_dashboard_scan(apply_after)
 
     if is_preview_mode():
         st.button(copy["scan_cta"], disabled=True, type="primary", use_container_width=True)
@@ -5661,15 +5697,21 @@ elif page == "Check a Message":
     st.write(t("check.intro", lang))
 
     # Risky emails detected during the scan live here (the safety hub), kept
-    # apart from promotional clutter so they are never bulk-cleaned by mistake.
+    # apart from promotional clutter. The user may explicitly select several
+    # and move them to Gmail trash, but there is no automatic cleanup here.
     scan_data = st.session_state.last_scan
     phishing_risks = (scan_data or {}).get("phishing_risks", []) or []
     if phishing_risks:
         render_recent_trash_undo("safety")
         st.subheader(t("phishing_risks.heading", lang))
         render_calm_note(t("phishing_risks.intro", lang))
-        for item in phishing_risks:
-            show_email_card(item, "⚠️", "phishing_risk")
+        show_selectable_email_review(
+            phishing_risks,
+            location_key="safety_review",
+            icon="⚠️",
+            card_type="phishing_risk",
+            allowed_bulk_actions=("delete",),
+        )
         st.divider()
         st.subheader(t("check.manual_heading", lang))
 

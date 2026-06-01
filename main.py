@@ -296,7 +296,7 @@ def scan_gmail() -> dict[str, Any]:
             # show it as promotional clutter to clean — never as a scary
             # "is this real?" alert, and never hidden behind the phishing bucket.
             if sender_is_unwanted(sender, unwanted_senders):
-                phishing = {"is_phishing_risk": False, "reasons": []}
+                phishing = {"is_phishing_risk": False, "risk_level": "none", "reasons": []}
                 analysis["is_promotional"] = True
                 if "promotions" not in analysis["categories"]:
                     analysis["categories"] = list(analysis["categories"]) + ["promotions"]
@@ -365,6 +365,7 @@ def scan_gmail() -> dict[str, Any]:
             # takes priority and is shown only in its own section (no duplicates).
             if phishing["is_phishing_risk"]:
                 email_data["phishing_reasons"] = phishing["reasons"]
+                email_data["phishing_level"] = phishing.get("risk_level", "danger")
                 phishing_risks.append(email_data)
             else:
                 if analysis["is_financial_risk"]:

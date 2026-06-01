@@ -28,7 +28,9 @@ DEFAULT_MEMORY = {
 }
 
 # The only statuses a subscription can hold. Absence of a key means "pending".
-SUBSCRIPTION_STATUSES = ("cancelled", "needs_you", "keeping")
+# "cancelled" remains readable for local-memory files created before the more
+# precise requested/confirmed flow was added.
+SUBSCRIPTION_STATUSES = ("requested", "confirmed", "needs_help", "keeping", "cancelled")
 
 
 def _now_iso() -> str:
@@ -116,10 +118,10 @@ def remember_archived_promotions(count: int) -> bool:
 # ============================================================
 #
 # FeeHunt never cancels for the user, so the only thing it can record is what the
-# user TELLS it: "I cancelled", "I need to come back", or "I'm keeping this". The
-# store is keyed by a stable per-service identity so the mark outlives the next
-# billing email. `marked_message_id` is kept so the control center can warn when a
-# NEW charge email arrives for something the user already marked cancelled.
+# user TELLS it: request sent, confirmed, needs help, or keeping. The store is
+# keyed by a stable per-service identity so the mark outlives the next billing
+# email. The marked email date lets the control center warn when a NEWER billing
+# message arrives after the user confirmed cancellation.
 
 
 def load_subscription_status() -> dict[str, Any]:
@@ -131,7 +133,7 @@ def load_subscription_status() -> dict[str, Any]:
 def get_subscription_status(service_key: str) -> dict[str, Any] | None:
     """The recorded status entry for one service, or None if never marked
     (i.e. still 'pending'). Entry shape: {status, service_name, updated_at,
-    marked_message_id}."""
+    marked_message_id, marked_email_date}."""
     if not service_key:
         return None
     entry = load_subscription_status().get(service_key)
@@ -140,7 +142,8 @@ def get_subscription_status(service_key: str) -> dict[str, Any] | None:
 
 def set_subscription_status(service_key: str, status: str,
                             service_name: str = "",
-                            message_id: str | None = None) -> bool:
+                            message_id: str | None = None,
+                            email_date: str | None = None) -> bool:
     """Record the user's own decision for a service. `status` must be one of
     SUBSCRIPTION_STATUSES; anything else clears the mark back to pending."""
     if not service_key:
@@ -157,6 +160,7 @@ def set_subscription_status(service_key: str, status: str,
             "service_name": service_name or service_key,
             "updated_at": _now_iso(),
             "marked_message_id": message_id,
+            "marked_email_date": email_date,
         }
     memory["subscription_status"] = store
     return save_memory(memory)

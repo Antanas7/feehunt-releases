@@ -1161,6 +1161,7 @@ AI_GUIDANCE_TRANSLATIONS = {
         "wizard.s2.or_unsubscribe": "Or, to at least stop the emails:",
         "wizard.stop_emails": "Just stop these emails",
         "wizard.s2.unsubscribe_note": "⚠️ This only stops the emails. If you pay for this service, it does NOT cancel the charge — use the cancellation page above for that.",
+        "wizard.email_link_skipped": "FeeHunt found a cancellation-looking link in the email, but it leads to a different website than the sender. For safety, use the verified path below instead.",
         "wizard.open_site": "Open {domain}",
         "wizard.open_hub": "Open {service} subscriptions",
         "wizard.open_search": "Find the cancellation page",
@@ -1239,6 +1240,7 @@ AI_GUIDANCE_TRANSLATIONS = {
         "wizard.s2.or_unsubscribe": "Arba, kad bent sustabdytum laiškus:",
         "wizard.stop_emails": "Tiesiog sustabdyti šiuos laiškus",
         "wizard.s2.unsubscribe_note": "⚠️ Tai tik sustabdo laiškus. Jei už šią paslaugą moki, mokėjimas NEBUS atšauktas — tam naudok atšaukimo puslapį viršuje.",
+        "wizard.email_link_skipped": "FeeHunt laiške rado į atšaukimą panašią nuorodą, bet ji veda į kitą svetainę nei siuntėjo domenas. Saugiau naudoti žemiau pateiktą patikrintą kelią.",
         "wizard.open_site": "Atidaryti {domain}",
         "wizard.open_hub": "Atidaryti {service} prenumeratas",
         "wizard.open_search": "Rasti atšaukimo puslapį",
@@ -1448,8 +1450,8 @@ CONTROL_CENTER_TRANSLATIONS = {
         "control_center.count": "We found {count} paid subscriptions.",
         "control_center.progress_summary": "✅ {done} handled · ⏳ {remaining} left",
         "control_center.consent": (
-            "FeeHunt will walk you to each service's exact cancellation page, one "
-            "by one. You press the final button. FeeHunt changes nothing and "
+            "FeeHunt will walk you to the safest available cancellation path for each service, "
+            "one by one. You press the final button. FeeHunt changes nothing and "
             "cancels nothing for you."
         ),
         "control_center.start": "Start",
@@ -1457,27 +1459,33 @@ CONTROL_CENTER_TRANSLATIONS = {
         "control_center.decided_title": "Already decided",
         "control_center.progress": "{n} of {total}",
         "control_center.current_status": "Current status: {status}",
-        "control_center.confidence_exact": "Exact cancellation page",
+        "control_center.confidence_official": "Official subscription center",
+        "control_center.confidence_reviewed": "FeeHunt-reviewed service page",
+        "control_center.confidence_email": "Same-site cancellation link from the email",
         "control_center.confidence_area": "Account area (not the exact button)",
         "control_center.confidence_search": "You'll need to find it",
-        "control_center.did_it_work": "Did it work?",
-        "control_center.mark_cancelled": "✅ Cancelled",
-        "control_center.mark_needs_you": "👤 Need to return",
+        "control_center.trapped_help": "No reviewed cancellation button was found. Open the path below, sign in directly, and look for Account, Billing, Membership, or Auto-renew. If the service still blocks cancellation, mark it as needing help so it stays visible.",
+        "control_center.did_it_work": "Where are you now?",
+        "control_center.mark_requested": "📨 Request sent",
+        "control_center.mark_confirmed": "✅ Confirmed",
+        "control_center.mark_needs_help": "👤 Need help",
         "control_center.mark_keeping": "🔒 Keeping",
         "control_center.skip": "⏭ Skip",
         "control_center.back": "← Back",
         "control_center.pause": "Pause",
         "control_center.finish": "Done",
         "control_center.summary": (
-            "Handled: {cancelled} cancelled ✅ · {needs_you} need you 👤 · "
+            "Handled: {confirmed} confirmed ✅ · {requested} requests sent 📨 · "
+            "{needs_help} need help 👤 · "
             "{keeping} kept 🔒"
         ),
         "control_center.reappeared_warning": (
             "⚠️ You marked this as cancelled, but a new billing email just arrived "
             "— please double-check the charge really stopped."
         ),
-        "control_center.badge_cancelled": "Cancelled",
-        "control_center.badge_needs_you": "Needs you",
+        "control_center.badge_requested": "Request sent",
+        "control_center.badge_confirmed": "Confirmed",
+        "control_center.badge_needs_help": "Needs help",
         "control_center.badge_keeping": "Keeping",
         "dashboard.stop_subscriptions_cta": "🚦 Stop {count} subscriptions",
     },
@@ -1486,7 +1494,7 @@ CONTROL_CENTER_TRANSLATIONS = {
         "control_center.count": "Radome {count} mokamų prenumeratų.",
         "control_center.progress_summary": "✅ {done} sutvarkyta · ⏳ {remaining} liko",
         "control_center.consent": (
-            "FeeHunt nuves jus į kiekvieno serviso tikslų atšaukimo puslapį, vieną "
+            "FeeHunt nuves jus saugiausiu rastu kiekvieno serviso atšaukimo keliu, vieną "
             "po kito. Paskutinį mygtuką paspaudžiate jūs. FeeHunt nieko nekeičia ir "
             "nieko neatšaukia už jus."
         ),
@@ -1495,27 +1503,33 @@ CONTROL_CENTER_TRANSLATIONS = {
         "control_center.decided_title": "Jau apsispręsta",
         "control_center.progress": "{n} iš {total}",
         "control_center.current_status": "Dabartinis statusas: {status}",
-        "control_center.confidence_exact": "Tikslus atšaukimo puslapis",
+        "control_center.confidence_official": "Oficialus prenumeratų valdymo centras",
+        "control_center.confidence_reviewed": "FeeHunt patikrintas serviso puslapis",
+        "control_center.confidence_email": "To paties domeno atšaukimo nuoroda iš laiško",
         "control_center.confidence_area": "Paskyros sritis (ne tikslus mygtukas)",
         "control_center.confidence_search": "Reikės susirasti",
-        "control_center.did_it_work": "Ar pavyko?",
-        "control_center.mark_cancelled": "✅ Atšaukiau",
-        "control_center.mark_needs_you": "👤 Reikia grįžti",
+        "control_center.trapped_help": "Patikrinto atšaukimo mygtuko nerasta. Atidarykite kelią žemiau, prisijunkite tiesiogiai ir ieškokite Account, Billing, Membership arba Auto-renew. Jei servisas vis tiek trukdo atšaukti, pažymėkite, kad reikia pagalbos.",
+        "control_center.did_it_work": "Kur dabar esate?",
+        "control_center.mark_requested": "📨 Prašymas pateiktas",
+        "control_center.mark_confirmed": "✅ Patvirtinta",
+        "control_center.mark_needs_help": "👤 Reikia pagalbos",
         "control_center.mark_keeping": "🔒 Lieku",
         "control_center.skip": "⏭ Praleisti",
         "control_center.back": "← Atgal",
         "control_center.pause": "Pristabdyti",
         "control_center.finish": "Baigti",
         "control_center.summary": (
-            "Sutvarkyta: {cancelled} atšaukta ✅ · {needs_you} reikia tavęs 👤 · "
+            "Sutvarkyta: {confirmed} patvirtinta ✅ · {requested} prašymai pateikti 📨 · "
+            "{needs_help} reikia pagalbos 👤 · "
             "{keeping} lieka 🔒"
         ),
         "control_center.reappeared_warning": (
             "⚠️ Pažymėjai kaip atšauktą, bet ką tik atėjo naujas mokėjimo laiškas "
             "— patikrink, ar mokestis tikrai sustojo."
         ),
-        "control_center.badge_cancelled": "Atšaukta",
-        "control_center.badge_needs_you": "Reikia tavęs",
+        "control_center.badge_requested": "Prašymas pateiktas",
+        "control_center.badge_confirmed": "Patvirtinta",
+        "control_center.badge_needs_help": "Reikia pagalbos",
         "control_center.badge_keeping": "Lieka",
         "dashboard.stop_subscriptions_cta": "🚦 Sustabdyti {count} prenumeratų",
     },

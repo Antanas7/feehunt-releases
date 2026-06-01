@@ -101,7 +101,8 @@ _URL_RE = re.compile(r'https?://[^\s<>"\')\]]+', re.IGNORECASE)
 _TAG_RE = re.compile(r"<[^>]+>")
 _DOMAIN_IN_TEXT_RE = re.compile(r"([a-z0-9][a-z0-9.-]*\.[a-z]{2,})")
 
-STRONG_CODES = {"name_domain_mismatch", "lookalike_domain", "hidden_link"}
+STRONG_CODES = {"name_domain_mismatch", "lookalike_domain"}
+REVIEW_CODES = {"hidden_link"}
 
 # Legitimate email-service-provider click-tracking / redirect domains. A link
 # whose visible text shows "brand.com" but resolves to one of these is normal
@@ -228,7 +229,13 @@ def _check_brand_in_domain(host: str) -> dict | None:
 
 
 def _check_hidden_links(html_body: str) -> dict | None:
-    """STRONG: a link's visible text shows one domain but it leads to another."""
+    """REVIEW: a link's visible text shows one domain but it leads to another.
+
+    Legitimate services often link to related external systems (for example,
+    Render deployment emails linking to GitHub commits). A mismatch is worth
+    surfacing, but it becomes a danger signal only when another suspicious
+    indicator is present.
+    """
     if not html_body:
         return None
     for href, inner in _LINK_RE.findall(html_body):
@@ -276,8 +283,11 @@ def analyze_phishing(
 ) -> dict:
     """Return {"is_phishing_risk": bool, "reasons": [{"code", "params"}, ...]}.
 
-    Risk is flagged when at least one STRONG signal fires, or at least two
-    independent WEAK signals do. Reasons are deduplicated by code.
+    ``risk_level`` is ``danger`` for a strong signal, or for a link-domain
+    mismatch paired with another suspicious signal. A lone link-domain mismatch
+    is ``caution``: worth surfacing without calling a legitimate cross-service
+    link a scam. Two independent weak signals are also ``caution``. Reasons are
+    deduplicated by code.
 
     `is_bulk` should be True for bulk marketing mail (a List-Unsubscribe header,
     which marketing is legally required to carry). Such mail routinely routes its
@@ -306,10 +316,22 @@ def analyze_phishing(
             reasons.append(reason)
 
     strong = [r for r in reasons if r["code"] in STRONG_CODES]
-    weak = [r for r in reasons if r["code"] not in STRONG_CODES]
-    is_risk = bool(strong) or len(weak) >= 2
+    review = [r for r in reasons if r["code"] in REVIEW_CODES]
+    weak = [r for r in reasons if r["code"] not in STRONG_CODES | REVIEW_CODES]
 
-    return {"is_phishing_risk": is_risk, "reasons": reasons if is_risk else []}
+    if strong or (review and weak):
+        risk_level = "danger"
+    elif review or len(weak) >= 2:
+        risk_level = "caution"
+    else:
+        risk_level = "none"
+
+    is_risk = risk_level != "none"
+    return {
+        "is_phishing_risk": is_risk,
+        "risk_level": risk_level,
+        "reasons": reasons if is_risk else [],
+    }
 
 
 # Second-level domain labels (e.g. ".co.uk") — skip them when guessing a

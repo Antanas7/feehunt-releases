@@ -74,6 +74,8 @@ BILLING_INTERMEDIARIES = (
     },
 )
 
+OFFICIAL_BILLING_HUB_URLS = {platform["url"] for platform in BILLING_INTERMEDIARIES}
+
 
 def billing_intermediary(sender):
     """If the email is billed through a known platform (App Store, Google Play,
@@ -160,6 +162,78 @@ def known_billing_url(sender):
         if known_service in service_key:
             return billing_url
     return None
+
+
+def _url_root_domain(url: str | None) -> str | None:
+    """Return the registrable domain for an http(s) URL, or None."""
+    if not url:
+        return None
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return None
+    host = parsed.hostname or ""
+    return _registrable_domain(host) or None
+
+
+def direct_cancel_url_is_trusted(sender: str, url: str | None) -> bool:
+    """Only trust an email cancellation link when it stays on the sender's site.
+
+    Smaller subscription services often use unfamiliar domains, so this does not
+    require a global allowlist. It does require the cancellation destination to
+    belong to the same registrable site as the sender. A different-domain link is
+    still useful evidence, but it is not safe enough to recommend as the primary
+    path without a reviewed service-specific rule.
+    """
+    sender_domain = _sender_website(sender)
+    url_domain = _url_root_domain(url)
+    return bool(sender_domain and url_domain and sender_domain == url_domain)
+
+
+def select_cancel_target(sender: str, direct_url: str | None = None,
+                         hub: dict | None = None) -> dict:
+    """Pick the safest cancellation route, from reviewed to exploratory.
+
+    Official billing hubs and curated service pages beat links embedded in an
+    email. Email links are accepted only when their registrable domain matches
+    the sender. This keeps a convincing phishing message from becoming the
+    recommended path while preserving useful direct links from small services.
+    """
+    hub_url = hub.get("url") if isinstance(hub, dict) else None
+    if hub_url not in OFFICIAL_BILLING_HUB_URLS:
+        hub_url = None
+    known_url = known_billing_url(sender)
+    site_url = sender_website_url(sender)
+    direct_trusted = direct_cancel_url_is_trusted(sender, direct_url)
+
+    if hub_url:
+        url, tier = hub_url, "hub"
+    elif known_url:
+        url, tier = known_url, "known"
+    elif direct_url and direct_trusted:
+        url, tier = direct_url, "direct"
+    elif site_url:
+        url, tier = site_url, "site"
+    else:
+        display = _display_name(sender)
+        url, tier = (
+            "https://www.google.com/search?q="
+            + quote_plus(f"{display} cancel subscription"),
+            "search",
+        )
+
+    return {
+        "url": url,
+        "tier": tier,
+        "confidence": {
+            "hub": "official",
+            "known": "reviewed",
+            "direct": "email",
+            "site": "area",
+            "search": "search",
+        }[tier],
+        "netloc": urlparse(url).netloc if url else "",
+        "email_link_skipped": bool(direct_url and not direct_trusted),
+    }
 
 
 def cancel_subscription(sender, email_id):
