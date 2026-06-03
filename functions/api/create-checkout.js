@@ -1,4 +1,4 @@
-import { isValidEmail, normalizeEmail, stripeRequest } from "./_utils.js";
+import { isValidEmail, normalizeEmail, normalizeLanguage, stripeRequest } from "./_utils.js";
 
 const PRICE_IDS = {
   basic: "price_1Tazn1JlxAPRgwiDc90y2ksZ",
@@ -35,6 +35,7 @@ export async function onRequestPost({ request, env }) {
     const body = await request.json().catch(() => ({}));
     const plan = String(body.plan || "").trim().toLowerCase();
     const email = normalizeEmail(body.email);
+    const language = normalizeLanguage(body.language);
     const priceId = PRICE_IDS[plan];
 
     if (!priceId) {
@@ -50,8 +51,8 @@ export async function onRequestPost({ request, env }) {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: "https://feehunt.pro/success.html?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "https://feehunt.pro/pricing.html",
-      metadata: { plan },
-      subscription_data: { metadata: { plan } },
+      metadata: { plan, language },
+      subscription_data: { metadata: { plan, language } },
     };
 
     if (isValidEmail(email)) {

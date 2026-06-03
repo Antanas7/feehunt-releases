@@ -51,6 +51,7 @@ from licensing import (
 )
 
 from gmail_auth import (
+    clear_all_saved_accounts,
     ensure_connected_email,
     has_saved_gmail_connection,
     get_connected_email,
@@ -65,6 +66,7 @@ from config import (
     GMAIL_CREDENTIALS_FILE,
     GMAIL_TOKEN_FILE,
     LAST_SCAN_RESULTS_FILE,
+    LICENSE_SESSION_FILE,
     SETTINGS_FILE,
     RULES_FILE,
     DEFAULT_SETTINGS,
@@ -98,7 +100,7 @@ RESULTS_FILE = LAST_SCAN_RESULTS_FILE
 CREDENTIALS_FILE = GMAIL_CREDENTIALS_FILE
 FEEDBACK_URL = "https://feehunt.pro/feedback"
 SIGNUP_URL = "https://feehunt.pro/signup"
-PRICING_URL = "https://feehunt.pro/pricing"
+PRICING_URL = "https://feehunt.pro/pricing#plans"
 
 
 st.set_page_config(
@@ -1562,10 +1564,19 @@ inject_calm_styles()
 # ============================================================
 
 def safe_rerun() -> None:
+    page = st.session_state.get("main_navigation")
+    if page:
+        st.session_state["preserve_main_navigation"] = page
     try:
         st.rerun()
     except Exception:
         st.experimental_rerun()
+
+
+def preserve_current_page() -> None:
+    page = st.session_state.get("main_navigation")
+    if page:
+        st.session_state["preserve_main_navigation"] = page
 
 
 def confirm_success(message: str) -> None:
@@ -1933,6 +1944,22 @@ def gmail_is_connected() -> bool:
     return has_saved_gmail_connection()
 
 
+def sign_out_for_new_license() -> None:
+    """Remove the previous local user's private data before another key is used."""
+    clear_license()
+    clear_all_saved_accounts()
+    clear_memory()
+    for path in (LAST_SCAN_RESULTS_FILE, SETTINGS_FILE, RULES_FILE, LICENSE_SESSION_FILE):
+        try:
+            if path.exists():
+                path.unlink()
+        except Exception:
+            pass
+    st.session_state.clear()
+    st.session_state.license_gate = {"allowed": False}
+    st.session_state.last_scan = None
+
+
 def render_adaptive_context(profile: UserStateProfile) -> None:
     lang = current_language()
     render_calm_note(t(f"adaptive.{profile.state}", lang))
@@ -2078,6 +2105,7 @@ def render_language_picker(key_prefix: str, current: str, *, compact: bool = Tru
                 settings["language"] = code
                 save_settings(settings)
                 st.session_state.settings = settings
+                preserve_current_page()
                 safe_rerun()
 
     return current
@@ -2715,6 +2743,7 @@ def apply_rules_to_scan(
     *,
     dry_run: bool = False,
     blacklist_only: bool = False,
+    include_blacklist_rules: bool = False,
     include_user_unwanted_rules: bool = False,
 ) -> dict:
     """
@@ -2724,10 +2753,16 @@ def apply_rules_to_scan(
     lang = current_language()
     category_actions = rules.get("category_actions", {}).copy()
     whitelist = [w.lower() for w in rules.get("whitelist", [])]
-    # Block-senders feature removed: ignore any saved sender blocklist so it no
-    # longer auto-trashes by sender. Whitelist, category actions, and keyword
-    # "unwanted" rules below are unaffected.
-    blacklist = []
+    include_blacklist_rules = include_blacklist_rules or blacklist_only
+    blacklist = (
+        [
+            normalize_rule_value(value)
+            for value in rules.get("unwanted_senders", []) or []
+            if normalize_rule_value(value)
+        ]
+        if include_blacklist_rules
+        else []
+    )
 
     results = {
         "auto_deleted": [],
@@ -4434,6 +4469,21 @@ def run_dashboard_scan(apply_after: bool, show_aha_after_success: bool = False) 
             st.session_state.cleanup_preview = apply_rules_to_scan(saved, st.session_state.rules, dry_run=True)
             st.info(t("cleanup.preview_ready", lang))
 
+        if (
+            saved
+            and effective_can_modify(gate)
+            and st.session_state.settings.get("auto_apply_blacklist_after_scan", False)
+            and (st.session_state.rules.get("unwanted_senders") or [])
+        ):
+            with st.spinner(t("dashboard.apply_blacklist_spinner", lang)):
+                blacklist_results = apply_rules_to_scan(
+                    saved,
+                    st.session_state.rules,
+                    blacklist_only=True,
+                    include_blacklist_rules=True,
+                )
+            st.session_state.auto_blacklist_results = blacklist_results
+
         # Charge the trial scan quota AFTER a successful scan (not after a
         # failure). Testers are never charged, so their on-disk counter stays at
         # zero. Refresh the in-memory gate (re-promoted at the top on rerun) so the
@@ -4923,6 +4973,29 @@ def render_recheck_after_payment(lang: str, key_suffix: str) -> None:
             st.info(t("license.recheck_pending", lang))
 
 
+def render_unwanted_sender_action_control(settings: dict, lang: str) -> None:
+    current_action = "auto" if settings.get("auto_apply_blacklist_after_scan") else "review"
+    options = ["review", "auto"]
+    st.markdown("**" + t("senders.action_title", lang) + "**")
+    selected_action = st.radio(
+        t("senders.action_title", lang),
+        options,
+        index=options.index(current_action),
+        format_func=lambda option: t(f"senders.action_{option}_label", lang),
+        key="senders_unwanted_action_mode",
+        label_visibility="collapsed",
+    )
+    st.caption(t(f"senders.action_{selected_action}_help", lang))
+    badge_key = "senders.auto_action_on_badge" if selected_action == "auto" else "senders.auto_action_off_badge"
+    st.caption(t(badge_key, lang))
+    next_auto = selected_action == "auto"
+    if next_auto != bool(settings.get("auto_apply_blacklist_after_scan", False)):
+        settings["auto_apply_blacklist_after_scan"] = next_auto
+        save_settings(settings)
+        st.session_state.settings = settings
+        safe_rerun()
+
+
 def show_trial_status_banner(license_gate: dict[str, Any]) -> None:
     """Render trial-state banners on the dashboard: an intro when scans
     remain, a quota-locked banner once they're used up, an expired banner
@@ -5405,6 +5478,8 @@ def render_account_switcher(lang: str) -> None:
 
 with st.sidebar:
     st.title(t("app.brand_title", lang))
+    render_language_picker("sidebar", lang)
+    lang = current_language()
     # Plan-aware caption: "1 plan = 1 account" is only true on single-account
     # plans. Family/Pro users would be misled, so reflect their real allowance.
     _allowed_accounts = int(current_license_overview().get("allowed_gmail_accounts") or 1)
@@ -5433,9 +5508,7 @@ with st.sidebar:
         _deact_yes, _deact_no = st.columns(2)
         with _deact_yes:
             if st.button(t("sidebar.deactivate_confirm", lang), use_container_width=True):
-                clear_license()
-                st.session_state.license_gate = {"allowed": False}
-                st.session_state.pop("confirm_deactivate", None)
+                sign_out_for_new_license()
                 safe_rerun()
         with _deact_no:
             if st.button(t("common.cancel", lang), use_container_width=True):
@@ -5447,7 +5520,8 @@ with st.sidebar:
 
     page_options = ["Dashboard", "Check a Message", "Subscriptions", "Promotions", "How to Use FeeHunt", "Cleanup Rules", "Settings"]
     target_page = st.session_state.pop("ftue_target_page", None)
-    current_page = st.session_state.get("main_navigation")
+    preserved_page = st.session_state.pop("preserve_main_navigation", None)
+    current_page = target_page or preserved_page or st.session_state.get("main_navigation")
     if target_page in page_options:
         current_page = target_page
     if current_page not in page_options:
@@ -5477,6 +5551,11 @@ with st.sidebar:
 # ============================================================
 
 if page == "Dashboard":
+    _dashboard_head_left, _dashboard_head_right = st.columns([1, 0.22])
+    with _dashboard_head_right:
+        render_language_picker("dashboard", lang)
+        lang = current_language()
+
     user_profile = current_user_profile(st.session_state.last_scan)
     if not st.session_state.get("visit_remembered"):
         remember_visit(user_profile.state)
@@ -5485,6 +5564,17 @@ if page == "Dashboard":
     apply_after = st.session_state.settings.get("apply_rules_after_scan", False)
     if st.session_state.pop("dashboard_scan_just_completed", False):
         st.success(t("dashboard.scan_success", lang))
+    auto_blacklist_results = st.session_state.pop("auto_blacklist_results", None)
+    if auto_blacklist_results:
+        deleted = len(auto_blacklist_results.get("auto_deleted", []) or [])
+        protected = len(auto_blacklist_results.get("protected", []) or [])
+        review = len(auto_blacklist_results.get("needs_review", []) or [])
+        if deleted:
+            st.success(t("dashboard.auto_blacklist_done", lang).format(deleted=deleted))
+        if protected:
+            st.info(t("dashboard.auto_blacklist_protected", lang).format(protected=protected))
+        if review:
+            st.info(t("dashboard.needs_review", lang).format(review=review))
     show_dashboard_hero_action_layer(apply_after, license_gate)
     render_recent_trash_undo("dashboard")
     # Review CTAs and category shortcuts moved BELOW the results section
@@ -5920,6 +6010,8 @@ elif page == "Cleanup Rules":
 
     unwanted = rules.get("unwanted_senders", []) or []
 
+    render_unwanted_sender_action_control(settings, lang)
+
     if st.session_state.pop("clear_senders_unwanted_entry", False):
         st.session_state["senders_unwanted_entry"] = ""
 
@@ -6078,8 +6170,7 @@ elif page == "Settings":
         st.session_state.license_gate = check_license(force_online=True)
         safe_rerun()
     if st.button(t("license.deactivate", lang)):
-        clear_license()
-        st.session_state.license_gate = {"allowed": False}
+        st.session_state.confirm_deactivate = True
         safe_rerun()
 
     st.write(f"**{t('license.current_status', lang)}**")
@@ -6133,7 +6224,7 @@ elif page == "Settings":
     else:
         st.success(t("license.plan_limit_ok", lang))
 
-    st.link_button(t("license.upgrade_button", lang), "https://feehunt.pro")
+    st.link_button(t("license.upgrade_button", lang), PRICING_URL)
     st.caption(t("license.upgrade_note", lang))
 
     if status == "trial":

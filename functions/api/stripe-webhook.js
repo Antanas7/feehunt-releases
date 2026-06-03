@@ -4,6 +4,7 @@ import {
   isValidEmail,
   json,
   normalizeEmail,
+  normalizeLanguage,
   normalizePlan,
   requireSupabase,
   sendLicenseEmail,
@@ -79,6 +80,7 @@ async function activateLicense(env, user, email, plan, stripeIds) {
 
 async function handleCheckoutCompleted(env, session) {
   const email = normalizeEmail(session.customer_details?.email || session.customer_email);
+  const language = normalizeLanguage(session.metadata?.language);
   const plan = normalizePlan(session.metadata?.plan);
 
   if (!isValidEmail(email)) {
@@ -93,7 +95,7 @@ async function handleCheckoutCompleted(env, session) {
   const user = await findOrCreateUser(env, email, plan, stripeIds);
   const { licenseKey, wasAlreadyActive } = await activateLicense(env, user, email, plan, stripeIds);
   if (!wasAlreadyActive) {
-    await sendLicenseEmail(env, email, licenseKey, plan, "active");
+    await sendLicenseEmail(env, email, licenseKey, plan, "active", language);
   }
 }
 

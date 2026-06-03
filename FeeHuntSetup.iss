@@ -1,5 +1,5 @@
 #define MyAppName "FeeHunt"
-#define MyAppVersion "1.12"
+#define MyAppVersion "1.12.3"
 #define MyAppPublisher "FeeHunt"
 #define MyAppURL "https://feehunt.pro"
 #define MyAppExeName "FeeHunt.exe"
@@ -16,7 +16,7 @@ DefaultDirName={autopf}\FeeHunt
 DefaultGroupName=FeeHunt
 DisableProgramGroupPage=yes
 OutputDir=dist_installer
-OutputBaseFilename=FeeHunt-Setup-v1.12
+OutputBaseFilename=FeeHunt-Setup-v1.12.3
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -31,11 +31,11 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 CloseApplications=yes
 CloseApplicationsFilter=*.exe,*.dll
 RestartApplications=yes
-VersionInfoVersion=1.12.0.0
+VersionInfoVersion=1.12.3.0
 VersionInfoCompany=FeeHunt
 VersionInfoDescription=FeeHunt Setup Installer
 VersionInfoProductName=FeeHunt
-VersionInfoProductVersion=1.12
+VersionInfoProductVersion=1.12.3
 #ifexist "icon.ico"
 SetupIconFile=icon.ico
 #endif
@@ -44,12 +44,20 @@ SetupIconFile=icon.ico
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "dist\FeeHunt\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "token.json,last_scan_results.json,feehunt_settings.json,feehunt_rules.json,feehunt_license.json"
+Source: "dist_v1123\FeeHunt\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "token.json,last_scan_results.json,feehunt_settings.json,feehunt_rules.json,feehunt_memory.json,feehunt_license.json,feehunt_session.json,.env,.env.txt"
 
 [Icons]
 Name: "{group}\FeeHunt"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\Uninstall FeeHunt"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\FeeHunt"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
+
+[Registry]
+; Let feehunt.pro open an already-installed desktop app without sending the
+; user back through the installer. The browser may ask for confirmation first.
+Root: HKA; Subkey: "Software\Classes\feehunt"; ValueType: string; ValueName: ""; ValueData: "URL:FeeHunt Protocol"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\feehunt"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\feehunt\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKA; Subkey: "Software\Classes\feehunt\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Run]
 ; runasoriginaluser: the installer runs elevated (PrivilegesRequired=admin), but

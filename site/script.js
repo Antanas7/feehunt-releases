@@ -3,7 +3,6 @@ const menuButton = document.querySelector(".menu-button");
 const languageMenus = document.querySelectorAll(".language-menu");
 
 const KEY_REGEX = /^FHUNT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
-const PENDING_KEY_STORAGE = "feehunt_pending_license_key";
 
 // Page-level i18n (hero/nav/footer/page bodies) is owned by i18n.js (FH_I18N).
 // This map holds only the few runtime form-feedback strings that script.js shows
@@ -57,6 +56,66 @@ const runtimeMessages = {
     resendCta: "Atsiųsti paštu dar kartą",
     trialCta: "Pradėti nemokamą bandymą",
   },
+  no: {
+    resendSuccess: "Vi sendte FeeHunt-nøkkelen til e-posten din.", keyShape: "Dette ser ikke ut som en FeeHunt-nøkkel. Forventet format: FHUNT-XXXX-XXXX-XXXX-XXXX.", verifying: "Kontrollerer nøkkelen...",
+    statusActive: { title: "Nøkkelen din er aktiv.", body: "FeeHunt er klar til å skanne Gmail på Windows-datamaskinen din." },
+    statusTrial: { title: "Prøvenøkkelen din virker.", body: "Du kan bruke FeeHunt på Windows i den gratis prøveperioden." },
+    statusReadOnly: { title: "Prøveperioden eller abonnementet er avsluttet.", body: "Oppgrader abonnementet for å fortsette å bruke FeeHunt." },
+    statusPayment: { title: "Betalingen mislyktes.", body: "Oppdater kortet ditt i Stripe-portalen." },
+    statusDeviceLimit: { title: "Enhetsgrensen er nådd.", body: "FeeHunt er aktivert på maksimalt antall enheter for abonnementet ditt." },
+    statusInvalid: { title: "Vi kjenner ikke igjen denne nøkkelen.", body: "Kontroller nøkkelen og prøv igjen." },
+    statusError: { title: "Vi kunne ikke kontrollere nøkkelen nå.", body: "Prøv igjen om et øyeblikk." },
+    planLabel: "Abonnement", daysLeft: (n) => `${n} dag${n === 1 ? "" : "er"} igjen`, daysLeftZero: "Utløpt",
+    deviceCount: (current, max) => `Enheter: ${current ?? "?"} av ${max}`,
+    openDesktop: "Åpne FeeHunt på datamaskinen", downloadCta: "Last ned FeeHunt for Windows",
+    upgradeCta: "Oppgrader abonnementet", billingCta: "Administrer betaling i Stripe",
+    contactCta: "Kontakt kundestøtte", resendCta: "Send på nytt via e-post", trialCta: "Start gratis prøveperiode",
+  },
+  es: {
+    resendSuccess: "Enviamos tu clave de FeeHunt por correo.", keyShape: "Esta no parece una clave de FeeHunt. Formato esperado: FHUNT-XXXX-XXXX-XXXX-XXXX.", verifying: "Verificando tu clave...",
+    statusActive: { title: "Tu clave está activa.", body: "FeeHunt está listo para analizar Gmail en tu ordenador Windows." },
+    statusTrial: { title: "Tu clave de prueba funciona.", body: "Puedes usar FeeHunt en Windows durante la prueba gratuita." },
+    statusReadOnly: { title: "Tu prueba o suscripción ha terminado.", body: "Actualiza tu plan para seguir usando FeeHunt." },
+    statusPayment: { title: "El pago ha fallado.", body: "Actualiza tu tarjeta en el portal de Stripe." },
+    statusDeviceLimit: { title: "Se alcanzó el límite de dispositivos.", body: "Has activado FeeHunt en el número máximo de dispositivos permitido." },
+    statusInvalid: { title: "No reconocemos esta clave.", body: "Comprueba la clave e inténtalo de nuevo." },
+    statusError: { title: "No pudimos verificar la clave.", body: "Inténtalo de nuevo en unos instantes." },
+    planLabel: "Plan", daysLeft: (n) => `${n} día${n === 1 ? "" : "s"} restante${n === 1 ? "" : "s"}`, daysLeftZero: "Caducado",
+    deviceCount: (current, max) => `Dispositivos: ${current ?? "?"} de ${max}`,
+    openDesktop: "Abrir FeeHunt en tu ordenador", downloadCta: "Descargar FeeHunt para Windows",
+    upgradeCta: "Actualizar el plan", billingCta: "Gestionar pagos en Stripe",
+    contactCta: "Contactar con soporte", resendCta: "Reenviar por correo", trialCta: "Iniciar prueba gratuita",
+  },
+  de: {
+    resendSuccess: "Wir haben deinen FeeHunt-Schlüssel per E-Mail gesendet.", keyShape: "Dies sieht nicht wie ein FeeHunt-Schlüssel aus. Erwartetes Format: FHUNT-XXXX-XXXX-XXXX-XXXX.", verifying: "Schlüssel wird geprüft...",
+    statusActive: { title: "Dein Schlüssel ist aktiv.", body: "FeeHunt kann Gmail jetzt auf deinem Windows-Computer prüfen." },
+    statusTrial: { title: "Dein Testschlüssel funktioniert.", body: "Du kannst FeeHunt während der kostenlosen Testphase unter Windows verwenden." },
+    statusReadOnly: { title: "Deine Testphase oder dein Abonnement ist beendet.", body: "Aktualisiere deinen Tarif, um FeeHunt weiter zu verwenden." },
+    statusPayment: { title: "Zahlung fehlgeschlagen.", body: "Aktualisiere deine Karte im Stripe-Portal." },
+    statusDeviceLimit: { title: "Gerätelimit erreicht.", body: "FeeHunt wurde auf der maximal zulässigen Anzahl von Geräten aktiviert." },
+    statusInvalid: { title: "Wir erkennen diesen Schlüssel nicht.", body: "Prüfe den Schlüssel und versuche es erneut." },
+    statusError: { title: "Der Schlüssel konnte nicht geprüft werden.", body: "Versuche es in einem Moment erneut." },
+    planLabel: "Tarif", daysLeft: (n) => `${n} Tag${n === 1 ? "" : "e"} verbleibend`, daysLeftZero: "Abgelaufen",
+    deviceCount: (current, max) => `Geräte: ${current ?? "?"} von ${max}`,
+    openDesktop: "FeeHunt auf deinem Computer öffnen", downloadCta: "FeeHunt für Windows herunterladen",
+    upgradeCta: "Tarif aktualisieren", billingCta: "Zahlung in Stripe verwalten",
+    contactCta: "Support kontaktieren", resendCta: "Erneut per E-Mail senden", trialCta: "Kostenlose Testphase starten",
+  },
+  fr: {
+    resendSuccess: "Nous avons envoyé votre clé FeeHunt par e-mail.", keyShape: "Cette clé ne ressemble pas à une clé FeeHunt. Format attendu : FHUNT-XXXX-XXXX-XXXX-XXXX.", verifying: "Vérification de votre clé...",
+    statusActive: { title: "Votre clé est active.", body: "FeeHunt est prêt à analyser Gmail sur votre ordinateur Windows." },
+    statusTrial: { title: "Votre clé d'essai fonctionne.", body: "Vous pouvez utiliser FeeHunt sous Windows pendant votre essai gratuit." },
+    statusReadOnly: { title: "Votre essai ou abonnement est terminé.", body: "Mettez votre offre à niveau pour continuer à utiliser FeeHunt." },
+    statusPayment: { title: "Le paiement a échoué.", body: "Mettez à jour votre carte dans le portail Stripe." },
+    statusDeviceLimit: { title: "Limite d'appareils atteinte.", body: "Vous avez activé FeeHunt sur le nombre maximal d'appareils autorisé." },
+    statusInvalid: { title: "Nous ne reconnaissons pas cette clé.", body: "Vérifiez la clé et réessayez." },
+    statusError: { title: "Impossible de vérifier la clé.", body: "Réessayez dans quelques instants." },
+    planLabel: "Offre", daysLeft: (n) => `${n} jour${n === 1 ? "" : "s"} restant${n === 1 ? "" : "s"}`, daysLeftZero: "Expiré",
+    deviceCount: (current, max) => `Appareils : ${current ?? "?"} sur ${max}`,
+    openDesktop: "Ouvrir FeeHunt sur votre ordinateur", downloadCta: "Télécharger FeeHunt pour Windows",
+    upgradeCta: "Mettre l'offre à niveau", billingCta: "Gérer le paiement dans Stripe",
+    contactCta: "Contacter le support", resendCta: "Renvoyer par e-mail", trialCta: "Démarrer l'essai gratuit",
+  },
 };
 
 function getPreferredLanguage() {
@@ -69,6 +128,10 @@ function getPreferredLanguage() {
 
 function getRuntimeMessages() {
   return runtimeMessages[getPreferredLanguage()] || runtimeMessages.en;
+}
+
+function desktopOpenUrl() {
+  return `feehunt://open?language=${encodeURIComponent(getPreferredLanguage())}`;
 }
 
 function setText(selector, value) {
@@ -163,7 +226,7 @@ document.querySelectorAll("[data-checkout-plan]").forEach((button) => {
     button.setAttribute("aria-busy", "true");
     button.textContent = getPreferredLanguage() === "lt" ? "Atidaroma..." : "Opening...";
     try {
-      const result = await postJson("/api/create-checkout", { plan });
+      const result = await postJson("/api/create-checkout", { plan, language: getPreferredLanguage() });
       if (!result.url) throw new Error("Missing Stripe Checkout URL.");
       window.location.href = result.url;
     } catch (error) {
@@ -255,6 +318,7 @@ document.querySelectorAll("[data-api-form]").forEach((form) => {
     event.preventDefault();
     const type = form.getAttribute("data-api-form");
     const data = Object.fromEntries(new FormData(form).entries());
+    data.language = getPreferredLanguage();
     const button = form.querySelector("button[type='submit']");
     if (button) button.disabled = true;
 
@@ -371,6 +435,15 @@ function renderStatusPanel(panel, state) {
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
+let lastVerifyResult = null;
+
+window.addEventListener("feehunt:language-changed", () => {
+  const panel = document.querySelector("[data-status-panel]");
+  if (panel && lastVerifyResult) {
+    renderStatusPanel(panel, stateFromVerifyResponse(lastVerifyResult.http, lastVerifyResult.body));
+  }
+});
+
 function renderVerifyingPanel(panel) {
   const t = getRuntimeMessages();
   panel.innerHTML = `<div class="status-panel-card status-pending"><p class="status-title">${escapeHtml(t.verifying)}</p></div>`;
@@ -389,7 +462,7 @@ function stateFromVerifyResponse(http, body) {
       title: t.statusActive.title,
       body: t.statusActive.body,
       plan, daysRemaining: days,
-      actions: [{ label: t.openDesktop, href: "download.html", primary: false }, { label: t.billingCta, href: "account.html" }],
+      actions: [{ label: t.openDesktop, href: desktopOpenUrl(), primary: true }, { label: t.downloadCta, href: "download.html" }, { label: t.billingCta, href: "account.html" }],
     };
   }
   if (status === "trial") {
@@ -398,7 +471,7 @@ function stateFromVerifyResponse(http, body) {
       title: t.statusTrial.title,
       body: t.statusTrial.body,
       plan, daysRemaining: days,
-      actions: [{ label: t.downloadCta, href: "download.html", primary: true }],
+      actions: [{ label: t.openDesktop, href: desktopOpenUrl(), primary: true }, { label: t.downloadCta, href: "download.html" }],
     };
   }
   if (status === "read_only") {
@@ -468,18 +541,13 @@ document.querySelectorAll("[data-activate-form]").forEach((form) => {
       return;
     }
 
-    try {
-      window.localStorage.setItem(PENDING_KEY_STORAGE, key);
-    } catch (_error) {
-      // localStorage is optional; the verify call still works.
-    }
-
     const button = form.querySelector("button[type='submit']");
     if (button) button.disabled = true;
     if (panel) renderVerifyingPanel(panel);
 
     try {
       const { http, body } = await postJsonAllowError("/api/verify-license", { license_key: key, check_only: true });
+      lastVerifyResult = { http, body };
       const state = stateFromVerifyResponse(http, body);
       if (panel) renderStatusPanel(panel, state);
     } catch (error) {
@@ -509,6 +577,7 @@ document.querySelectorAll("[data-resend-form]").forEach((form) => {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form).entries());
+    data.language = getPreferredLanguage();
     const button = form.querySelector("button[type='submit']");
     if (button) button.disabled = true;
     try {

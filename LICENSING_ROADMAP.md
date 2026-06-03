@@ -3,7 +3,7 @@
 FeeHunt now follows the BeSafe licensing model:
 
 1. User enters Gmail/email on `feehunt.pro/signup`.
-2. Server creates a 14-day trial in Supabase.
+2. Server creates a 7-day trial in Supabase.
 3. Server generates an `FHUNT-XXXX-XXXX-XXXX-XXXX` license key.
 4. Server emails the license key to the user.
 5. User installs FeeHunt and pastes the key into the desktop app.

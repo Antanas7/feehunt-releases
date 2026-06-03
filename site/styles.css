@@ -1080,6 +1080,7 @@ a {
   font-size: 0.92rem;
 }
 
+.activate-section .notice + .account-form,
 .activate-section .account-form + .status-panel,
 .activate-section .status-panel + .help-block,
 .activate-section .help-block + .secondary-form,

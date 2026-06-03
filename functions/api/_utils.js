@@ -42,6 +42,10 @@ export function normalizePlan(plan) {
   return ["trial", "basic", "family", "pro"].includes(normalized) ? normalized : "trial";
 }
 
+export function normalizeLanguage(language) {
+  return String(language || "").trim().toLowerCase() === "lt" ? "lt" : "en";
+}
+
 export function trialEndsAt() {
   return new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
@@ -118,7 +122,7 @@ export async function supabaseUpdate(env, table, query, payload) {
   return Array.isArray(data) ? data : [];
 }
 
-export async function sendLicenseEmail(env, email, licenseKey, plan, kind = "new") {
+export async function sendLicenseEmail(env, email, licenseKey, plan, kind = "new", language = "en") {
   if (!env.RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY is not configured.");
   }
@@ -133,6 +137,62 @@ export async function sendLicenseEmail(env, email, licenseKey, plan, kind = "new
       ? "Your FeeHunt plan is active"
       : `Welcome to FeeHunt - your ${TRIAL_DAYS}-day trial is ready`;
   const from = `"FeeHunt" <${env.EMAIL_FROM || "support@feehunt.pro"}>`;
+
+  if (normalizeLanguage(language) === "lt") {
+    const ltSubject = kind === "existing"
+      ? "Jūsų FeeHunt licencijos raktas"
+      : isActivePlan
+        ? "Jūsų FeeHunt planas aktyvuotas"
+        : `Sveiki prisijungę prie FeeHunt - jūsų ${TRIAL_DAYS} dienų bandymas paruoštas`;
+    const ltHeading = isActivePlan
+      ? "Jūsų FeeHunt planas aktyvuotas"
+      : `Jūsų ${TRIAL_DAYS} dienų nemokamas bandymas paruoštas`;
+    const ltIntro = isActivePlan
+      ? "Žemiau rasite savo licencijos raktą. Norėdami pradėti, atlikite 5 veiksmus."
+      : "Mokėjimo kortelės nereikia. Žemiau rasite savo licencijos raktą. Norėdami pradėti, atlikite 5 veiksmus.";
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: email,
+        subject: ltSubject,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px;background:#f6f7f4;color:#17211b">
+            <h1 style="margin:0 0 8px;color:#16664f">FeeHunt</h1>
+            <h2 style="margin:0 0 16px">${ltHeading}</h2>
+            <p style="line-height:1.5">${ltIntro}</p>
+            <div style="background:#fff;border:1px solid #dce4dd;border-radius:8px;padding:20px;text-align:center;margin:22px 0">
+              <div style="font-size:12px;color:#5c6a61;text-transform:uppercase;font-weight:700">Jūsų licencijos raktas</div>
+              <div style="font-family:Consolas,monospace;font-size:22px;color:#16664f;font-weight:800;letter-spacing:2px;word-break:break-all">${licenseKey}</div>
+            </div>
+            <p style="margin:0 0 6px"><strong>Planas:</strong> ${planLabel}${isActivePlan ? "" : `&nbsp;&nbsp;|&nbsp;&nbsp;<strong>Bandymas:</strong> ${TRIAL_DAYS} dienos`}</p>
+            <h3 style="margin:24px 0 8px;color:#16664f">Kaip pradėti - 5 veiksmai</h3>
+            <ol style="line-height:1.6;padding-left:20px;margin:0 0 8px">
+              <li>Paspauskite žemiau esantį mygtuką <strong>Atsisiųsti FeeHunt</strong> ir paleiskite failą.</li>
+              <li><strong>Windows gali parodyti mėlyną įspėjimą apie naują arba nepasirašytą programą.</strong> Tęskite tik jeigu FeeHunt atsisiuntėte iš <a href="https://feehunt.pro/download">feehunt.pro/download</a>.</li>
+              <li>Užbaikite diegimą (Next → Next → Install). FeeHunt atsidarys automatiškai.</li>
+              <li>Įklijuokite aukščiau pateiktą licencijos raktą į FeeHunt ir paspauskite Activate.</li>
+              <li>Paspauskite <strong>Connect Gmail</strong>, peržiūrėkite Google leidimų langą ir patvirtinkite tik jeigu sutinkate suteikti prašomą Gmail prieigą. FeeHunt niekada nemato jūsų slaptažodžio.</li>
+            </ol>
+            <p style="text-align:center;margin:26px 0">
+              <a href="${downloadUrl}" style="background:#16664f;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Atsisiųsti FeeHunt</a>
+            </p>
+            <p style="font-size:14px;line-height:1.5"><a href="${downloadUrl}" style="color:#16664f;font-weight:700">Peržiūrėti išsamų diegimo gidą su paveikslėliais →</a><br>Nepavyksta atlikti kurio nors veiksmo? Atsakykite į šį laišką arba rašykite support@feehunt.pro.</p>
+            <p style="font-size:13px;color:#5c6a61;border-top:1px solid #dce4dd;padding-top:14px;margin-top:20px">FeeHunt licencijų serveryje nesaugo Gmail laiškų turinio. Gmail skenavimo rezultatai lieka jūsų kompiuteryje.</p>
+          </div>
+        `,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || data.error || `Resend failed: ${response.status}`);
+    }
+    return data;
+  }
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -157,10 +217,10 @@ export async function sendLicenseEmail(env, email, licenseKey, plan, kind = "new
           <h3 style="margin:24px 0 8px;color:#16664f">How to start — 5 steps</h3>
           <ol style="line-height:1.6;padding-left:20px;margin:0 0 8px">
             <li>Click <strong>Download FeeHunt</strong> below and run the file.</li>
-            <li><strong>Windows will show a blue "Windows protected your PC" warning — this is normal for new beta apps.</strong> Click <em>"More info"</em> then <em>"Run anyway"</em>.</li>
+            <li><strong>Windows may show a blue "Windows protected your PC" warning for a new or unsigned installer.</strong> Continue only if you downloaded FeeHunt from <a href="https://feehunt.pro/download">feehunt.pro/download</a>.</li>
             <li>Click through the installer (Next → Next → Install). FeeHunt opens automatically.</li>
             <li>Paste the license key above into FeeHunt and click Activate.</li>
-            <li>Click <strong>Connect Gmail</strong>. Google shows a similar "app not verified" notice — click <em>Advanced → Go to FeeHunt</em>, then approve. FeeHunt never sees your password.</li>
+            <li>Click <strong>Connect Gmail</strong>, review Google's permission screen, and approve only if you are comfortable granting the requested Gmail access. FeeHunt never sees your password.</li>
           </ol>
           <p style="text-align:center;margin:26px 0">
             <a href="${downloadUrl}" style="background:#16664f;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Download FeeHunt</a>

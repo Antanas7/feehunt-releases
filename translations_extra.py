@@ -22,7 +22,7 @@ EXTRA_TRANSLATIONS = {
         "sidebar.license": "Lisens",
         "sidebar.connected_gmail": "Gmail som behandles",
         "sidebar.refresh_license": "Oppdater lisens",
-        "sidebar.deactivate_license": "Deaktiver lisens",
+        "sidebar.deactivate_license": "Bruk en annen lisensnøkkel",
         "page.dashboard": "Oversikt",
         "page.subscriptions": "Abonnementer",
         "page.promotions": "Reklame-e-poster",
@@ -152,7 +152,7 @@ EXTRA_TRANSLATIONS = {
         "language.english": "Engelsk",
         "language.lithuanian": "Litauisk",
         # Feedback
-        "feedback.message": "Hjalp FeeHunt deg å spare penger? Vi vil gjerne høre fra deg.",
+        "feedback.message": "Hjalp FeeHunt deg å få bedre kontroll over Gmail? Vi vil gjerne høre fra deg.",
         "feedback.button": "💬 Send tilbakemelding",
     },
     "es": {
@@ -163,7 +163,7 @@ EXTRA_TRANSLATIONS = {
         "sidebar.license": "Licencia",
         "sidebar.connected_gmail": "Gmail en proceso",
         "sidebar.refresh_license": "Actualizar licencia",
-        "sidebar.deactivate_license": "Desactivar licencia",
+        "sidebar.deactivate_license": "Usar otra clave de licencia",
         "page.dashboard": "Panel",
         "page.subscriptions": "Suscripciones",
         "page.promotions": "Correos promocionales",
@@ -284,7 +284,7 @@ EXTRA_TRANSLATIONS = {
         "welcome.language_modal_title": "Elige tu idioma",
         "language.english": "Inglés",
         "language.lithuanian": "Lituano",
-        "feedback.message": "¿Te ayudó FeeHunt a ahorrar dinero? Nos encantaría tu opinión.",
+        "feedback.message": "¿Te ayudó FeeHunt a recuperar el control de Gmail? Nos encantaría tu opinión.",
         "feedback.button": "💬 Enviar comentarios",
     },
     "de": {
@@ -295,7 +295,7 @@ EXTRA_TRANSLATIONS = {
         "sidebar.license": "Lizenz",
         "sidebar.connected_gmail": "Verarbeitetes Gmail",
         "sidebar.refresh_license": "Lizenz aktualisieren",
-        "sidebar.deactivate_license": "Lizenz deaktivieren",
+        "sidebar.deactivate_license": "Anderen Lizenzschlüssel verwenden",
         "page.dashboard": "Übersicht",
         "page.subscriptions": "Abonnements",
         "page.promotions": "Werbe-E-Mails",
@@ -416,7 +416,7 @@ EXTRA_TRANSLATIONS = {
         "welcome.language_modal_title": "Wähle deine Sprache",
         "language.english": "Englisch",
         "language.lithuanian": "Litauisch",
-        "feedback.message": "Hat FeeHunt dir geholfen, Geld zu sparen? Wir freuen uns über dein Feedback.",
+        "feedback.message": "Hat FeeHunt dir geholfen, Gmail wieder besser im Griff zu haben? Wir freuen uns über dein Feedback.",
         "feedback.button": "💬 Feedback senden",
     },
     "fr": {
@@ -427,7 +427,7 @@ EXTRA_TRANSLATIONS = {
         "sidebar.license": "Licence",
         "sidebar.connected_gmail": "Gmail en cours de traitement",
         "sidebar.refresh_license": "Actualiser la licence",
-        "sidebar.deactivate_license": "Désactiver la licence",
+        "sidebar.deactivate_license": "Utiliser une autre clé de licence",
         "page.dashboard": "Tableau de bord",
         "page.subscriptions": "Abonnements",
         "page.promotions": "E-mails promotionnels",
@@ -548,7 +548,7 @@ EXTRA_TRANSLATIONS = {
         "welcome.language_modal_title": "Choisissez votre langue",
         "language.english": "Anglais",
         "language.lithuanian": "Lituanien",
-        "feedback.message": "FeeHunt vous a-t-il aidé à économiser ? Votre retour nous intéresse.",
+        "feedback.message": "FeeHunt vous a-t-il aidé à reprendre le contrôle de Gmail ? Votre retour nous intéresse.",
         "feedback.button": "💬 Envoyer un commentaire",
     },
 }
@@ -613,7 +613,6 @@ EXTRA_TRANSLATIONS["no"].update({
     "memory.settings_title": "Lokal hukommelse",
     "memory.settings_note": "Fremdriftshistorikk forblir på denne datamaskinen og sendes ikke til skyen.",
     "memory.enabled_adaptive": "Bruk skånsom adaptiv veiledning",
-    "memory.local_storage_caption": "Lagres lokalt på enheten din · FeeHunt husker fremdriften privat",
 })
 
 EXTRA_TRANSLATIONS["es"].update({
@@ -664,7 +663,6 @@ EXTRA_TRANSLATIONS["es"].update({
     "memory.settings_title": "Memoria local",
     "memory.settings_note": "El historial de progreso permanece en este ordenador y no se envía a la nube.",
     "memory.enabled_adaptive": "Usar guía adaptativa suave",
-    "memory.local_storage_caption": "Guardado localmente en tu dispositivo · FeeHunt recuerda tu progreso de forma privada",
 })
 
 EXTRA_TRANSLATIONS["de"].update({
@@ -715,7 +713,6 @@ EXTRA_TRANSLATIONS["de"].update({
     "memory.settings_title": "Lokaler Speicher",
     "memory.settings_note": "Der Fortschrittsverlauf bleibt auf diesem Computer und wird nicht in die Cloud gesendet.",
     "memory.enabled_adaptive": "Sanfte adaptive Anleitung verwenden",
-    "memory.local_storage_caption": "Lokal auf deinem Gerät gespeichert · FeeHunt merkt sich deinen Fortschritt privat",
 })
 
 EXTRA_TRANSLATIONS["fr"].update({
@@ -766,5 +763,4 @@ EXTRA_TRANSLATIONS["fr"].update({
     "memory.settings_title": "Mémoire locale",
     "memory.settings_note": "L'historique de progression reste sur cet ordinateur et n'est pas envoyé au cloud.",
     "memory.enabled_adaptive": "Utiliser des conseils adaptatifs doux",
-    "memory.local_storage_caption": "Stocké localement sur votre appareil · FeeHunt mémorise votre progression en privé",
 })

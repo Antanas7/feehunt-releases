@@ -1,6 +1,6 @@
-# FeeHunt Beta v1.2
+# FeeHunt v1.12.3 Release Candidate
 
-FeeHunt is a Windows beta app for reviewing Gmail subscriptions, payment-risk
+FeeHunt is a Windows desktop app for reviewing Gmail subscriptions, payment-risk
 emails, newsletters, shop messages, and promotional email. It runs locally on
 your computer.
 
@@ -8,19 +8,19 @@ your computer.
 
 1. Open `https://feehunt.pro/signup`.
 2. Enter your Gmail or email address.
-3. FeeHunt creates a 14-day free trial and emails your license key.
-4. Download and install `FeeHunt-Setup-v1.2.exe`.
+3. FeeHunt creates a 7-day free trial and emails your license key.
+4. Download and install `FeeHunt-Setup-v1.12.3.exe`.
 5. Open FeeHunt from the desktop shortcut.
 6. Paste the `FHUNT-...` license key from your email.
 7. Click `Connect Gmail`.
 8. Sign in with Google and approve Gmail access.
 9. Click `Scan Gmail`.
 
-No manual `credentials.json` copying is required in the packaged beta build.
+No manual `credentials.json` copying is required in the packaged build.
 FeeHunt includes its Gmail OAuth app configuration and creates your personal
 Google token automatically after sign-in.
 
-The free trial lasts 14 days and does not require a credit card.
+The free trial lasts 7 days and does not require a credit card.
 
 ## Where Local Data Is Saved
 
@@ -37,6 +37,7 @@ These files are local user data and must never be packaged in a release:
 - `feehunt_settings.json` - local settings and cleanup preferences.
 - `feehunt_rules.json` - local cleanup rules.
 - `feehunt_license.json` - local license key and latest license check.
+- `feehunt_session.json` - local session metadata, when used.
 
 The packaged app may include only `credentials.json`, which is the FeeHunt
 OAuth client configuration needed to open Google's sign-in flow.
@@ -89,14 +90,17 @@ Set these production environment variables:
 ## Build
 
 ```powershell
-pyinstaller .\FeeHunt.spec --clean --noconfirm --distpath .\dist_beta --workpath .\build_beta
+pyinstaller .\FeeHunt.spec --clean --noconfirm --distpath .\dist_rebuilt --workpath .\build_rebuilt
 ```
 
 Before publishing, confirm the generated build contains `credentials.json` and
 does not contain `token.json`, `last_scan_results.json`,
-`feehunt_settings.json`, `feehunt_rules.json`, or `feehunt_license.json`.
+`feehunt_settings.json`, `feehunt_rules.json`, `feehunt_license.json`, or
+`feehunt_session.json`.
 
-## Beta Note
+## Public Release Gate
 
-FeeHunt is beta software. Gmail cleanup actions can affect real email, so
-review results before archiving, deleting, or marking messages as spam.
+The release candidate is not a final public-commercial release until the
+external checks in `PUBLIC_RELEASE_CHECKLIST.md` pass. Gmail cleanup actions
+can affect real email, so review results before archiving, deleting, or
+marking messages as spam.

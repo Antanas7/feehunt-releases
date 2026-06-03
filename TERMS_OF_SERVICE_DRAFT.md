@@ -37,7 +37,7 @@ FeeHunt plans are expected to include:
 
 - Basic: €5.90/month
 - Family: €9.90/month
-- 14-day free trial
+- 7-day free trial
 - Cancel anytime
 
 Public billing enforcement should only begin once checkout, customer portal, and cancellation flows are available.

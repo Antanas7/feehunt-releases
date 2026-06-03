@@ -5,6 +5,7 @@ import {
   isValidEmail,
   json,
   normalizeEmail,
+  normalizeLanguage,
   normalizePlan,
   requireSupabase,
   sendLicenseEmail,
@@ -35,6 +36,7 @@ export async function onRequestPost({ request, env }) {
 
     const body = await request.json().catch(() => ({}));
     const email = normalizeEmail(body.email);
+    const language = normalizeLanguage(body.language);
     const plan = normalizePlan(body.plan);
 
     console.log("[Register] parsed request", { email, plan });
@@ -135,7 +137,7 @@ export async function onRequestPost({ request, env }) {
         }
 
         try {
-          await sendLicenseEmail(env, email, recoveredLicenseKey, recoveredPlan, "new");
+          await sendLicenseEmail(env, email, recoveredLicenseKey, recoveredPlan, "new", language);
         } catch (error) {
           logError("[Register] replacement license email failed", error, {
             userId: existing.id,
@@ -204,7 +206,8 @@ export async function onRequestPost({ request, env }) {
           email,
           existingLicense.license_key,
           selectedLicensePlan,
-          "existing"
+          "existing",
+          language
         );
       } catch (error) {
         logError("[Register] existing license email failed", error, {
@@ -326,7 +329,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     try {
-      await sendLicenseEmail(env, email, licenseKey, plan, "new");
+      await sendLicenseEmail(env, email, licenseKey, plan, "new", language);
 
       console.log("[Register] license email sent", {
         userId,

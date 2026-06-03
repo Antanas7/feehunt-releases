@@ -2,8 +2,10 @@ import os
 import sys
 import time
 import webbrowser
+import json
 from pathlib import Path
 from threading import Timer
+from urllib.parse import parse_qs, urlparse
 from urllib.request import urlopen
 
 
@@ -55,6 +57,7 @@ if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
 from translations import t
+from config import DEFAULT_SETTINGS, SETTINGS_FILE
 
 # Streamlit konfigūracija
 os.environ["STREAMLIT_GLOBAL_DEVELOPMENT_MODE"] = "false"
@@ -85,8 +88,36 @@ def server_is_running() -> bool:
         return False
 
 
+def apply_protocol_language() -> None:
+    """Persist the website language before Streamlit initializes its session."""
+    for argument in sys.argv[1:]:
+        if not argument.lower().startswith("feehunt://"):
+            continue
+        language = parse_qs(urlparse(argument).query).get("language", [""])[0].lower()
+        if language not in {"en", "lt", "no", "es", "de", "fr"}:
+            return
+        settings = DEFAULT_SETTINGS.copy()
+        try:
+            if SETTINGS_FILE.exists():
+                with open(SETTINGS_FILE, "r", encoding="utf-8") as file:
+                    saved = json.load(file)
+                if isinstance(saved, dict):
+                    settings.update(saved)
+        except Exception:
+            pass
+        settings["language"] = language
+        try:
+            SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(SETTINGS_FILE, "w", encoding="utf-8") as file:
+                json.dump(settings, file, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        return
+
+
 def main():
     os.chdir(APP_DIR)
+    apply_protocol_language()
 
     if len(sys.argv) > 1 and sys.argv[1] == "--scan":
         from main import main as scan_main

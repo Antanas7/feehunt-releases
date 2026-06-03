@@ -193,6 +193,24 @@ def clear_gmail_token() -> None:
         pass
 
 
+def clear_all_saved_accounts() -> None:
+    """Forget every Gmail account saved on this Windows profile.
+
+    Use this when a different FeeHunt license holder signs in on the same
+    computer. Switching Gmail accounts inside one Family plan keeps using the
+    archive above; switching license holders must not inherit those tokens.
+    """
+    clear_gmail_token()
+    try:
+        if ACCOUNTS_DIR.exists():
+            for path in ACCOUNTS_DIR.iterdir():
+                if path.is_file():
+                    path.unlink()
+            ACCOUNTS_DIR.rmdir()
+    except Exception:
+        pass
+
+
 def _credentials_client_id() -> str:
     try:
         data = json.loads(GMAIL_CREDENTIALS_FILE.read_text(encoding="utf-8"))

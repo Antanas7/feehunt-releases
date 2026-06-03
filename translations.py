@@ -11,8 +11,8 @@ TRANSLATIONS = {
         "dashboard.scan_success": "✅ Gmail scan complete.",
         "dashboard.apply_rules_spinner": "Applying rules...",
         "dashboard.auto_deleted": "🤖 Cleanup complete: **{deleted}** deleted, **{archived}** archived.",
-        "dashboard.apply_blacklist_spinner": "Moving blacklisted senders to Gmail trash...",
-        "dashboard.auto_blacklist_done": "Blacklisted sender cleanup complete: **{deleted}** email(s) moved to Gmail trash.",
+        "dashboard.apply_blacklist_spinner": "Moving unwanted-sender emails to Gmail trash...",
+        "dashboard.auto_blacklist_done": "Unwanted-sender cleanup complete: **{deleted}** email(s) moved to Gmail trash.",
         "dashboard.auto_blacklist_protected": "Protected **{protected}** email(s) from automatic deletion.",
         "dashboard.needs_review": "❓ **{review}** emails need your decision. Open **Cleanup Rules** to review them.",
         "dashboard.scan_error": "❌ The scan could not finish.",
@@ -70,10 +70,10 @@ TRANSLATIONS = {
         "account.add_help": "Sign in to connect another Gmail account to FeeHunt",
         "account.limit_note": "Your plan uses {used} of {allowed} Gmail accounts.",
         "sidebar.refresh_license": "Refresh license",
-        "sidebar.deactivate_license": "Deactivate license",
+        "sidebar.deactivate_license": "Use another license key",
         "sidebar.caption_multi": "Plan: up to {count} email accounts",
-        "sidebar.deactivate_warn": "This signs FeeHunt out of your license on this computer. You'll need to enter your key again to use FeeHunt.",
-        "sidebar.deactivate_confirm": "Yes, deactivate",
+        "sidebar.deactivate_warn": "This signs out the current license and Gmail accounts on this computer. Local scan results and sender rules are cleared before you enter another key.",
+        "sidebar.deactivate_confirm": "Yes, use another key",
         "common.cancel": "Cancel",
         "page.dashboard": "Dashboard",
         "page.subscriptions": "Subscriptions",
@@ -130,7 +130,7 @@ TRANSLATIONS = {
             "- Add unwanted senders to the blacklist.\n"
             "- Scan again after changing rules or deleting old alerts."
         ),
-        "feedback.message": "Did FeeHunt help you save money? We'd love your feedback.",
+        "feedback.message": "Did FeeHunt help you feel more in control of Gmail? We'd love your feedback.",
         "feedback.button": "💬 Send Feedback",
         "subscriptions.page_title": "📄 Subscriptions and Payment Control",
         "subscriptions.no_scan": "📭 No scan has been run yet.",
@@ -370,8 +370,8 @@ TRANSLATIONS = {
         "dashboard.scan_success": "✅ Gmail skenavimas baigtas.",
         "dashboard.apply_rules_spinner": "Pritaikomos taisyklės...",
         "dashboard.auto_deleted": "🤖 Valymas baigtas: ištrinta **{deleted}**, archyvuota **{archived}**.",
-        "dashboard.apply_blacklist_spinner": "Juodojo sąrašo siuntėjai perkeliami į Gmail šiukšlinę...",
-        "dashboard.auto_blacklist_done": "Juodojo sąrašo valymas baigtas: į Gmail šiukšlinę perkelta **{deleted}** laiškų.",
+        "dashboard.apply_blacklist_spinner": "Nepageidaujamų siuntėjų laiškai perkeliami į Gmail šiukšlinę...",
+        "dashboard.auto_blacklist_done": "Nepageidaujamų siuntėjų valymas baigtas: į Gmail šiukšlinę perkelta **{deleted}** laiškų.",
         "dashboard.auto_blacklist_protected": "Apsaugota nuo automatinio trynimo: **{protected}** laiškų.",
         "dashboard.needs_review": "❓ **{review}** laiškų laukia jūsų sprendimo. Atidarykite **Valymo taisykles**.",
         "dashboard.scan_error": "❌ Skenavimo nepavyko užbaigti.",
@@ -412,10 +412,10 @@ TRANSLATIONS = {
         "onboarding.reload": "**5.** Perkraukite šį puslapį",
         "onboarding.check_credentials": "🔄 Patikrinti – ar credentials.json jau įkeltas?",
         "onboarding.credentials_found": "✅ credentials.json rastas! Perkraunama...",
-        "onboarding.file_not_found": "❌ Failas dar nerastas: {path}",
+        "onboarding.file_not_found": "FeeHunt dar nemato Gmail prisijungimo failo.",
         "onboarding.footer": "Privatumas pirmiausia • FeeHunt niekada nesaugo jūsų duomenų debesyje",
         "scan.progress_preparing": "Ruošiamasi skenuoti...",
-        "scan.main_missing": "Nerastas failas: {path}",
+        "scan.main_missing": "FeeHunt nerado skenavimo įrankio. Paleiskite FeeHunt dar kartą iš išskleisto programos aplanko.",
         "app.brand_title": "💸 FeeHunt",
         "sidebar.caption": "1 planas = 1 el. pašto paskyra",
         "sidebar.navigation": "Navigacija",
@@ -429,10 +429,10 @@ TRANSLATIONS = {
         "account.add_help": "Prisijunkite, kad pridėtumėte dar vieną Gmail paskyrą",
         "account.limit_note": "Jūsų planas naudoja {used} iš {allowed} Gmail paskyrų.",
         "sidebar.refresh_license": "Patikrinti licenciją",
-        "sidebar.deactivate_license": "Išjungti licenciją",
+        "sidebar.deactivate_license": "Prisijungti su kitu raktu",
         "sidebar.caption_multi": "Planas: iki {count} el. pašto paskyrų",
-        "sidebar.deactivate_warn": "Tai atjungs FeeHunt licenciją šiame kompiuteryje. Norėdami vėl naudotis, turėsite iš naujo įvesti raktą.",
-        "sidebar.deactivate_confirm": "Taip, išjungti",
+        "sidebar.deactivate_warn": "Tai atjungs dabartinę licenciją ir Gmail paskyras šiame kompiuteryje. Prieš įvedant kitą raktą bus išvalyti vietiniai skenavimo rezultatai ir siuntėjų taisyklės.",
+        "sidebar.deactivate_confirm": "Taip, naudoti kitą raktą",
         "common.cancel": "Atšaukti",
         "page.dashboard": "Apžvalga",
         "page.subscriptions": "Prenumeratos",
@@ -489,7 +489,7 @@ TRANSLATIONS = {
             "- Nepageidaujamus siuntėjus pridėkite į juodąjį sąrašą.\n"
             "- Po taisyklių keitimo ar senų įspėjimų ištrynimo nuskenuokite Gmail dar kartą."
         ),
-        "feedback.message": "Ar FeeHunt padėjo sutaupyti? Labai laukiame jūsų atsiliepimo.",
+        "feedback.message": "Ar FeeHunt padėjo susigrąžinti kontrolę Gmail pašte? Pasidalinkite atsiliepimu - mums tai labai svarbu.",
         "feedback.button": "💬 Siųsti atsiliepimą",
         "subscriptions.page_title": "📄 Prenumeratos ir finansinės rizikos",
         "subscriptions.no_scan": "📭 Dar neatliktas skenavimas.",
@@ -765,8 +765,8 @@ LICENSE_TRANSLATIONS = {
             "Please upgrade your plan before public launch enforcement is enabled."
         ),
         "license.plan_limit_ok": "Your current plan matches your connected Gmail account usage.",
-        "license.upgrade_button": "Upgrade Plan (Coming Soon)",
-        "license.upgrade_note": "Plan upgrades will be available at public launch. No payment is processed in this beta.",
+        "license.upgrade_button": "Choose Plan",
+        "license.upgrade_note": "Opens the FeeHunt plan selection page.",
         "license.message.trial": "Trial is active. {days} day(s) remaining. Beta features remain available.",
         "license.message.active": "{plan} is active. Beta features remain available.",
         "license.message.expired": "Your local trial has expired. You will be able to choose a plan before public launch. Beta features remain available.",
@@ -832,7 +832,7 @@ LICENSE_TRANSLATIONS = {
         "senders.protected_empty": "No protected senders yet.",
         "senders.protected_count": "{count} protected sender(s)",
         "senders.blocked_title": "🗑️ Unwanted senders",
-        "senders.blocked_caption": "Senders FeeHunt's detection keeps missing — the shops and lists it doesn't recognise, in any language. Add them here and the next scan recognises their emails as promotions, so they show up with the rest of the junk for you to clean. FeeHunt never blocks delivery and never deletes by sender on its own — you stay in control of the cleanup.",
+        "senders.blocked_caption": "Senders FeeHunt's detection keeps missing — shops and lists it does not recognise yet. Add them here and choose whether FeeHunt should show their emails for review or move them to Gmail Trash after each scan.",
         "senders.blocked_input_label": "Email or domain to mark unwanted",
         "senders.blocked_input_placeholder": "e.g. promo@newsletter.com or @example.com",
         "senders.blocked_add": "Add to unwanted list",
@@ -908,8 +908,8 @@ LICENSE_TRANSLATIONS = {
             "Rekomenduojama atnaujinti plana pries ijungiant vieso paleidimo apribojimus."
         ),
         "license.plan_limit_ok": "Dabartinis planas atitinka prijungtu Gmail paskyru naudojima.",
-        "license.upgrade_button": "Atnaujinti plana (netrukus)",
-        "license.upgrade_note": "Plano atnaujinimas bus pasiekiamas vieso paleidimo metu. Sioje beta versijoje mokejimai nevykdomi.",
+        "license.upgrade_button": "Pasirinkti plana",
+        "license.upgrade_note": "Atsidarys FeeHunt planu pasirinkimo puslapis.",
         "license.message.trial": "Bandomasis laikotarpis aktyvus. Liko {days} d. Beta funkcijos lieka pasiekiamos.",
         "license.message.active": "{plan} aktyvus. Beta funkcijos lieka pasiekiamos.",
         "license.message.expired": "Bandomasis laikotarpis šiame kompiuteryje pasibaigė. Prieš viešą paleidimą bus galima pasirinkti planą. Beta funkcijos lieka pasiekiamos.",
@@ -975,7 +975,7 @@ LICENSE_TRANSLATIONS = {
         "senders.protected_empty": "Saugomų siuntėjų sąrašas tuščias.",
         "senders.protected_count": "Saugomų siuntėjų: {count}",
         "senders.blocked_title": "🗑️ Nepageidaujami siuntėjai",
-        "senders.blocked_caption": "Siuntėjai, kurių FeeHunt detekcija vis nepagauna — parduotuvės ir sąrašai, kurių jis neatpažįsta, bet kuria kalba. Pridėk juos čia, ir kitas skenavimas atpažins jų laiškus kaip reklamą — jie atsiras kartu su kitu šlamštu, kad galėtum išvalyti. FeeHunt neblokuoja pristatymo ir niekada netrina pagal siuntėją pats — valymą valdai tu.",
+        "senders.blocked_caption": "Siuntėjai, kurių FeeHunt detekcija dar neatpažįsta — parduotuvės, naujienlaiškiai ar reklaminiai sąrašai bet kuria kalba. Pridėkite juos čia ir pasirinkite, ar FeeHunt turi jų laiškus rodyti peržiūrai, ar po skenavimo automatiškai perkelti į Gmail šiukšlinę.",
         "senders.blocked_input_label": "Nepageidaujamas el. paštas arba domenas",
         "senders.blocked_input_placeholder": "pvz. promo@newsletter.com arba @example.com",
         "senders.blocked_add": "Pridėti į sąrašą",
@@ -1788,7 +1788,7 @@ READINESS_TRANSLATIONS = {
         "license.plan.preview": "Preview",
         "license.key_display": "License key: {key}",
         "license.check_now": "Check license now",
-        "license.deactivate": "Deactivate FeeHunt license",
+        "license.deactivate": "Use another FeeHunt license key",
         "scan.loading.reviewing": "Reviewing your Gmail...",
         "scan.loading.looking": "Looking for subscriptions and payment control items...",
         "scan.loading.organizing": "Organizing recent email activity...",
@@ -1819,7 +1819,7 @@ READINESS_TRANSLATIONS = {
         "license.plan.preview": "Peržiūros",
         "license.key_display": "Licencijos raktas: {key}",
         "license.check_now": "Patikrinti licenciją dabar",
-        "license.deactivate": "Išjungti FeeHunt licenciją",
+        "license.deactivate": "Prisijungti su kitu FeeHunt raktu",
         "scan.loading.reviewing": "Peržiūrime jūsų Gmail...",
         "scan.loading.looking": "Ieškome prenumeratų ir mokėjimų kontrolės įrašų...",
         "scan.loading.organizing": "Tvarkome naujausią el. pašto veiklą...",
@@ -1860,6 +1860,50 @@ CONTEXTUAL_HELP = {
         "direct_cancel": "Atidaryti atšaukimo nuorodą, kurią FeeHunt rado šiame laiške. FeeHunt neatšaukia už jus.",
         "license_activation": "Vieną kartą įklijuokite FeeHunt raktą, kad aktyvuotumėte paskyrą.",
         "trial_status": "Pažiūrėkite, kiek bandomojo laikotarpio dienų dar liko.",
+    },
+    "no": {
+        "connect_gmail": "Koble til én gang slik at FeeHunt trygt kan se gjennom Gmail på denne datamaskinen. FeeHunt kjører bare på datamaskinen din.",
+        "scan_gmail": "Se gjennom de nyeste Gmail-meldingene og vis hva som kan trenge oppmerksomhet.",
+        "estimated_savings": "Et enkelt månedsanslag basert på abonnementene FeeHunt fant.",
+        "financial_risks": "Betalings- eller konto-e-poster som kan være verdt å sjekke snart.",
+        "promotions": "Reklame-e-poster du kanskje vil rydde opp i.",
+        "unsubscribe": "Åpne avsenderens avmeldingsside når FeeHunt finner en.",
+        "direct_cancel": "Åpne avslutningslenken FeeHunt fant i e-posten. FeeHunt avslutter ikke for deg.",
+        "license_activation": "Lim inn FeeHunt-nøkkelen én gang for å låse opp kontoen.",
+        "trial_status": "Se hvor mange dager som er igjen av prøveperioden.",
+    },
+    "es": {
+        "connect_gmail": "Conecta una vez para que FeeHunt pueda revisar Gmail de forma segura en este ordenador. FeeHunt funciona solo en tu ordenador.",
+        "scan_gmail": "Revisar los mensajes recientes de Gmail y mostrar qué puede necesitar atención.",
+        "estimated_savings": "Una estimación mensual sencilla basada en las suscripciones que encontró FeeHunt.",
+        "financial_risks": "Correos de pagos o cuentas que conviene revisar pronto.",
+        "promotions": "Correos promocionales que quizá quieras limpiar.",
+        "unsubscribe": "Abrir la página para dejar de recibir correos cuando FeeHunt la encuentre.",
+        "direct_cancel": "Abrir el enlace de cancelación que FeeHunt encontró en el correo. FeeHunt no cancela por ti.",
+        "license_activation": "Pega una vez tu clave FeeHunt para desbloquear la cuenta.",
+        "trial_status": "Consulta cuántos días de prueba quedan.",
+    },
+    "de": {
+        "connect_gmail": "Einmal verbinden, damit FeeHunt Gmail auf diesem Computer sicher prüfen kann. FeeHunt läuft nur auf deinem Computer.",
+        "scan_gmail": "Neuere Gmail-Nachrichten prüfen und anzeigen, was Aufmerksamkeit benötigen könnte.",
+        "estimated_savings": "Eine einfache Monatsschätzung anhand der gefundenen Abonnements.",
+        "financial_risks": "Zahlungs- oder Konto-E-Mails, die bald geprüft werden sollten.",
+        "promotions": "Werbe-E-Mails, die du vielleicht aufräumen möchtest.",
+        "unsubscribe": "Die Abmeldeseite des Absenders öffnen, wenn FeeHunt eine findet.",
+        "direct_cancel": "Den Kündigungslink öffnen, den FeeHunt in der E-Mail gefunden hat. FeeHunt kündigt nicht für dich.",
+        "license_activation": "FeeHunt-Schlüssel einmal einfügen, um dein Konto freizuschalten.",
+        "trial_status": "Anzeigen, wie viele Testtage verbleiben.",
+    },
+    "fr": {
+        "connect_gmail": "Connectez Gmail une fois pour que FeeHunt puisse l'examiner en toute sécurité sur cet ordinateur. FeeHunt fonctionne uniquement sur votre ordinateur.",
+        "scan_gmail": "Examiner les messages Gmail récents et afficher ce qui peut nécessiter votre attention.",
+        "estimated_savings": "Une estimation mensuelle simple à partir des abonnements trouvés par FeeHunt.",
+        "financial_risks": "E-mails de paiement ou de compte qu'il peut être utile de vérifier rapidement.",
+        "promotions": "E-mails promotionnels que vous souhaitez peut-être nettoyer.",
+        "unsubscribe": "Ouvrir la page de désabonnement de l'expéditeur lorsque FeeHunt en trouve une.",
+        "direct_cancel": "Ouvrir le lien d'annulation trouvé par FeeHunt dans cet e-mail. FeeHunt n'annule pas à votre place.",
+        "license_activation": "Collez une fois votre clé FeeHunt pour déverrouiller votre compte.",
+        "trial_status": "Voir combien de jours d'essai il reste.",
     },
 }
 
@@ -1902,6 +1946,16 @@ except ImportError:
 try:
     from translations_full import FULL_TRANSLATIONS
     for _code, _bundle in FULL_TRANSLATIONS.items():
+        TRANSLATIONS.setdefault(_code, {}).update(_bundle)
+except ImportError:
+    pass
+
+# v1.12 added account switching, the subscription control center, the safer
+# cancellation wizard, and calmer safety-review copy. Keep these translations
+# in a focused bundle so future releases can audit newly added UI keys easily.
+try:
+    from translations_v112 import V112_TRANSLATIONS
+    for _code, _bundle in V112_TRANSLATIONS.items():
         TRANSLATIONS.setdefault(_code, {}).update(_bundle)
 except ImportError:
     pass

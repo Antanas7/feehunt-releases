@@ -6,7 +6,7 @@ Simple Pricing for a Cleaner Inbox and Fewer Forgotten Subscriptions.
 
 ## Subheadline
 
-Start with a 14-day free trial. Choose the plan that matches how many Gmail accounts you want to connect. Cancel anytime.
+Start with a 7-day free trial. Choose the plan that matches how many Gmail accounts you want to connect. Cancel anytime.
 
 ## Plans
 
@@ -16,7 +16,7 @@ Start with a 14-day free trial. Choose the plan that matches how many Gmail acco
 
 Includes:
 
-- 14-day free trial
+- 7-day free trial
 - 1 Gmail account
 - 1 license key
 - Subscription detection
@@ -39,7 +39,7 @@ Start Basic Trial
 
 Includes:
 
-- 14-day free trial
+- 7-day free trial
 - Up to 3 Gmail accounts
 - 1 license key
 - Subscription detection
@@ -64,11 +64,11 @@ FeeHunt is built around honest pricing. You can cancel your subscription anytime
 
 ### Is there a free trial?
 
-Yes. Both Basic and Family plans include a 14-day free trial.
+Yes. Both Basic and Family plans include a 7-day free trial.
 
 ### When will I be charged?
 
-After the 14-day trial ends, your selected plan becomes active unless you cancel before the trial ends.
+After the 7-day trial ends, your selected plan becomes active unless you cancel before the trial ends.
 
 ### Can I cancel anytime?
 

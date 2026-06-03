@@ -3,7 +3,7 @@
 This is the BeSafe-style Phase 1 trial system:
 
 1. User enters Gmail/email on `feehunt.pro/signup`.
-2. FeeHunt creates a 14-day trial in Supabase.
+2. FeeHunt creates a 7-day trial in Supabase.
 3. FeeHunt emails an `FHUNT-XXXX-XXXX-XXXX-XXXX` license key.
 4. User pastes the key into the FeeHunt Windows app.
 5. Desktop app verifies the license through `/api/verify-license`.

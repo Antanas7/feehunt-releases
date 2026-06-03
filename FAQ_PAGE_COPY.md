@@ -22,7 +22,7 @@ FeeHunt is designed for Gmail accounts connected through Google's OAuth authoriz
 
 ## What happens after the free trial?
 
-After the 14-day free trial, the selected paid plan becomes active unless the user cancels before the trial ends. Public billing enforcement will only be enabled after checkout, customer portal, and cancellation flows are ready.
+After the 7-day free trial, the selected paid plan becomes active unless the user cancels before the trial ends. Public billing enforcement will only be enabled after checkout, customer portal, and cancellation flows are ready.
 
 ## How many Gmail accounts can I connect?
 

@@ -3,6 +3,7 @@ import {
   isValidEmail,
   json,
   normalizeEmail,
+  normalizeLanguage,
   requireSupabase,
   sendLicenseEmail,
   supabaseSelect,
@@ -14,6 +15,7 @@ export async function onRequestPost({ request, env }) {
 
     const body = await request.json().catch(() => ({}));
     const email = normalizeEmail(body.email);
+    const language = normalizeLanguage(body.language);
 
     if (!isValidEmail(email)) {
       return json({ code: "invalid_email", error: "Please enter your email address." }, 400);
@@ -32,7 +34,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     try {
-      await sendLicenseEmail(env, email, license.license_key, license.plan || "basic", "existing");
+      await sendLicenseEmail(env, email, license.license_key, license.plan || "basic", "existing", language);
     } catch (error) {
       console.error("[Login] email failed:", error.message);
       return json({

@@ -21,7 +21,7 @@ Goals:
 
 - Explain what FeeHunt does.
 - Show the main benefits: find subscriptions, save money, clean the inbox, and prepare for future phishing protection.
-- Present trust signals: 14-day free trial, cancel anytime, privacy-first, works locally.
+- Present trust signals: 7-day free trial, cancel anytime, privacy-first, works locally.
 - Guide users toward starting a free trial or downloading the beta.
 
 Primary CTA:

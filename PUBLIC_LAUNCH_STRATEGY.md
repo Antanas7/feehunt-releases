@@ -25,14 +25,14 @@ Padėti žmonėms visame pasaulyje:
 ### Basic Plan
 
 - €5.90/month
-- 14-day free trial
+- 7-day free trial
 - 1 Gmail account
 - 1 license key
 
 ### Family Plan
 
 - €9.90/month
-- 14-day free trial
+- 7-day free trial
 - Up to 3 Gmail accounts
 - 1 license key
 
@@ -58,7 +58,7 @@ Padėti žmonėms visame pasaulyje:
 6. Įveda licencijos raktą.
 7. Prisijungia prie Gmail.
 8. FeeHunt susieja licenciją su Gmail paskyra.
-9. Prasideda 14 dienų trial.
+9. Prasideda 7 dienų trial.
 10. Po trial aktyvuojamas mokamas planas.
 
 ## Cancel Anytime Principas

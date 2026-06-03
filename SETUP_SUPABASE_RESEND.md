@@ -5,7 +5,7 @@
 Galutinis srautas:
 
 1. Vartotojas įveda Gmail / el. paštą.
-2. FeeHunt sukuria 14 dienų trial.
+2. FeeHunt sukuria 7 dienų trial.
 3. FeeHunt išsiunčia licencijos raktą el. paštu.
 4. Vartotojas įklijuoja raktą FeeHunt programoje.
 5. Programa patikrina licenciją per `/api/verify-license`.
@@ -320,7 +320,7 @@ Missing or invalid license key.
 Jei trial baigėsi:
 
 ```text
-Your 14-day trial has ended.
+Your 7-day trial has ended.
 ```
 
 Trumpai: dabar reikia užpildyti `.env` ir paleisti `supabase/schema.sql`. Tada bus galima testuoti visą kelią.

@@ -65,13 +65,13 @@ FeeHunt runs locally on your Windows computer. Your scan results and settings st
 
 €5.90/month  
 1 Gmail account  
-14-day free trial
+7-day free trial
 
 ### Family
 
 €9.90/month  
 Up to 3 Gmail accounts  
-14-day free trial
+7-day free trial
 
 ## Honest Promise
 

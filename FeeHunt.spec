@@ -6,7 +6,6 @@ from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 block_cipher = None
 project_dir = Path.cwd()
-venv_site_packages = project_dir / ".venv" / "Lib" / "site-packages"
 
 streamlit_datas, streamlit_binaries, streamlit_hiddenimports = collect_all("streamlit")
 
@@ -26,6 +25,7 @@ required_datas = [
     ("translations.py", "."),
     ("translations_extra.py", "."),
     ("translations_full.py", "."),
+    ("translations_v112.py", "."),
     ("user_state.py", "."),
     ("requirements.txt", "."),
     ("credentials.json", "."),
@@ -41,6 +41,7 @@ for forbidden_file in (
     "feehunt_rules.json",
     "feehunt_memory.json",
     "feehunt_license.json",
+    "feehunt_session.json",
 ):
     if any(Path(source).name == forbidden_file for source, _target in required_datas):
         raise RuntimeError(f"Do not package user data file: {forbidden_file}")
@@ -53,24 +54,11 @@ for forbidden_file in (
 
 
 # Šie paketai turi būti nukopijuoti į _internal
-package_dirs = [
-    ("google", "_internal/google"),
-    ("google_auth_oauthlib", "_internal/google_auth_oauthlib"),
-    ("googleapiclient", "_internal/googleapiclient"),
-]
-
-package_datas = []
-for source_dir, target_dir in package_dirs:
-    full_path = venv_site_packages / source_dir
-    if full_path.exists():
-        package_datas.append((str(full_path), target_dir))
-
-
 a = Analysis(
     ["run_feehunt.py"],
     pathex=[str(project_dir)],
     binaries=streamlit_binaries,
-    datas=required_datas + package_datas + streamlit_datas,
+    datas=required_datas + streamlit_datas,
     hiddenimports=[
         "google",
         "google.auth",
