@@ -126,6 +126,7 @@ EXTRA_TRANSLATIONS = {
         "settings.auto_scan_off": "Av",
         "settings.auto_scan_hourly": "Hver time",
         "settings.auto_scan_daily": "Daglig",
+        "settings.auto_scan_weekly": "Ukentlig",
         "settings.safe_mode": "🔒 Trygg modus",
         "settings.safe_mode_help": "Anbefales mens FeeHunt er i beta.",
         "settings.save": "💾 Lagre innstillinger",
@@ -262,6 +263,7 @@ EXTRA_TRANSLATIONS = {
         "settings.auto_scan_off": "Desactivado",
         "settings.auto_scan_hourly": "Cada hora",
         "settings.auto_scan_daily": "Diario",
+        "settings.auto_scan_weekly": "Semanal",
         "settings.safe_mode": "🔒 Modo seguro",
         "settings.safe_mode_help": "Recomendado mientras FeeHunt está en beta.",
         "settings.save": "💾 Guardar ajustes",
@@ -394,6 +396,7 @@ EXTRA_TRANSLATIONS = {
         "settings.auto_scan_off": "Aus",
         "settings.auto_scan_hourly": "Stündlich",
         "settings.auto_scan_daily": "Täglich",
+        "settings.auto_scan_weekly": "Wöchentlich",
         "settings.safe_mode": "🔒 Sicherer Modus",
         "settings.safe_mode_help": "Empfohlen, solange FeeHunt in der Beta ist.",
         "settings.save": "💾 Einstellungen speichern",
@@ -526,6 +529,7 @@ EXTRA_TRANSLATIONS = {
         "settings.auto_scan_off": "Désactivé",
         "settings.auto_scan_hourly": "Toutes les heures",
         "settings.auto_scan_daily": "Quotidien",
+        "settings.auto_scan_weekly": "Hebdomadaire",
         "settings.safe_mode": "🔒 Mode sûr",
         "settings.safe_mode_help": "Recommandé pendant la phase bêta de FeeHunt.",
         "settings.save": "💾 Enregistrer les paramètres",
@@ -612,7 +616,7 @@ EXTRA_TRANSLATIONS["no"].update({
     # Memory
     "memory.settings_title": "Lokal hukommelse",
     "memory.settings_note": "Fremdriftshistorikk forblir på denne datamaskinen og sendes ikke til skyen.",
-    "memory.enabled_adaptive": "Bruk skånsom adaptiv veiledning",
+    "memory.enabled_adaptive": "Bruk adaptiv veiledning",
 })
 
 EXTRA_TRANSLATIONS["es"].update({
@@ -662,7 +666,7 @@ EXTRA_TRANSLATIONS["es"].update({
     "settings.technical_info": "🔧 Información técnica",
     "memory.settings_title": "Memoria local",
     "memory.settings_note": "El historial de progreso permanece en este ordenador y no se envía a la nube.",
-    "memory.enabled_adaptive": "Usar guía adaptativa suave",
+    "memory.enabled_adaptive": "Usar guía adaptativa",
 })
 
 EXTRA_TRANSLATIONS["de"].update({
@@ -712,7 +716,7 @@ EXTRA_TRANSLATIONS["de"].update({
     "settings.technical_info": "🔧 Technische Informationen",
     "memory.settings_title": "Lokaler Speicher",
     "memory.settings_note": "Der Fortschrittsverlauf bleibt auf diesem Computer und wird nicht in die Cloud gesendet.",
-    "memory.enabled_adaptive": "Sanfte adaptive Anleitung verwenden",
+    "memory.enabled_adaptive": "Adaptive Anleitung verwenden",
 })
 
 EXTRA_TRANSLATIONS["fr"].update({
@@ -762,5 +766,5 @@ EXTRA_TRANSLATIONS["fr"].update({
     "settings.technical_info": "🔧 Informations techniques",
     "memory.settings_title": "Mémoire locale",
     "memory.settings_note": "L'historique de progression reste sur cet ordinateur et n'est pas envoyé au cloud.",
-    "memory.enabled_adaptive": "Utiliser des conseils adaptatifs doux",
+    "memory.enabled_adaptive": "Utiliser des conseils adaptatifs",
 })

@@ -29,6 +29,7 @@ const FH_I18N = {
       heroScanCards: [["Recurring subscription detected", "Renewal and billing signals found"], ["Payment issue detected", "Failed charge or card update email"], ["Suspicious billing email", "Review before clicking any link"], ["Promotional clutter", "Newsletter and shop messages grouped"]],
       principle: "FeeHunt works for you. You stay in control.",
       badges: ["7-Day Free Trial", "Cancel Anytime", "Privacy-First", "Works Locally"],
+      badgeDetails: ["Local processing", "On your device", "No data collected"],
       securityStrip: [["Privacy-first design", "Email analysis stays local"], ["Minimal server data", "You stay in control."], ["Calm Gmail protection", "Signals before surprises"]],
       socialProof: "Take control of Gmail and subscriptions with privacy-first local analysis.",
       why: ["Why FeeHunt", "Hidden subscriptions and payment warnings are easy to miss.", "Recurring payments, trial renewals, failed payment warnings, receipts, and unsubscribe links often hide between newsletters and promotions. FeeHunt helps you review what matters, reduce Gmail noise, and stay ahead of unwanted charges.", "FeeHunt reviews signals locally on your computer and asks before Gmail-changing actions."],
@@ -133,6 +134,7 @@ FH_I18N.lt = {
     heroScanCards: [["Aptikta pasikartojanti prenumerata", "Rasti atnaujinimo ir apmokejimo signalai"], ["Aptikta mokejimo problema", "Nepavykes mokestis arba korteles atnaujinimo laiskas"], ["Itartinas atsiskaitymo laiskas", "Perziurekite pries spausdami nuoroda"], ["Reklaminis triuksmas", "Naujienlaiskiai ir parduotuviu zinutes sugrupuotos"]],
     principle: "FeeHunt dirba jums. Kontrole lieka jusu rankose.",
     badges: ["7 dienu bandymas", "Galima atsaukti bet kada", "Privatumas pirmiausia", "Veikia lokaliai"],
+    badgeDetails: ["Vietinis apdorojimas", "Jusu irenginyje", "Duomenys nerenkami"],
     securityStrip: [["Banko lygio saugumas", "Vietinis ir uzsifruotas"], ["Be serveriu. Be sekimo.", "Jus isliekate kontroleje."], ["Rami Gmail apsauga", "Signalai pries netiketumus"]],
     socialProof: "Prisijunkite prie 1 000+ vartotoju, valdanciu Gmail ir finansus.",
     why: ["Kodel FeeHunt", "Prenumeratas lengva pradeti ir lengva pamirsti.", "Mokejimu pranesimai pasimeta tarp naujienlaiskiu, reklamu, kvitu ir iprastu laisku. FeeHunt padeda perziureti tai, kas svarbu.", "FeeHunt analizuoja signalus jusu kompiuteryje ir klausia pries Gmail keiciancius veiksmus."],
@@ -286,6 +288,7 @@ const FH_LANGUAGE_OVERRIDES = {
       heroLead: "FeeHunt hjelper deg med å finne abonnementer, betalingskontroll, reklamepost og mulige svindelvarsler - privat og lokalt på datamaskinen.",
       principle: "FeeHunt jobber for deg. Du beholder kontrollen.",
       badges: ["7 dagers prøveperiode", "Avbryt når som helst", "Personvern først", "Kjører lokalt"],
+      badgeDetails: ["Lokal behandling", "På enheten din", "Ingen data samlet inn"],
       why: ["Hvorfor FeeHunt", "Abonnementer er lette å starte og lette å glemme.", "Betalingsvarsler forsvinner mellom nyhetsbrev, kampanjer, kvitteringer og vanlige varsler. FeeHunt hjelper deg å se det som betyr noe.", "FeeHunt analyserer signaler lokalt og spør før Gmail-handlinger som endrer e-posten."],
       pricingHeading: ["Prisoversikt", "Enkle månedsplaner med 7 dagers prøveperiode."],
       pricingNotice: "Ingen skjulte gebyrer. Avbryt når som helst.",
@@ -327,6 +330,7 @@ const FH_LANGUAGE_OVERRIDES = {
       heroLead: "FeeHunt te ayuda a detectar suscripciones, control de pagos, correos promocionales y posibles amenazas de phishing de forma privada y local.",
       principle: "FeeHunt trabaja para ti. Tú mantienes el control.",
       badges: ["Prueba de 7 días", "Cancela cuando quieras", "Privacidad primero", "Funciona localmente"],
+      badgeDetails: ["Procesamiento local", "En tu dispositivo", "No se recopilan datos"],
       why: ["Por qué FeeHunt", "Las suscripciones son fáciles de iniciar y fáciles de olvidar.", "Los avisos de pago se pierden entre boletines, promociones, recibos y notificaciones. FeeHunt te ayuda a revisar lo importante.", "FeeHunt analiza señales en tu ordenador y pide confirmación antes de acciones que cambian Gmail."],
       pricingHeading: ["Vista de precios", "Planes mensuales simples con prueba de 7 días."],
       pricingNotice: "Sin cargos ocultos. Cancela cuando quieras.",
@@ -368,6 +372,7 @@ const FH_LANGUAGE_OVERRIDES = {
       heroLead: "FeeHunt hilft dir, Abonnements, Zahlungskontrolle, Werbe-E-Mails und mögliche Phishing-Gefahren privat und lokal zu erkennen.",
       principle: "FeeHunt arbeitet für dich. Du behältst die Kontrolle.",
       badges: ["7 Tage Testphase", "Jederzeit kündbar", "Datenschutz zuerst", "Läuft lokal"],
+      badgeDetails: ["Lokale Verarbeitung", "Auf deinem Gerät", "Keine Datenerfassung"],
       why: ["Warum FeeHunt", "Abonnements sind leicht zu starten und leicht zu vergessen.", "Zahlungshinweise verschwinden zwischen Newslettern, Werbung, Belegen und Benachrichtigungen. FeeHunt hilft, Wichtiges zu prüfen.", "FeeHunt analysiert Signale lokal und fragt vor Gmail-Änderungen nach."],
       pricingHeading: ["Preisübersicht", "Einfache Monatspläne mit 7 Tagen Testphase."],
       pricingNotice: "Keine versteckten Gebühren. Jederzeit kündbar.",
@@ -409,6 +414,7 @@ const FH_LANGUAGE_OVERRIDES = {
       heroLead: "FeeHunt vous aide à détecter les abonnements, le contrôle des paiements, les emails promotionnels et les menaces de phishing possibles, localement et en privé.",
       principle: "FeeHunt travaille pour vous. Vous gardez le contrôle.",
       badges: ["Essai de 7 jours", "Annulation à tout moment", "Confidentialité d'abord", "Fonctionne localement"],
+      badgeDetails: ["Traitement local", "Sur votre appareil", "Aucune collecte de données"],
       why: ["Pourquoi FeeHunt", "Les abonnements sont faciles à lancer et faciles à oublier.", "Les alertes de paiement se perdent entre newsletters, promotions, reçus et notifications. FeeHunt vous aide à voir l'important.", "FeeHunt analyse les signaux localement et demande confirmation avant toute action qui modifie Gmail."],
       pricingHeading: ["Aperçu des tarifs", "Plans mensuels simples avec essai de 7 jours."],
       pricingNotice: "Aucuns frais cachés. Annulation à tout moment.",
@@ -472,8 +478,8 @@ const FH_STATIC_PAGE_TRANSLATIONS = {
       },
       walk: {
         title: "What happens after you click download",
-        s1: { title: "A file will start downloading", body: "Your browser will save FeeHunt-Setup-v1.12.2.exe to your Downloads folder. It's a small file (~80 MB) and takes about 30 seconds on most connections." },
-        s2: { title: "Double-click the downloaded file", body: "Open your Downloads folder and double-click FeeHunt-Setup-v1.12.2.exe." },
+        s1: { title: "A file will start downloading", body: "Your browser will save FeeHunt-Setup-v1.12.4.exe to your Downloads folder. It's a small file (~80 MB) and takes about 30 seconds on most connections." },
+        s2: { title: "Double-click the downloaded file", body: "Open your Downloads folder and double-click FeeHunt-Setup-v1.12.4.exe." },
         s3: {
           title: "Windows will show a blue warning — this is normal",
           body: "What you'll see: A blue box titled \"Windows protected your PC\" with a small \"Don't run\" button. Windows may show this for a new or unsigned installer while it has limited download reputation. FeeHunt code signing is being prepared.",
@@ -619,6 +625,7 @@ const FH_FINAL_TRANSLATION_PATCHES = {
       heroScanCards: [["Aptikta pasikartojanti prenumerata", "Rasti atnaujinimo ir apmokėjimo signalai"], ["Aptikta mokėjimo problema", "Nepavykęs mokestis arba kortelės atnaujinimo laiškas"], ["Įtartinas atsiskaitymo laiškas", "Peržiūrėkite prieš spausdami nuorodą"], ["Reklaminis triukšmas", "Naujienlaiškiai ir parduotuvių žinutės sugrupuotos"]],
       principle: "FeeHunt veikia jūsų naudai. Kontrolė lieka jūsų rankose.",
       badges: ["7 dienų bandymas", "Galima atšaukti bet kada", "Privatumas pirmiausia", "Veikia lokaliai"],
+      badgeDetails: ["Vietinis apdorojimas", "Jūsų įrenginyje", "Duomenys nerenkami"],
       why: ["Kodėl FeeHunt", "Prenumeratas lengva pradėti ir lengva pamiršti.", "Mokėjimų pranešimai pasimeta tarp naujienlaiškių, reklamų, kvitų ir įprastų laiškų. FeeHunt padeda peržiūrėti tai, kas svarbu.", "FeeHunt analizuoja signalus jūsų kompiuteryje ir klausia prieš Gmail keičiančius veiksmus."],
       visualToolbar: "FeeHunt vietinis valdymo skydas",
       visualPill: "Privatu jūsų kompiuteryje",
@@ -672,8 +679,8 @@ const FH_FINAL_TRANSLATION_PATCHES = {
       },
       walk: {
         title: "Kas vyksta paspaudus atsisiųsti",
-        s1: { title: "Pradės siųstis failas", body: "Naršyklė išsaugos FeeHunt-Setup-v1.12.2.exe į jūsų Atsisiuntimų (Downloads) aplanką. Tai nedidelis failas (~80 MB), atsisiunčia per maždaug 30 sekundžių." },
-        s2: { title: "Du kartus spustelėkite atsisiųstą failą", body: "Atidarykite Atsisiuntimų aplanką ir dukart spustelėkite FeeHunt-Setup-v1.12.2.exe." },
+        s1: { title: "Pradės siųstis failas", body: "Naršyklė išsaugos FeeHunt-Setup-v1.12.4.exe į jūsų Atsisiuntimų (Downloads) aplanką. Tai nedidelis failas (~80 MB), atsisiunčia per maždaug 30 sekundžių." },
+        s2: { title: "Du kartus spustelėkite atsisiųstą failą", body: "Atidarykite Atsisiuntimų aplanką ir dukart spustelėkite FeeHunt-Setup-v1.12.4.exe." },
         s3: {
           title: "Windows parodys mėlyną įspėjimą — tai normalu",
           body: "Ką pamatysite: mėlyną langą pavadinimu „Windows protected your PC“ su mažu mygtuku „Don't run“. Windows gali jį parodyti naujam arba dar nepasirašytam diegikliui, kol failas turi mažai atsisiuntimo reputacijos. FeeHunt kodo pasirašymas ruošiamas.",
@@ -933,6 +940,9 @@ function applyHome(text) {
     const title = badge.querySelector("strong");
     if (title) title.textContent = label;
     else badge.textContent = label;
+    const detail = home.badgeDetails?.[index];
+    const note = badge.querySelector("small");
+    if (note && detail != null) note.textContent = detail;
   });
   applyHeroScannerText(home.heroScanCards);
   if (Array.isArray(home.securityStrip)) {

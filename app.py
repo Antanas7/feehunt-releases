@@ -6224,7 +6224,7 @@ elif page == "Settings":
     else:
         st.success(t("license.plan_limit_ok", lang))
 
-    st.link_button(t("license.upgrade_button", lang), PRICING_URL)
+    st.link_button(t("license.upgrade_button", lang), PRICING_URL, type="primary")
     st.caption(t("license.upgrade_note", lang))
 
     if status == "trial":
@@ -6239,12 +6239,6 @@ elif page == "Settings":
         st.error(t("license.message.invalid", lang))
 
     st.divider()
-
-    settings["currency"] = st.selectbox(
-        t("settings.currency", settings["language"]),
-        ["USD", "EUR", "GBP"],
-        index=["USD", "EUR", "GBP"].index(normalize_currency(settings.get("currency", "USD"))),
-    )
 
     timezone_options = [
         current_timezone(),
@@ -6268,12 +6262,12 @@ elif page == "Settings":
 
     settings["auto_scan"] = st.selectbox(
         t("settings.auto_scan", settings["language"]),
-        ["off", "hourly", "daily"],
-        index=["off", "hourly", "daily"].index(normalize_auto_scan(settings.get("auto_scan", "off"))),
+        ["off", "daily", "weekly"],
+        index=["off", "daily", "weekly"].index(normalize_auto_scan(settings.get("auto_scan", "off"))),
         format_func=lambda x: {
             "off": t("settings.auto_scan_off", settings["language"]),
-            "hourly": t("settings.auto_scan_hourly", settings["language"]),
             "daily": t("settings.auto_scan_daily", settings["language"]),
+            "weekly": t("settings.auto_scan_weekly", settings["language"]),
         }.get(x, x),
     )
 

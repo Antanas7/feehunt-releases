@@ -1,5 +1,5 @@
 #define MyAppName "FeeHunt"
-#define MyAppVersion "1.12.3"
+#define MyAppVersion "1.12.4"
 #define MyAppPublisher "FeeHunt"
 #define MyAppURL "https://feehunt.pro"
 #define MyAppExeName "FeeHunt.exe"
@@ -16,7 +16,7 @@ DefaultDirName={autopf}\FeeHunt
 DefaultGroupName=FeeHunt
 DisableProgramGroupPage=yes
 OutputDir=dist_installer
-OutputBaseFilename=FeeHunt-Setup-v1.12.3
+OutputBaseFilename=FeeHunt-Setup-v1.12.4
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -31,11 +31,11 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 CloseApplications=yes
 CloseApplicationsFilter=*.exe,*.dll
 RestartApplications=yes
-VersionInfoVersion=1.12.3.0
+VersionInfoVersion=1.12.4.0
 VersionInfoCompany=FeeHunt
 VersionInfoDescription=FeeHunt Setup Installer
 VersionInfoProductName=FeeHunt
-VersionInfoProductVersion=1.12.3
+VersionInfoProductVersion=1.12.4
 #ifexist "icon.ico"
 SetupIconFile=icon.ico
 #endif
@@ -44,7 +44,7 @@ SetupIconFile=icon.ico
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "dist_v1123\FeeHunt\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "token.json,last_scan_results.json,feehunt_settings.json,feehunt_rules.json,feehunt_memory.json,feehunt_license.json,feehunt_session.json,.env,.env.txt"
+Source: "dist_v1124\FeeHunt\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "token.json,last_scan_results.json,feehunt_settings.json,feehunt_rules.json,feehunt_memory.json,feehunt_license.json,feehunt_session.json,.env,.env.txt"
 
 [Icons]
 Name: "{group}\FeeHunt"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"

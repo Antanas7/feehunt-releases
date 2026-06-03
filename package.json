@@ -1,6 +1,6 @@
 {
   "name": "feehunt",
-  "version": "1.12.3",
+  "version": "1.12.4",
   "private": true,
   "description": "FeeHunt website and licensing server",
   "type": "module",
