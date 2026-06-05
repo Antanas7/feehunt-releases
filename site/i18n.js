@@ -40,7 +40,10 @@ const FH_I18N = {
       features: [["Hidden Subscription Detection", "Identify recurring payments, renewals, invoices, trials, and billing messages that are easy to overlook."], ["Payment Control Alerts", "Highlight failed payments, declined cards, overdue invoices, account pauses, and suspended subscription warnings."], ["Unsubscribe and Cancel Tools", "Open the best available unsubscribe, billing, account, or cancellation page without changing Gmail automatically."], ["Gmail Cleanup and Inbox Cleaner", "Review promotional emails, newsletters, shop messages, and inbox clutter with practical cleanup actions."], ["Phishing Email Detection Signals", "Future versions will help flag suspicious billing, login, and phishing-style email patterns in your inbox."]],
       pricingHeading: ["Pricing preview", "Simple monthly plans with a 7-day free trial."],
       plans: [["Basic", "For one Gmail account.", ["1 Gmail account", "1 license key", "7-day free trial", "Cancel anytime"], "Choose Basic"], ["Family", "For up to three Gmail accounts.", ["Up to 3 Gmail accounts", "1 license key", "7-day free trial", "Cancel anytime"], "Choose Family"]],
+      pricePeriod: "/month",
       pricingNotice: "No hidden fees. Cancel anytime with one click.",
+      faqHeading: ["FAQ", "Questions about hidden subscriptions and Gmail cleanup."],
+      faq: [["Can FeeHunt find hidden subscriptions in Gmail?", "FeeHunt looks for subscription emails, renewal notices, invoices, trial reminders, and recurring payment signals so you can review forgotten services before they cost you more."], ["Does FeeHunt work as a Gmail cleanup tool?", "Yes. FeeHunt helps you review newsletters, promotional emails, shop messages, and other inbox clutter. It keeps Gmail-changing actions under your control."], ["Can FeeHunt warn about financial risk emails?", "FeeHunt highlights failed payment messages, overdue invoices, declined card notices, paused subscriptions, and other billing emails that may need attention."], ["Is FeeHunt private?", "FeeHunt is designed for privacy-first local analysis. Gmail review happens on your computer, and FeeHunt asks before actions that archive, delete, or change messages."], ["Does FeeHunt detect phishing emails?", "FeeHunt focuses on subscription and billing signals today. Security-oriented detection for suspicious payment, login, and phishing-style emails is part of the product direction."]],
       start: ["Start now", "Start your free trial and take control of your subscriptions and inbox.", "Start Free Trial", "Download FeeHunt"],
     },
     pricing: {
@@ -48,6 +51,7 @@ const FH_I18N = {
       description: "Simple FeeHunt pricing with Basic and Family plans.",
       hero: ["Pricing", "Simple Pricing for a Cleaner Inbox and Fewer Forgotten Subscriptions.", "Start with a 7-day free trial. Choose the plan that matches how many Gmail accounts you want to connect. Cancel anytime.", "You stay in control: start with a trial, review the plan, and cancel before public billing enforcement begins.", "Start Free Trial", "Upgrade Plan"],
       plans: [["Basic Plan", "Best for individuals who want to review one Gmail account and reduce recurring subscription waste.", ["7-day free trial", "1 Gmail account", "1 license key", "Subscription detection", "Payment control alerts", "Promotional inbox cleanup", "Local processing", "Cancel anytime"], "Start Basic Trial", "Manage / Cancel Plan"], ["Family Plan", "Best for households, couples, and families who want to manage multiple Gmail accounts under one license.", ["7-day free trial", "Up to 3 Gmail accounts", "1 license key", "Subscription detection", "Payment control alerts", "Promotional inbox cleanup", "Local processing", "Cancel anytime"], "Start Family Trial", "Manage / Cancel Plan"]],
+      pricePeriod: "/month",
       faqHeading: ["Billing FAQ", "Honest pricing, clear cancellation."],
       faq: [["Is there a free trial?", "Yes. Both Basic and Family plans include a 7-day free trial."], ["When will I be charged?", "After the 7-day trial ends, your selected plan becomes active unless you cancel before the trial ends."], ["Can I cancel anytime?", "Yes. FeeHunt provides a clear subscription management path through Stripe Billing Portal."], ["Are there hidden fees?", "No. FeeHunt uses simple monthly pricing with no hidden fees."], ["Can I change plans later?", "Yes. Plan upgrades and billing self-service are handled through the customer portal."]],
     },
@@ -634,14 +638,18 @@ const FH_FINAL_TRANSLATION_PATCHES = {
       features: [["Prenumeratų aptikimas", "Aptinka pasikartojančius mokėjimus, atnaujinimus, sąskaitas ir bandymus."], ["Mokėjimų kontrolė", "Pažymi nepavykusius mokėjimus, atmestas korteles ir sustabdytas paskyras."], ["Prenumeratos atšaukimas", "Atidaro tinkamiausią atsisakymo, paskyros ar apmokėjimo puslapį."], ["Pašto tvarkymas", "Padeda peržiūrėti reklaminius laiškus, naujienlaiškius ir parduotuvių žinutes."], ["Saugumo skydas", "Ateities versijos padės aptikti sukčiavimo rizikas."]],
       pricingHeading: ["Kainų peržiūra", "Paprasti mėnesiniai planai su 7 dienų bandymu."],
       plans: [["Basic", "Vienai Gmail paskyrai.", ["1 Gmail paskyra", "1 licencijos raktas", "7 dienų bandymas", "Galima atšaukti bet kada"], "Pasirinkti Basic"], ["Family", "Iki trijų Gmail paskyrų.", ["Iki 3 Gmail paskyrų", "1 licencijos raktas", "7 dienų bandymas", "Galima atšaukti bet kada"], "Pasirinkti Family"]],
+      pricePeriod: "/mėn.",
       pricingNotice: "Jokių paslėptų mokesčių. Atšaukti galima bet kada.",
+      faqHeading: ["DUK", "Klausimai apie paslėptas prenumeratas ir Gmail tvarkymą."],
+      faq: [["Ar FeeHunt gali rasti paslėptas prenumeratas Gmail?", "FeeHunt ieško prenumeratų laiškų, atnaujinimo pranešimų, sąskaitų, bandomųjų laikotarpių priminimų ir pasikartojančių mokėjimų signalų, kad galėtumėte peržiūrėti pamirštas paslaugas prieš joms kainuojant daugiau."], ["Ar FeeHunt veikia kaip Gmail tvarkymo įrankis?", "Taip. FeeHunt padeda peržiūrėti naujienlaiškius, reklaminius laiškus, parduotuvių žinutes ir kitą pašto triukšmą. Gmail keičiantys veiksmai lieka jūsų kontrolėje."], ["Ar FeeHunt gali įspėti apie finansinės rizikos laiškus?", "FeeHunt paryškina nepavykusių mokėjimų laiškus, vėluojančias sąskaitas, atmestų kortelių pranešimus, pristabdytas prenumeratas ir kitus atsiskaitymo laiškus, kuriems gali reikėti dėmesio."], ["Ar FeeHunt privatus?", "FeeHunt sukurtas privatumą saugančiai vietinei analizei. Gmail peržiūra vyksta jūsų kompiuteryje, o FeeHunt klausia prieš veiksmus, kurie archyvuoja, ištrina ar pakeičia laiškus."], ["Ar FeeHunt aptinka sukčiavimo laiškus?", "Šiuo metu FeeHunt daugiausia dėmesio skiria prenumeratų ir atsiskaitymo signalams. Įtartinų mokėjimo, prisijungimo ir sukčiavimo tipo laiškų aptikimas yra produkto krypties dalis."]],
       start: ["Pradėkite dabar", "Pradėkite bandymą ir susigrąžinkite prenumeratų bei pašto kontrolę.", "Pradėti nemokamą bandymą", "Atsisiųsti Beta"],
     },
     pricing: {
       title: "Kainodara | FeeHunt",
       description: "Paprasta FeeHunt kainodara su Basic ir Family planais.",
       hero: ["Kainodara", "Paprasta kaina švaresnei pašto dėžutei ir mažiau pamirštų prenumeratų.", "Pradėkite nuo 7 dienų bandymo. Pasirinkite planą pagal Gmail paskyrų skaičių. Atšaukti galite bet kada.", "Kontrolė lieka jums: pradėkite nuo bandymo, peržiūrėkite planą ir atšaukite prieš mokamą laikotarpį.", "Pradėti bandymą", "Atnaujinti planą"],
-      plans: [["Basic planas", "Tinka vienam žmogui, norinčiam peržiūrėti vieną Gmail paskyrą.", ["7 dienų bandymas", "1 Gmail paskyra", "1 licencijos raktas", "Prenumeratų aptikimas", "Mokėjimų kontrolė", "Reklaminio pašto tvarkymas", "Vietinis apdorojimas", "Galima atšaukti bet kada"], "Pradėti Basic bandymą", "Valdyti / atšaukti planą"], ["Family planas", "Tinka šeimai ar kelioms Gmail paskyroms su viena licencija.", ["7 dienų bandymas", "Iki 3 Gmail paskyrų", "1 licencijos raktas", "Prenumeratų aptikimas", "Mokėjimų kontrolė", "Reklaminio pašto tvarkymas", "Vietinis apdorojimas", "Galima atšaukti bet kada"], "Pradėti Family bandymą", "Valdyti / atšaukti planą"]],
+      plans: [["Basic planas", "Tinka vienam žmogui, norinčiam peržiūrėti vieną Gmail paskyrą.", ["7 dienų bandymas", "1 Gmail paskyra", "1 licencijos raktas", "Prenumeratų aptikimas", "Mokėjimų kontrolė", "Reklaminio pašto tvarkymas", "Vietinis apdorojimas", "Galima atšaukti bet kada"], "Pradėti Basic bandymą", "Valdyti prenumeratą"], ["Family planas", "Tinka šeimai arba kelioms Gmail paskyroms su vienu licencijos raktu.", ["7 dienų bandymas", "Iki 3 Gmail paskyrų", "1 licencijos raktas", "Prenumeratų aptikimas", "Mokėjimų kontrolė", "Reklaminio pašto tvarkymas", "Vietinis apdorojimas", "Galima atšaukti bet kada"], "Pradėti Family bandymą", "Valdyti prenumeratą"]],
+      pricePeriod: "/mėn.",
       faqHeading: ["Atsiskaitymo DUK", "Aiški kaina ir aiškus atšaukimas."],
       faq: [["Ar yra nemokamas bandymas?", "Taip. Basic ir Family planai turi 7 dienų bandymą."], ["Kada būsiu apmokestintas?", "Po 7 dienų bandymo pasirinktas planas taps aktyvus, nebent atšauksite prieš pabaigą."], ["Ar galiu atšaukti bet kada?", "Taip. Prenumerata valdoma per Stripe Billing Portal."], ["Ar yra paslėptų mokesčių?", "Ne. FeeHunt naudoja paprastą mėnesinę kainodarą."], ["Ar galėsiu keisti planą?", "Taip. Plano keitimas ir atsiskaitymo savitarna vyksta klientų portale."]],
     },
@@ -995,8 +1003,20 @@ function applyHome(text) {
       setTextFrom(card, "p:not(.plan-action)", plan[1]);
       setList(card.querySelector(".list"), plan[2]);
       setTextFrom(card, ".plan-action .button", plan[3]);
+      setPriceFrom(card, index, home.pricePeriod || "/month");
     });
     setTextFrom(pricingSection, ".notice", home.pricingNotice);
+  }
+  const faqSection = document.querySelectorAll("main > .section")[3];
+  if (faqSection && home.faqHeading && home.faq) {
+    setTextFrom(faqSection, ".section-heading .eyebrow", home.faqHeading[0]);
+    setTextFrom(faqSection, ".section-heading h2", home.faqHeading[1]);
+    faqSection.querySelectorAll(".faq-item").forEach((item, index) => {
+      const faq = home.faq[index];
+      if (!faq) return;
+      setTextFrom(item, "h3", faq[0]);
+      setTextFrom(item, "p", faq[1]);
+    });
   }
   const startSection = document.querySelectorAll("main > .section.band")[1];
   if (startSection) {
@@ -1043,6 +1063,21 @@ function setAllFrom(root, selector, values) {
   });
 }
 
+function setPriceFrom(root, index, period) {
+  const price = root.querySelector(".price");
+  if (!price) return;
+  const amounts = ["\u20ac5.90", "\u20ac9.90"];
+  const amount = amounts[index];
+  if (!amount) return;
+  const periodStyle = "font-size:1rem;font-weight:700;";
+  price.innerHTML = "";
+  price.append(document.createTextNode(amount));
+  const periodElement = document.createElement("span");
+  periodElement.style.cssText = periodStyle;
+  periodElement.textContent = period;
+  price.append(periodElement);
+}
+
 function applyPricing(text) {
   const page = text.pricing;
   if (!page) return;
@@ -1061,6 +1096,7 @@ function applyPricing(text) {
     setList(card.querySelector(".list"), plan[2]);
     setTextFrom(card, ".plan-action .button", plan[3]);
     setTextFrom(card, ".button.secondary", plan[4]);
+    setPriceFrom(card, index, page.pricePeriod || "/month");
   });
   setText(".section.band .section-heading .eyebrow", page.faqHeading[0]);
   setText(".section.band .section-heading h2", page.faqHeading[1]);
