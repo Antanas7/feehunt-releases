@@ -1,5 +1,12 @@
 #define MyAppName "FeeHunt"
-#define MyAppVersion "1.12.4"
+; MyAppVersion ir SourceDir gali ateiti is komandines eilutes (ISCC /D...),
+; pvz. build_release.bat. Jei nepaduota, naudojamos numatytos reiksmes zemiau.
+#ifndef MyAppVersion
+  #define MyAppVersion "1.12.5"
+#endif
+#ifndef SourceDir
+  #define SourceDir "dist_v1125\FeeHunt"
+#endif
 #define MyAppPublisher "FeeHunt"
 #define MyAppURL "https://feehunt.pro"
 #define MyAppExeName "FeeHunt.exe"
@@ -16,7 +23,7 @@ DefaultDirName={autopf}\FeeHunt
 DefaultGroupName=FeeHunt
 DisableProgramGroupPage=yes
 OutputDir=dist_installer
-OutputBaseFilename=FeeHunt-Setup-v1.12.4
+OutputBaseFilename=FeeHunt-Setup-v{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -31,11 +38,11 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 CloseApplications=yes
 CloseApplicationsFilter=*.exe,*.dll
 RestartApplications=yes
-VersionInfoVersion=1.12.4.0
+VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany=FeeHunt
 VersionInfoDescription=FeeHunt Setup Installer
 VersionInfoProductName=FeeHunt
-VersionInfoProductVersion=1.12.4
+VersionInfoProductVersion={#MyAppVersion}
 #ifexist "icon.ico"
 SetupIconFile=icon.ico
 #endif
@@ -44,7 +51,7 @@ SetupIconFile=icon.ico
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "dist_v1124\FeeHunt\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "token.json,last_scan_results.json,feehunt_settings.json,feehunt_rules.json,feehunt_memory.json,feehunt_license.json,feehunt_session.json,.env,.env.txt"
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "token.json,last_scan_results.json,feehunt_settings.json,feehunt_rules.json,feehunt_memory.json,feehunt_license.json,feehunt_session.json,.env,.env.txt"
 
 [Icons]
 Name: "{group}\FeeHunt"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"

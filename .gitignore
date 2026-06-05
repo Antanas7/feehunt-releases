@@ -37,3 +37,9 @@ build_hotfix/
 build_rebuilt/
 reference/
 .claude/
+
+# Versioned PyInstaller build artifacts (created by build_release.bat)
+dist_v*/
+build_v*/
+dist_current/
+build_current/
