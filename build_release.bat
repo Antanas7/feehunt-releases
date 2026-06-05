@@ -27,7 +27,10 @@ if "%~1"=="" (
 set "VERSION=%~1"
 set "COMPACT=%VERSION:.=%"
 set "SRCDIR=dist_v%COMPACT%\FeeHunt"
+REM Inno Setup ISCC.exe: try common install locations (per-user and machine-wide)
 set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC%" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC%" set "ISCC=C:\Program Files\Inno Setup 6\ISCC.exe"
 
 echo.
 echo === FeeHunt release build v%VERSION% ===
@@ -51,8 +54,11 @@ if exist "build\FeeHunt" rmdir /s /q "build\FeeHunt"
 if exist "dist\FeeHunt" rmdir /s /q "dist\FeeHunt"
 
 REM --- 3. PyInstaller rebuild ---
-echo [3/5] Running PyInstaller (this can take a few minutes)...
-pyinstaller FeeHunt.spec --noconfirm
+REM Prefer the project virtualenv; fall back to PATH.
+set "PYINSTALLER=pyinstaller"
+if exist ".venv\Scripts\pyinstaller.exe" set "PYINSTALLER=.venv\Scripts\pyinstaller.exe"
+echo [3/5] Running PyInstaller via "%PYINSTALLER%" (this can take a few minutes)...
+"%PYINSTALLER%" FeeHunt.spec --noconfirm
 if errorlevel 1 ( echo ERROR: PyInstaller failed & exit /b 1 )
 if not exist "dist\FeeHunt\FeeHunt.exe" ( echo ERROR: dist\FeeHunt\FeeHunt.exe not found after build & exit /b 1 )
 
