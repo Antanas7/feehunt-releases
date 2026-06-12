@@ -1617,10 +1617,17 @@ def load_json_file(path: Path, default: Any = None) -> Any:
 
 
 def save_json_file(path: Path, data: Any) -> bool:
+    # Write atomically (temp file + os.replace) so a concurrent reader — e.g. the
+    # scan subprocess reading the rules file while the UI saves it — never sees a
+    # half-written file. os.replace is an atomic rename on Windows and POSIX.
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as file:
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        with open(tmp_path, "w", encoding="utf-8") as file:
             json.dump(data, file, ensure_ascii=False, indent=2)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(tmp_path, path)
         return True
     except Exception:
         return False

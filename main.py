@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -125,9 +126,18 @@ def get_header(headers: list[dict], name: str) -> str:
 
 
 def save_scan_results(data: dict[str, Any]) -> None:
+    # Write atomically: the scan runs in a separate process while the UI polls
+    # and reads this same file. Writing in place would let the UI catch a
+    # half-written file and fail to parse it. Write to a temp file in the same
+    # directory, then os.replace() — an atomic rename on Windows and POSIX — so
+    # a reader only ever sees the old complete file or the new complete file.
     RESULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(RESULTS_FILE, "w", encoding="utf-8") as file:
+    tmp_path = RESULTS_FILE.with_suffix(RESULTS_FILE.suffix + ".tmp")
+    with open(tmp_path, "w", encoding="utf-8") as file:
         json.dump(data, file, ensure_ascii=False, indent=2)
+        file.flush()
+        os.fsync(file.fileno())
+    os.replace(tmp_path, RESULTS_FILE)
 
 
 def list_messages(service, *, query: str | None = None, limit: int = MAX_EMAILS_TO_SCAN) -> list[dict[str, str]]:
