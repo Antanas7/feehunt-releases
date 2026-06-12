@@ -4889,6 +4889,14 @@ def show_dashboard_hero_action_layer(apply_after: bool, license_gate: dict[str, 
             t("scan.capped_note", lang).format(count=scan_data.get("emails_scanned", 0))
         )
 
+    # Some messages couldn't be read (a transient Gmail/connection hiccup that
+    # survived retries). Tell the user plainly and nudge a rescan, rather than
+    # quietly implying every message was analysed.
+    if scan_data and scan_data.get("emails_failed") and not is_preview_mode():
+        st.caption(
+            t("scan.failed_note", lang).format(count=scan_data.get("emails_failed", 0))
+        )
+
     # Compact rescan button sits directly BELOW the hero card, right-aligned,
     # on the light page background so it's clearly visible (the area ABOVE
     # the hero is dark and clipped). Only render after the first scan — before

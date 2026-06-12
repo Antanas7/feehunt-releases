@@ -18,6 +18,7 @@ required_datas = [
     ("phishing_detector.py", "."),
     ("gmail_auth.py", "."),
     ("gmail_actions.py", "."),
+    ("gmail_retry.py", "."),
     ("licensing.py", "."),
     ("local_memory.py", "."),
     ("subscription_actions.py", "."),

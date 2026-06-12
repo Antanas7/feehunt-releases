@@ -33,6 +33,7 @@ from gmail_auth import (
     get_connected_email,
 )
 from licensing import register_gmail_account
+from gmail_retry import execute_with_retry
 
 
 RESULTS_FILE = LAST_SCAN_RESULTS_FILE
@@ -143,7 +144,10 @@ def list_messages(service, *, query: str | None = None, limit: int = MAX_EMAILS_
         if page_token:
             request["pageToken"] = page_token
 
-        response = service.users().messages().list(**request).execute()
+        response = execute_with_retry(
+            service.users().messages().list(**request),
+            description="Listing your Gmail messages",
+        )
         messages.extend(response.get("messages", []))
         page_token = response.get("nextPageToken")
         if not page_token:
@@ -195,7 +199,10 @@ def format_critical_error(error: Exception) -> str:
 
 def get_gmail_service():
     service = get_authorized_gmail_service()
-    profile = service.users().getProfile(userId="me").execute()
+    profile = execute_with_retry(
+        service.users().getProfile(userId="me"),
+        description="Connecting to your Gmail account",
+    )
     email_address = profile.get("emailAddress", "")
     save_connected_email(email_address)
     save_account_token(email_address)
@@ -262,14 +269,21 @@ def scan_gmail() -> dict[str, Any]:
     promotional_emails = []
     shop_emails = []
     newsletter_emails = []
+    # Count messages we couldn't fetch/parse so the UI can be honest about
+    # coverage ("scanned 195, 5 could not be read") instead of silently
+    # implying every message was analysed.
+    failed_count = 0
 
     for index, message in enumerate(messages, start=1):
         try:
-            msg = service.users().messages().get(
-                userId="me",
-                id=message["id"],
-                format="full",
-            ).execute()
+            msg = execute_with_retry(
+                service.users().messages().get(
+                    userId="me",
+                    id=message["id"],
+                    format="full",
+                ),
+                description="Reading a Gmail message",
+            )
 
             payload = msg.get("payload", {})
             headers = payload.get("headers", [])
@@ -396,7 +410,14 @@ def scan_gmail() -> dict[str, Any]:
             )
 
         except Exception as error:
+            failed_count += 1
             safe_print(f"Klaida apdorojant laišką {message.get('id', 'unknown')}: {error}")
+            # Keep the progress bar moving even when a message fails, so the UI
+            # never looks frozen on a flaky message.
+            safe_print(
+                f"PROGRESS:{index}/{total}:(praleista)",
+                flush=True,
+            )
 
     subscription_count = len(subscriptions)
     subscription_and_risk_count = subscription_count + len(financial_risks)
@@ -411,6 +432,10 @@ def scan_gmail() -> dict[str, Any]:
         "account_email": get_connected_email(),
         "last_scan_at": datetime.now().isoformat(timespec="seconds"),
         "emails_scanned": total,
+        # Messages that could not be fetched/parsed (transient Gmail errors that
+        # survived retries, deleted messages, malformed payloads). 0 in the
+        # normal case; surfaced so the UI can be honest about coverage.
+        "emails_failed": failed_count,
         # When the inbox is larger than the scan cap we only reviewed the most
         # recent MAX_EMAILS_TO_SCAN messages — flag it so the UI can tell the
         # user instead of implying the whole inbox was covered.

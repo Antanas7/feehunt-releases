@@ -7,6 +7,7 @@ from gmail_auth import (
     save_account_token,
 )
 from licensing import register_gmail_account
+from gmail_retry import execute_with_retry
 
 
 # ============================================================
@@ -15,7 +16,10 @@ from licensing import register_gmail_account
 
 def get_gmail_service(*, force_reauth: bool = False):
     service = get_authorized_gmail_service(force_reauth=force_reauth)
-    profile = service.users().getProfile(userId=GMAIL_USER_ID).execute()
+    profile = execute_with_retry(
+        service.users().getProfile(userId=GMAIL_USER_ID),
+        description="Connecting to your Gmail account",
+    )
     email_address = profile.get("emailAddress", "")
     save_connected_email(email_address)
     save_account_token(email_address)
@@ -31,11 +35,14 @@ def get_gmail_service(*, force_reauth: bool = False):
 
 def modify_message(message_id: str, body: dict) -> dict:
     service = get_gmail_service()
-    return service.users().messages().modify(
-        userId=GMAIL_USER_ID,
-        id=message_id,
-        body=body,
-    ).execute()
+    return execute_with_retry(
+        service.users().messages().modify(
+            userId=GMAIL_USER_ID,
+            id=message_id,
+            body=body,
+        ),
+        description="Updating a Gmail message",
+    )
 
 
 # ============================================================
@@ -84,10 +91,13 @@ def unstar_email(message_id: str) -> dict:
 
 def delete_email(message_id: str) -> dict:
     service = get_gmail_service()
-    return service.users().messages().trash(
-        userId=GMAIL_USER_ID,
-        id=message_id,
-    ).execute()
+    return execute_with_retry(
+        service.users().messages().trash(
+            userId=GMAIL_USER_ID,
+            id=message_id,
+        ),
+        description="Moving a Gmail message to Trash",
+    )
 
 
 def _extract_blacklist_query_target(entry: str) -> str:
@@ -243,7 +253,10 @@ def apply_blacklist_to_gmail_directly(
                     }
                     if page_token:
                         request["pageToken"] = page_token
-                    response = service.users().messages().list(**request).execute()
+                    response = execute_with_retry(
+                        service.users().messages().list(**request),
+                        description="Searching Gmail for a sender",
+                    )
                     for msg in response.get("messages", []) or []:
                         mid = msg["id"]
                         if mid not in seen_ids:
@@ -267,10 +280,13 @@ def apply_blacklist_to_gmail_directly(
         else:
             for mid in message_ids:
                 try:
-                    service.users().messages().trash(
-                        userId=GMAIL_USER_ID,
-                        id=mid,
-                    ).execute()
+                    execute_with_retry(
+                        service.users().messages().trash(
+                            userId=GMAIL_USER_ID,
+                            id=mid,
+                        ),
+                        description="Moving a Gmail message to Trash",
+                    )
                     trashed_for_sender.append({"message_id": mid, "sender_rule": sender})
                 except Exception as error:
                     summary["errors"].append(
@@ -292,10 +308,13 @@ def delete_emails(message_ids: list[str]) -> dict:
         if not message_id:
             continue
         try:
-            service.users().messages().trash(
-                userId=GMAIL_USER_ID,
-                id=message_id,
-            ).execute()
+            execute_with_retry(
+                service.users().messages().trash(
+                    userId=GMAIL_USER_ID,
+                    id=message_id,
+                ),
+                description="Moving a Gmail message to Trash",
+            )
             changed.append(message_id)
         except Exception as error:
             errors.append({"message_id": message_id, "error": str(error)})
@@ -305,10 +324,13 @@ def delete_emails(message_ids: list[str]) -> dict:
 
 def restore_trashed_email(message_id: str) -> dict:
     service = get_gmail_service()
-    return service.users().messages().untrash(
-        userId=GMAIL_USER_ID,
-        id=message_id,
-    ).execute()
+    return execute_with_retry(
+        service.users().messages().untrash(
+            userId=GMAIL_USER_ID,
+            id=message_id,
+        ),
+        description="Restoring a Gmail message from Trash",
+    )
 
 
 # ============================================================
@@ -317,20 +339,26 @@ def restore_trashed_email(message_id: str) -> dict:
 
 def get_message_metadata(message_id: str) -> dict:
     service = get_gmail_service()
-    return service.users().messages().get(
-        userId=GMAIL_USER_ID,
-        id=message_id,
-        format="metadata",
-    ).execute()
+    return execute_with_retry(
+        service.users().messages().get(
+            userId=GMAIL_USER_ID,
+            id=message_id,
+            format="metadata",
+        ),
+        description="Reading a Gmail message",
+    )
 
 
 def get_message_full(message_id: str) -> dict:
     service = get_gmail_service()
-    return service.users().messages().get(
-        userId=GMAIL_USER_ID,
-        id=message_id,
-        format="full",
-    ).execute()
+    return execute_with_retry(
+        service.users().messages().get(
+            userId=GMAIL_USER_ID,
+            id=message_id,
+            format="full",
+        ),
+        description="Reading a Gmail message",
+    )
 
 
 # ============================================================
@@ -376,12 +404,15 @@ def extract_unsubscribe_url(header_value: str) -> str | None:
 def get_unsubscribe_link(message_id: str, *, include_browser_unfriendly: bool = False) -> str | None:
     service = get_gmail_service()
 
-    message = service.users().messages().get(
-        userId=GMAIL_USER_ID,
-        id=message_id,
-        format="metadata",
-        metadataHeaders=["List-Unsubscribe"],
-    ).execute()
+    message = execute_with_retry(
+        service.users().messages().get(
+            userId=GMAIL_USER_ID,
+            id=message_id,
+            format="metadata",
+            metadataHeaders=["List-Unsubscribe"],
+        ),
+        description="Reading a Gmail message",
+    )
 
     headers = message.get("payload", {}).get("headers", [])
 
