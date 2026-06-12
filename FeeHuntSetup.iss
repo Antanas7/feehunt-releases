@@ -2,10 +2,10 @@
 ; MyAppVersion ir SourceDir gali ateiti is komandines eilutes (ISCC /D...),
 ; pvz. build_release.bat. Jei nepaduota, naudojamos numatytos reiksmes zemiau.
 #ifndef MyAppVersion
-  #define MyAppVersion "1.12.5"
+  #define MyAppVersion "1.12.6"
 #endif
 #ifndef SourceDir
-  #define SourceDir "dist_v1125\FeeHunt"
+  #define SourceDir "dist_v1126\FeeHunt"
 #endif
 #define MyAppPublisher "FeeHunt"
 #define MyAppURL "https://feehunt.pro"
