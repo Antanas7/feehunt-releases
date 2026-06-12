@@ -68,11 +68,14 @@ LICENSING_API_BASE_URL = os.environ.get("FEEHUNT_API_BASE_URL", "https://feehunt
 # Tester accounts: when one of these Gmail addresses is the connected inbox, the
 # trial scan-quota and trial-date limits are lifted locally (in memory only, never
 # written to disk) so the maker can test repeatedly without burning scan credits.
-# Comma-separated emails in FEEHUNT_TESTER_EMAILS are merged in at runtime.
-TESTER_EMAILS = {
-    "lofotendreamss@gmail.com",
-    "rasyte7777a@gmail.com",
-}
+#
+# The built-in set is intentionally EMPTY: no personal email is baked into the
+# public .exe (a privacy/license-bypass risk if shipped). Tester mode is opted
+# into per-machine, neither of which is part of the distributed build:
+#   - the FEEHUNT_TESTER_EMAILS env var (comma-separated), or
+#   - a local plain-text file at TESTER_EMAILS_FILE, one email per line.
+TESTER_EMAILS: set[str] = set()
+TESTER_EMAILS_FILE = USER_DATA_DIR / "feehunt_testers.txt"
 
 
 # ============================================================

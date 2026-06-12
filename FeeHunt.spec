@@ -19,6 +19,7 @@ required_datas = [
     ("gmail_auth.py", "."),
     ("gmail_actions.py", "."),
     ("gmail_retry.py", "."),
+    ("secure_store.py", "."),
     ("licensing.py", "."),
     ("local_memory.py", "."),
     ("subscription_actions.py", "."),
@@ -43,6 +44,7 @@ for forbidden_file in (
     "feehunt_memory.json",
     "feehunt_license.json",
     "feehunt_session.json",
+    "feehunt_testers.txt",
 ):
     if any(Path(source).name == forbidden_file for source, _target in required_datas):
         raise RuntimeError(f"Do not package user data file: {forbidden_file}")

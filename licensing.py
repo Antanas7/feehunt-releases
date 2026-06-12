@@ -12,7 +12,7 @@ import urllib.request
 from datetime import datetime
 from typing import Any
 
-from config import LICENSE_FILE, LICENSING_API_BASE_URL, TESTER_EMAILS
+from config import LICENSE_FILE, LICENSING_API_BASE_URL, TESTER_EMAILS, TESTER_EMAILS_FILE
 from time_utils import days_until_local, now_utc, parse_datetime_utc
 
 
@@ -39,13 +39,23 @@ def _days_until(value: Any) -> int:
 
 
 def tester_emails() -> set[str]:
-    """All Gmail addresses treated as testers: the built-in config set plus any
-    listed in the FEEHUNT_TESTER_EMAILS env var (comma-separated)."""
+    """All Gmail addresses treated as testers, gathered per-machine so none are
+    baked into the shipped build: the (now empty) built-in config set, the
+    FEEHUNT_TESTER_EMAILS env var (comma-separated), and a local opt-in file at
+    TESTER_EMAILS_FILE (one email per line, '#' comments allowed)."""
     emails = {str(e).strip().lower() for e in (TESTER_EMAILS or set()) if str(e).strip()}
     for raw in (os.environ.get("FEEHUNT_TESTER_EMAILS") or "").split(","):
         email = raw.strip().lower()
         if email:
             emails.add(email)
+    try:
+        if TESTER_EMAILS_FILE.exists():
+            for line in TESTER_EMAILS_FILE.read_text(encoding="utf-8").splitlines():
+                email = line.split("#", 1)[0].strip().lower()
+                if email:
+                    emails.add(email)
+    except Exception:
+        pass
     return emails
 
 

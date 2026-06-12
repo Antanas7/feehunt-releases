@@ -12,6 +12,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from config import GMAIL_CREDENTIALS_FILE, GMAIL_SCOPES, GMAIL_TOKEN_FILE, GMAIL_USER_ID
+import secure_store
 
 
 FULL_GMAIL_SCOPE = "https://mail.google.com/"
@@ -76,8 +77,10 @@ def save_account_token(email: str) -> None:
         return
     try:
         ACCOUNTS_DIR.mkdir(parents=True, exist_ok=True)
-        token_text = GMAIL_TOKEN_FILE.read_text(encoding="utf-8")
-        (ACCOUNTS_DIR / _account_filename(address)).write_text(token_text, encoding="utf-8")
+        # Copy the encrypted token bytes verbatim — same Windows user, so the
+        # DPAPI ciphertext stays decryptable. Archived tokens are encrypted too.
+        token_bytes = GMAIL_TOKEN_FILE.read_bytes()
+        (ACCOUNTS_DIR / _account_filename(address)).write_bytes(token_bytes)
     except Exception:
         return
     index = _read_accounts_index()
@@ -107,7 +110,10 @@ def switch_account(email: str) -> bool:
         return False
     try:
         GMAIL_TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
-        GMAIL_TOKEN_FILE.write_text(token_path.read_text(encoding="utf-8"), encoding="utf-8")
+        # Restore the archived encrypted token bytes verbatim (see save_account_token).
+        tmp_path = GMAIL_TOKEN_FILE.with_suffix(GMAIL_TOKEN_FILE.suffix + ".tmp")
+        tmp_path.write_bytes(token_path.read_bytes())
+        tmp_path.replace(GMAIL_TOKEN_FILE)
     except Exception:
         return False
     save_connected_email(address)
@@ -224,7 +230,7 @@ def _token_data() -> dict[str, Any] | None:
     if not GMAIL_TOKEN_FILE.exists():
         return None
     try:
-        data = json.loads(GMAIL_TOKEN_FILE.read_text(encoding="utf-8"))
+        data = json.loads(secure_store.unseal(GMAIL_TOKEN_FILE.read_bytes()))
     except Exception:
         clear_gmail_token()
         return None
@@ -263,7 +269,9 @@ def _load_existing_credentials() -> Credentials | None:
         clear_gmail_token()
         return None
     try:
-        return Credentials.from_authorized_user_file(str(GMAIL_TOKEN_FILE), GMAIL_SCOPES)
+        # Build from the already-decrypted token dict (the file on disk is
+        # DPAPI-encrypted, so from_authorized_user_file can't read it directly).
+        return Credentials.from_authorized_user_info(data, GMAIL_SCOPES)
     except Exception:
         clear_gmail_token()
         return None
@@ -275,8 +283,13 @@ def has_saved_gmail_connection() -> bool:
 
 
 def _save_credentials(creds: Credentials) -> None:
+    # Encrypt the token at rest with DPAPI (per Windows user) and write
+    # atomically (temp + replace), so a reader never sees a half-written file
+    # and the access/refresh tokens never sit on disk as plain text.
     GMAIL_TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
-    GMAIL_TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
+    tmp_path = GMAIL_TOKEN_FILE.with_suffix(GMAIL_TOKEN_FILE.suffix + ".tmp")
+    tmp_path.write_bytes(secure_store.seal(creds.to_json()))
+    tmp_path.replace(GMAIL_TOKEN_FILE)
 
 
 def _run_oauth_flow() -> Credentials:
