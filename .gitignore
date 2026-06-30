@@ -26,6 +26,7 @@ feehunt_license.json
 .env
 .env.local
 .env.txt
+signing.local.ps1
 
 *.log
 .streamlit/secrets.toml

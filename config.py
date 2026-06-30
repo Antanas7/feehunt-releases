@@ -8,7 +8,7 @@ from pathlib import Path
 # ============================================================
 
 APP_NAME = "FeeHunt"
-APP_VERSION = "1.12.6"
+APP_VERSION = "1.12.7"
 APP_STAGE = "Smart Cleanup MVP"
 APP_TAGLINE = "Nebereikia bėgti nuo savo el. pašto. FeeHunt padeda susigrąžinti kontrolę."
 
