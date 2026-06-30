@@ -482,8 +482,8 @@ const FH_STATIC_PAGE_TRANSLATIONS = {
       },
       walk: {
         title: "What happens after you click download",
-        s1: { title: "A file will start downloading", body: "Your browser will save FeeHunt-Setup-v1.12.7.exe to your Downloads folder. It's a small file (~80 MB) and takes about 30 seconds on most connections." },
-        s2: { title: "Double-click the downloaded file", body: "Open your Downloads folder and double-click FeeHunt-Setup-v1.12.7.exe." },
+        s1: { title: "A file will start downloading", body: "Your browser will save FeeHunt-Setup-v1.12.6.exe to your Downloads folder. It's a small file (~80 MB) and takes about 30 seconds on most connections." },
+        s2: { title: "Double-click the downloaded file", body: "Open your Downloads folder and double-click FeeHunt-Setup-v1.12.6.exe." },
         s3: {
           title: "Windows will show a blue warning — this is normal",
           body: "What you'll see: A blue box titled \"Windows protected your PC\" with a small \"Don't run\" button. Windows may show this for a new or unsigned installer while it has limited download reputation. FeeHunt code signing is being prepared.",
@@ -687,8 +687,8 @@ const FH_FINAL_TRANSLATION_PATCHES = {
       },
       walk: {
         title: "Kas vyksta paspaudus atsisiųsti",
-        s1: { title: "Pradės siųstis failas", body: "Naršyklė išsaugos FeeHunt-Setup-v1.12.7.exe į jūsų Atsisiuntimų (Downloads) aplanką. Tai nedidelis failas (~80 MB), atsisiunčia per maždaug 30 sekundžių." },
-        s2: { title: "Du kartus spustelėkite atsisiųstą failą", body: "Atidarykite Atsisiuntimų aplanką ir dukart spustelėkite FeeHunt-Setup-v1.12.7.exe." },
+        s1: { title: "Pradės siųstis failas", body: "Naršyklė išsaugos FeeHunt-Setup-v1.12.6.exe į jūsų Atsisiuntimų (Downloads) aplanką. Tai nedidelis failas (~80 MB), atsisiunčia per maždaug 30 sekundžių." },
+        s2: { title: "Du kartus spustelėkite atsisiųstą failą", body: "Atidarykite Atsisiuntimų aplanką ir dukart spustelėkite FeeHunt-Setup-v1.12.6.exe." },
         s3: {
           title: "Windows parodys mėlyną įspėjimą — tai normalu",
           body: "Ką pamatysite: mėlyną langą pavadinimu „Windows protected your PC“ su mažu mygtuku „Don't run“. Windows gali jį parodyti naujam arba dar nepasirašytam diegikliui, kol failas turi mažai atsisiuntimo reputacijos. FeeHunt kodo pasirašymas ruošiamas.",
