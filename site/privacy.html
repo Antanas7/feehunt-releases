@@ -21,14 +21,14 @@
   <main>
     <section class="page-hero"><div class="container"><p class="eyebrow">Privacy Policy</p><h1>Privacy-first by design.</h1><p class="lead">FeeHunt is designed around local processing, minimal data collection, and user control.</p></div></section>
     <section class="section"><div class="container legal">
-      <p><strong>Last updated:</strong> 2026-06-16</p>
-      <p>This Privacy Policy is effective as of June 16, 2026.</p>
+      <p><strong>Last updated:</strong> 2026-07-01</p>
+      <p>This Privacy Policy is effective as of July 1, 2026.</p>
       <h2>Overview</h2><p>FeeHunt is designed as a privacy-first desktop application that helps users identify subscriptions, payment-control emails, promotional clutter, and future phishing-risk patterns.</p>
       <h2>Local Processing</h2><p>FeeHunt processes Gmail scan results locally on the user's computer. Email analysis, scan results, settings, and license metadata are designed to remain on the user's device unless a future feature clearly states otherwise.</p>
       <h2>Gmail Access</h2><p>FeeHunt uses OAuth-based Gmail access. Users authorize access through Google. FeeHunt does not ask for or store Gmail passwords. OAuth tokens may be stored locally so FeeHunt can connect to Gmail after authorization.</p>
       <h2>Google User Data</h2><p>FeeHunt accesses the following Google user data through Gmail OAuth:</p><ul><li>Gmail message metadata and content (read-only) to identify subscription-related emails, billing notices, and promotional clutter.</li><li>FeeHunt requests only the minimum OAuth scopes necessary: Gmail read access (https://www.googleapis.com/auth/gmail.readonly) and Gmail modify access for user-initiated actions (https://www.googleapis.com/auth/gmail.modify).</li></ul>
       <h2>Data Sharing and Disclosure</h2><p>FeeHunt does not share, transfer, sell, or disclose Google user data to any third parties. All Gmail analysis is performed locally on the user's device. No email content or metadata is transmitted to FeeHunt servers.</p>
-      <h2>Data Protection</h2><p>FeeHunt protects sensitive Google user data by:</p><ul><li>Processing all Gmail data locally on the user's device only</li><li>Never storing email content on external servers</li><li>Using OAuth tokens that the user can revoke at any time via Google Account settings</li><li>Not logging or transmitting any Gmail content or metadata externally</li></ul>
+      <h2>Data Protection and Security</h2><p>FeeHunt protects sensitive Google user data (your Gmail messages and metadata) using the following security mechanisms:</p><ul><li><strong>Encryption in transit:</strong> All communication with the Gmail API is performed over encrypted HTTPS/TLS connections.</li><li><strong>Encryption at rest:</strong> Your Gmail OAuth authorization token is stored on your device encrypted at rest using the operating system's native data-protection facility (Windows Data Protection API, DPAPI). The encrypted token is tied to your Windows user account, so other users or applications on the device cannot read it.</li><li><strong>Local-only processing:</strong> All Gmail analysis is performed locally on your device. Email content and metadata are never transmitted to, stored on, or processed by FeeHunt servers or any third party.</li><li><strong>Least-privilege access:</strong> FeeHunt requests only the minimum OAuth scopes required and accesses your Gmail data solely to perform the actions you initiate (scanning, and cleanup actions you explicitly approve).</li><li><strong>Retention and deletion:</strong> Scan results and settings remain on your device and can be deleted by you at any time by removing the local FeeHunt files. You can revoke FeeHunt's access to your Gmail at any time through your Google Account permissions, after which the stored token can no longer be used.</li></ul><p>FeeHunt's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
       <h2>Data Stored Locally</h2><ul><li>OAuth authorization token</li><li>Scan results</li><li>User settings</li><li>Cleanup preferences</li><li>Local license metadata</li></ul>
       <h2>Minimal Data Collection</h2><p>FeeHunt should collect only the minimum data required to operate, support licensing, improve reliability, and provide customer support.</p>
       <h2>No Selling User Data</h2><p>FeeHunt does not sell user data and should not sell, rent, or trade Gmail data, scan results, or personal account information.</p>
@@ -38,7 +38,7 @@
     </div></section>
   </main>
   <footer class="site-footer"><div class="footer-inner"><span>&copy; FeeHunt</span><div class="footer-links"><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms of Service</a><a href="contact.html">Contact</a></div></div></footer>
-  <script src="script.js?v=20260604-language-prices-v2"></script>
-  <script src="i18n.js?v=20260604-language-prices-v2"></script>
+  <script src="script.js?v=20260701-privacy-security"></script>
+  <script src="i18n.js?v=20260701-privacy-security"></script>
 </body>
 </html>
